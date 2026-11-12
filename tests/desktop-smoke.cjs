@@ -59,7 +59,10 @@ const { tmpdir } = require('node:os')
         return json({})
       }
     }, cookies)
-    await page.getByRole('button',{name:'Import YouTube cookies.txt',exact:true}).click({noWaitAfter:true})
+    await Promise.all([
+      page.waitForEvent('domcontentloaded',{timeout:15_000}),
+      page.getByRole('button',{name:'Import YouTube cookies.txt',exact:true}).click({noWaitAfter:true})
+    ])
     await page.getByText('Connected to your YouTube account',{exact:true}).waitFor({timeout:15_000})
     assert.equal((await page.evaluate(()=>window.api.getYoutubeAccount())).name,'Fixture YouTube account')
     assert.equal(await app.evaluate(()=>globalThis.__smokeAuthenticated),true)
