@@ -92,8 +92,10 @@ jobs:
           (cd installers/worldtube-ubuntu-latest && sha256sum -c SHA256SUMS.txt)
           (cd installers/worldtube-windows-latest && sha256sum -c SHA256SUMS.txt)
           for PLATFORM in ubuntu windows; do
-            SOURCE_COMMIT=$(gzip -dc "installers/worldtube-$PLATFORM-latest/WorldTube-source.tar.gz" | git get-tar-commit-id)
+            gzip -dc "installers/worldtube-$PLATFORM-latest/WorldTube-source.tar.gz" > "source-$PLATFORM.tar"
+            SOURCE_COMMIT=$(git get-tar-commit-id < "source-$PLATFORM.tar")
             test "$SOURCE_COMMIT" = "$GITHUB_SHA"
+            rm "source-$PLATFORM.tar"
           done
           mkdir staged
           cp installers/worldtube-ubuntu-latest/*.AppImage installers/worldtube-ubuntu-latest/*.deb installers/worldtube-ubuntu-latest/latest-linux.yml staged/
