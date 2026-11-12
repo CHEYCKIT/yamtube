@@ -1,0 +1,57 @@
+name: Build fork installers
+
+on:
+  push:
+    branches: [youtube-accounts-adblock]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --global corepack --force
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: node node_modules/electron/install.js
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Desktop integration tests
+        if: runner.os == 'Linux'
+        run: xvfb-run -a pnpm test:desktop
+      - name: Package installers
+        run: pnpm package --x64
+      - name: Test packaged Linux application
+        if: runner.os == 'Linux'
+        run: xvfb-run -a pnpm test:desktop
+        env:
+          WORLDTUBE_SMOKE_APP: release/linux-unpacked/worldtube
+      - name: Include source and checksums
+        shell: bash
+        run: |
+          git archive --format=tar.gz --prefix=WorldTube-source/ HEAD -o release/WorldTube-source.tar.gz
+          cd release
+          sha256sum *.AppImage *.deb *.exe WorldTube-source.tar.gz > SHA256SUMS.txt 2>/dev/null || test -s SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: worldtube-${{ matrix.os }}
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.exe
+            release/*source.tar.gz
+            release/SHA256SUMS.txt
+          if-no-files-found: error

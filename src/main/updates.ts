@@ -29,7 +29,7 @@ async function check(): Promise<UpdateState> {
 export function registerUpdates(): void {
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = false
-  autoUpdater.allowPrerelease = false
+  autoUpdater.allowPrerelease = app.getVersion().includes('-')
   autoUpdater.allowDowngrade = false
   autoUpdater.logger = console
   autoUpdater.on('checking-for-update', () => publish({ status: 'checking', error: undefined }))

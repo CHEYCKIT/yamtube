@@ -1,7 +1,7 @@
 # WorldTube
 
-A local-first YouTube desktop client with independent tabs, persistent players
-and a movable mini player. Not affiliated with Google or YouTube.
+A YouTube desktop client with Firefox sign-in, account recommendations and
+history, app-wide ad protection, independent tabs and persistent players. Not affiliated with Google or YouTube.
 
 [Spanish development notes](README.es.md)
 
@@ -11,11 +11,11 @@ Watch the short [WorldTube demo on YouTube](https://youtu.be/ccULEv3KD28).
 
 ## Installation
 
-Download installers from the [WorldTube download page](https://riberojuanca.github.io/worldtube/)
-or [GitHub Releases](https://github.com/riberojuanca/worldtube/releases).
+Download installers from the [WorldTube download page](https://github.com/CHEYCKIT/yamtube/releases)
+or [GitHub Releases](https://github.com/CHEYCKIT/yamtube/releases).
 Downloads become available only after a release is successfully published.
 
-Initial public release: [v0.0.3](https://github.com/riberojuanca/worldtube/releases/tag/v0.0.3),
+Initial public release: [v0.0.3](https://github.com/CHEYCKIT/yamtube/releases/tag/v0.0.3),
 with Windows x64 and Linux x64 installers plus corresponding source.
 
 The release configuration prepares Windows NSIS x64 and Linux AppImage/DEB x64.
@@ -31,8 +31,10 @@ and download location. macOS downloads remain unavailable until signed builds ex
 
 ## Features
 
-- Local users with optional passwords, local sessions and editable profiles.
-- Separate saved videos and playlists, subscriptions, history and search history.
+- Real YouTube session sign-in through Firefox, with guest browsing and no local login.
+- Account home recommendations, watch history and subscriptions.
+- App-wide EasyList/EasyPrivacy protection with bundled filters and automatic updates.
+- Local saved videos/playlists and search history, kept separately for each account.
 - Full local data export/import, including global volume and application settings.
 - Independent tabs with per-tab navigation and persistent playback sessions.
 - Draggable mini player that minimizes into a bottom playback bar and restores
@@ -53,6 +55,10 @@ YouTube is queried directly using the local extraction method. An Invidious
 fallback is not implemented or configured in WorldTube yet. External YouTube
 changes can require a compatibility update.
 
+See [YouTube accounts and protection](docs/YOUTUBE_ACCOUNTS.md) for sign-in steps,
+security/storage behavior, test coverage and beta limitations. The desktop shell
+still uses Electron/Chromium; blocking does not use Chrome extensions.
+
 ## Playback Shortcuts
 
 Space/K toggle playback; J/L seek 10 seconds; Left/Right seek 5 seconds;
@@ -66,12 +72,13 @@ Shortcuts respect text fields and act on the player represented in the interface
 ## Local Data
 
 `worldtube-data.json` is stored in Electron's user-data directory. Account exposes
-its path, data totals and full-data export/import. Profiles and library contents
+its path, data totals and full-data export/import. Local library contents
 are not uploaded to a WorldTube server or GitHub.
 
 Exports include local users, password hashes, the active session, profile photos,
 subscriptions, playlists, saved videos, history, search history and settings.
-Treat exported files as private. They do not include video downloads, temporary
+Treat exported files as private. YouTube session credentials are encrypted separately
+and never included in exports. They do not include video downloads, temporary
 playback tokens, build files or open tabs.
 
 ## Development
@@ -94,7 +101,7 @@ During collaborative iterations, builds, typechecks and automated test suites
 are run only when requested. Main/preload changes require restarting Electron;
 renderer HMR alone cannot update the desktop APIs.
 
-Stack: Electron, electron-vite, React, TypeScript, Tailwind, youtubei.js,
+Stack: Electron, electron-vite, React, TypeScript, Tailwind, @ghostery/adblocker, youtubei.js,
 bgutils-js, googlevideo, Shaka Player, electron-builder and electron-updater.
 
 ## Documentation

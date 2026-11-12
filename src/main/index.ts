@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { IPC_CHANNELS } from '../shared/ipc'
 import { translateFor } from '../shared/locale'
@@ -24,7 +25,11 @@ import type {
   VideoInfoRequest,
   VideoInfoResponse
 } from '../shared/ipc'
-import { fetchVideoInfo, getChannelInfo, getCollectionVideos, getHomeDiscovery, getSearchSuggestions, getSubscriptionsFeed, getVideoPreview, searchVideos } from './youtube'
+import { fetchVideoInfo, getChannelInfo, getCollectionVideos, getHomeDiscovery, getSearchSuggestions, getSubscriptionsFeed, getVideoPreview, searchVideos, playbackHistory, getYoutubeHistory, getYoutubeSubscriptionsFeed } from './youtube'
+import { initializeProtection, protectionState, updateProtection } from './adBlock'
+import { initializeYoutubeAccount, youtubeAccountState, connectYoutubeAccount, disconnectYoutubeAccount, hasYoutubeAccount, activateCurrentLibrary } from './youtubeAccount'
+import { signInWithFirefox, cancelFirefoxLogin, removeAbandonedLoginProfiles } from './firefoxLogin'
+import { parseNetscapeCookies } from './youtubeCookies'
 import { getChannelPage } from './channelBrowse'
 import type { ChannelPageRequest, ChannelPageResponse } from '../shared/ipc'
 import { clearHistory, getHistory } from './historyStore'
@@ -67,9 +72,47 @@ for (const stream of [process.stdout, process.stderr]) {
 
 // Keep the data directory identical in development and packaged installations.
 app.setName('worldtube')
+const primaryInstance = app.requestSingleInstanceLock()
+if (!primaryInstance) app.quit()
+app.on('second-instance', () => {
+  const window = BrowserWindow.getAllWindows().find((candidate) => candidate.isVisible())
+  if (window) { if (window.isMinimized()) window.restore(); window.focus() }
+})
 if (process.platform === 'linux') {
   app.setDesktopName(app.isPackaged ? 'com.riberojuanca.worldtube.desktop' : 'com.riberojuanca.worldtube.dev.desktop')
 }
+
+let accountOperation: Promise<unknown> | null = null
+function changeAccount<T>(operation: () => Promise<T>): Promise<T> {
+  if (accountOperation) return Promise.reject(new Error('Another account operation is in progress'))
+  const pending = operation().finally(() => { if (accountOperation === pending) accountOperation = null })
+  accountOperation = pending
+  return pending
+}
+
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_ACCOUNT_STATE, () => youtubeAccountState())
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_SIGN_IN, (event) => changeAccount(async () => {
+  const owner = BrowserWindow.fromWebContents(event.sender)
+  if (!owner) throw new Error('No app window')
+  return connectYoutubeAccount(await signInWithFirefox(owner))
+}))
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_SIGN_IN_CANCEL, () => cancelFirefoxLogin())
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_SIGN_OUT, () => changeAccount(disconnectYoutubeAccount))
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_IMPORT_COOKIES, (event) => changeAccount(async () => {
+  const owner = BrowserWindow.fromWebContents(event.sender)
+  if (!owner) throw new Error('No app window')
+  const selected = await dialog.showOpenDialog(owner, {
+    title: 'Import YouTube cookies (Netscape cookies.txt format)', properties: ['openFile'],
+    filters: [{ name: 'Netscape cookie file', extensions: ['txt'] }]
+  })
+  if (selected.canceled || !selected.filePaths[0]) return null
+  return connectYoutubeAccount(parseNetscapeCookies(await readFile(selected.filePaths[0], 'utf8')))
+}))
+ipcMain.handle(IPC_CHANNELS.PLAYBACK_PROGRESS, (_event, progress: import('../shared/ipc').PlaybackProgress) => playbackHistory.progress(progress))
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_HISTORY, () => getYoutubeHistory())
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_HISTORY_MORE, (_event, continuation: string) => getYoutubeHistory(continuation))
+ipcMain.handle(IPC_CHANNELS.PROTECTION_STATE, () => protectionState())
+ipcMain.handle(IPC_CHANNELS.PROTECTION_UPDATE, () => updateProtection())
 
 // This dev machine doesn't have the setuid chrome-sandbox helper configured
 // (needs root-owned 4755, which we won't set from here), so Chromium's native
@@ -88,7 +131,9 @@ function createWindow(): void {
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
 
@@ -137,6 +182,15 @@ function createWindow(): void {
     if (/^https?:\/\//i.test(details.url)) void shell.openExternal(details.url)
     return { action: 'deny' }
   })
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    // Reloading the trusted app document is required after account changes.
+    if (url.split('#')[0] === mainWindow.webContents.getURL().split('#')[0]) return
+    event.preventDefault()
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
+  })
+  mainWindow.webContents.session.setPermissionRequestHandler((_contents, _permission, respond) => respond(false))
+  mainWindow.webContents.session.setPermissionCheckHandler(() => false)
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -226,7 +280,8 @@ ipcMain.handle(IPC_CHANNELS.SESSION_LOGOUT, (): Promise<LocalSessionState> => lo
 ipcMain.handle(IPC_CHANNELS.SESSION_DELETE_USER, (_event, request: DeleteLocalUserRequest): Promise<LocalSessionState> => deleteLocalUser(request))
 
 ipcMain.handle(IPC_CHANNELS.DATA_EXPORT, async (event): Promise<string | null> => {
-  const ownerWindow = BrowserWindow.fromWebContents(event.sender) ?? undefined
+  const ownerWindow = BrowserWindow.fromWebContents(event.sender)
+  if (!ownerWindow) throw new Error('No app window')
   const result = await dialog.showSaveDialog(ownerWindow, {
     title: translateFor((await getAppPreferences()).language, 'Exportar datos de WorldTube'),
     defaultPath: 'worldtube-data.json',
@@ -238,7 +293,8 @@ ipcMain.handle(IPC_CHANNELS.DATA_EXPORT, async (event): Promise<string | null> =
 })
 
 ipcMain.handle(IPC_CHANNELS.DATA_IMPORT, async (event): Promise<LocalSessionState | null> => {
-  const ownerWindow = BrowserWindow.fromWebContents(event.sender) ?? undefined
+  const ownerWindow = BrowserWindow.fromWebContents(event.sender)
+  if (!ownerWindow) throw new Error('No app window')
   const result = await dialog.showOpenDialog(ownerWindow, {
     title: translateFor((await getAppPreferences()).language, 'Importar datos de WorldTube'),
     properties: ['openFile'],
@@ -246,7 +302,9 @@ ipcMain.handle(IPC_CHANNELS.DATA_IMPORT, async (event): Promise<LocalSessionStat
   })
   const [filePath] = result.filePaths
   if (result.canceled || !filePath) return null
-  return importLocalData(filePath)
+  await importLocalData(filePath)
+  await activateCurrentLibrary()
+  return getSessionState()
 })
 
 ipcMain.handle(IPC_CHANNELS.PROFILES_GET_STATE, (): Promise<ProfilesState> => getProfilesState())
@@ -271,8 +329,8 @@ ipcMain.handle(IPC_CHANNELS.SEARCH_HISTORY_RECORD, (_event, query: string) => re
 ipcMain.handle(IPC_CHANNELS.SUBSCRIPTIONS_LIST, () => listSubscriptions())
 ipcMain.handle(IPC_CHANNELS.SUBSCRIPTIONS_FEED, async (): Promise<SearchResponse> => {
   try {
-    const subs = await listSubscriptions()
-    const data = await getSubscriptionsFeed(subs.map((sub) => sub.channelId))
+    const data = hasYoutubeAccount() ? await getYoutubeSubscriptionsFeed()
+      : await getSubscriptionsFeed((await listSubscriptions()).map((sub) => sub.channelId))
     return { ok: true, data }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
@@ -281,7 +339,11 @@ ipcMain.handle(IPC_CHANNELS.SUBSCRIPTIONS_FEED, async (): Promise<SearchResponse
 ipcMain.handle(IPC_CHANNELS.SUBSCRIPTIONS_ADD, (_event, sub: Omit<Subscription, 'subscribedAt'>) => addSubscription(sub))
 ipcMain.handle(IPC_CHANNELS.SUBSCRIPTIONS_REMOVE, (_event, channelId: string) => removeSubscription(channelId))
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  if (!primaryInstance) return
+  await initializeProtection()
+  await removeAbandonedLoginProfiles()
+  await initializeYoutubeAccount()
   if (process.platform === 'darwin') {
     app.dock?.setIcon(app.isPackaged ? join(process.resourcesPath, 'icon.png') : join(app.getAppPath(), 'resources/icon.png'))
   }
@@ -303,6 +365,8 @@ app.whenReady().then(() => {
       .catch((error) => console.error('[autotest] RESULT_ERROR', error))
   }
 })
+
+app.on('before-quit', cancelFirefoxLogin)
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

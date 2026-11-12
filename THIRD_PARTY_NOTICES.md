@@ -1,9 +1,18 @@
 # Third-Party Notices
 
 WorldTube uses independently maintained open-source components and assets.
-Their licenses remain separate from the project's own license, which has not
-yet been chosen. These notices do not grant rights to unrelated third parties'
+Their licenses remain separate from the project's AGPL-3.0-only license.
+These notices do not grant rights to unrelated third parties'
 code or certify WorldTube's entire historical provenance.
+
+## Advertising and tracking protection
+
+The network filtering engine is `@ghostery/adblocker` (MPL-2.0); its complete
+upstream notices are included by the dependency-notice generator. EasyList
+and EasyPrivacy are by The EasyList authors (https://easylist.to/). Their
+unmodified snapshots, attribution and complete GPL-3.0-or-later license text
+are included under `resources/filters` in the source and `filters` in packaged
+applications. See `resources/filters/README.md` for source and license links.
 
 ## Fonts
 

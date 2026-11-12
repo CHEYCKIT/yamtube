@@ -89,7 +89,7 @@ export const SHORTS_SLOT_ID = 'global-player-shorts-slot'
  */
 export function GlobalPlayerHost() {
   const { language } = useLocale()
-  const { videoId, dashManifest, liveManifests, sabr, title, captions, storyboardVtt, playVideo, playVideoQueue, extendVideoQueue, playbackMode, videoQueue, shorts, openShort, status, relatedVideos } = useGlobalPlayer()
+  const { videoId, playbackToken, dashManifest, liveManifests, sabr, title, captions, storyboardVtt, playVideo, playVideoQueue, extendVideoQueue, playbackMode, videoQueue, shorts, openShort, status, relatedVideos } = useGlobalPlayer()
   const location = useLocation()
   const navigate = useNavigate()
   const { activeId: activeTabId } = useAppTabs()
@@ -140,6 +140,47 @@ export function GlobalPlayerHost() {
   // manifest is ready — see onReloadRequested. Guarded by videoId in case the
   // user navigates to a different video while the reload is still in flight.
   const pendingResumeRef = useRef<{ videoId: string; seconds: number } | null>(null)
+
+  useEffect(() => {
+    if (!videoEl || !playbackToken || status !== 'ready' || !sourceReady) return
+    let watched = 0
+    let lastPosition = videoEl.currentTime
+    let lastTick = performance.now()
+    let lastReport: number | null = null
+    const send = (final = false) => {
+      if (watched < 1 || loadedVideoRef.current !== videoId) return
+      const now = performance.now()
+      if (!final && lastReport !== null && now - lastReport < 30_000) return
+      lastReport = now
+      void window.api.reportPlaybackProgress({ token: playbackToken, position: videoEl.currentTime, ended: final })
+        .catch(() => undefined)
+    }
+    const tick = () => {
+      const now = performance.now()
+      const elapsed = (now - lastTick) / 1000
+      const advanced = (videoEl.currentTime - lastPosition) / Math.max(videoEl.playbackRate, 0.1)
+      // Count observed playback, excluding seeks, pauses and buffering.
+      if (!videoEl.paused && !videoEl.seeking && advanced > 0 && advanced <= elapsed + 0.5) watched += Math.min(advanced, elapsed)
+      lastTick = now
+      lastPosition = videoEl.currentTime
+      send()
+    }
+    const reset = () => { lastTick = performance.now(); lastPosition = videoEl.currentTime }
+    const finish = () => send(true)
+    videoEl.addEventListener('timeupdate', tick)
+    videoEl.addEventListener('playing', reset)
+    videoEl.addEventListener('seeked', reset)
+    videoEl.addEventListener('pause', finish)
+    videoEl.addEventListener('ended', finish)
+    return () => {
+      finish()
+      videoEl.removeEventListener('timeupdate', tick)
+      videoEl.removeEventListener('playing', reset)
+      videoEl.removeEventListener('seeked', reset)
+      videoEl.removeEventListener('pause', finish)
+      videoEl.removeEventListener('ended', finish)
+    }
+  }, [videoEl, playbackToken, videoId, status, sourceReady])
 
   // Elegir otra canción es una acción explícita de reproducción. Reactivamos
   // el autoplay para esa fuente aunque otra pestaña hubiera pausado esta. Una

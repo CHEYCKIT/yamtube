@@ -2,8 +2,11 @@ import { Innertube, Platform, YTNodes } from 'youtubei.js'
 import { generatePoToken } from './poToken'
 import { buildSabrPayload } from './sabrManifest'
 import { evaluatePlayerScript } from './jsEvaluator'
-import { getHistory, recordHistoryEntry } from './historyStore'
-import { getAppLanguage, listActiveSubscriptions } from './localDb'
+import { getHistory } from './historyStore'
+import { getAppLanguage, getSessionState, listActiveSubscriptions, recordProfileHistoryEntry } from './localDb'
+import { getAccountClient, hasYoutubeAccount, accountRevision, reportHistorySyncFailure } from './youtubeAccount'
+import { protectedFetch } from './adBlock'
+import { PlaybackHistory } from './playbackHistory'
 import { translateFor } from '../shared/locale'
 import type { CaptionTrack, ChannelInfoResult, HomeDiscovery, HomeSection, RecommendedChannel, SearchCollectionItem, SearchFilters, SearchResultItem, VideoInfoResult, VideoPreview } from '../shared/ipc'
 
@@ -364,11 +367,16 @@ async function resolveChannelNames(videos: SearchResultItem[]): Promise<SearchRe
 let clientPromise: Promise<Innertube> | null = null
 
 export function getClient(): Promise<Innertube> {
+  return getAccountClient()
+}
+
+function getPlaybackClient(): Promise<Innertube> {
   // retrieve_player: without the JS player, youtubei.js can't decipher
   // signature-ciphered format URLs at all ("Deciphering formats is not
   // possible without the JS player" per its own types) — that's exactly
   // what toDash() needs and was missing.
-  clientPromise ??= Innertube.create({ generate_session_locally: true, retrieve_player: true })
+  clientPromise ??= Innertube.create({ generate_session_locally: true, retrieve_player: true, fetch: protectedFetch })
+    .catch((error) => { clientPromise = null; throw error })
   return clientPromise
 }
 
@@ -395,16 +403,18 @@ export function getBrowseChannel(channelId: string): Promise<Awaited<ReturnType<
 const inFlightRequests = new Map<string, Promise<VideoInfoResult>>()
 
 export function fetchVideoInfo(videoId: string): Promise<VideoInfoResult> {
-  const existing = inFlightRequests.get(videoId)
+  if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) return Promise.reject(new Error('Invalid YouTube video ID'))
+  const key = `${accountRevision()}:${videoId}`
+  const existing = inFlightRequests.get(key)
   if (existing) {
     console.log(`[youtube] fetchVideoInfo(${videoId}) already in flight, reusing it`)
     return existing
   }
 
   const promise = fetchVideoInfoUncached(videoId).finally(() => {
-    inFlightRequests.delete(videoId)
+    inFlightRequests.delete(key)
   })
-  inFlightRequests.set(videoId, promise)
+  inFlightRequests.set(key, promise)
   return promise
 }
 
@@ -467,12 +477,13 @@ export async function getHomeFeed(sections: HomeSection[] = []): Promise<SearchR
   console.log('[youtube] getHomeFeed()')
   const yt = await getClient()
   const feed = await yt.getHomeFeed().catch((error) => {
+    if (hasYoutubeAccount()) throw new Error('Your YouTube home feed could not be loaded. Retry, or sign in again if your session expired.')
     console.warn('[youtube] anonymous home failed, using discovery:', error instanceof Error ? error.message : String(error))
     return null
   })
   const videos = feed ? mapSearchResultNodes(feed.videos) : []
   console.log(`[youtube] home: ${feed?.videos.length ?? 0} video nodes, ${videos.length} mapped videos`)
-  if (videos.length) return videos
+  if (videos.length || hasYoutubeAccount()) return videos
 
   // Anonymous home responses can have no recommendations. Use this profile's
   // own recent viewing as seeds, without minting tokens or recording a watch.
@@ -841,7 +852,10 @@ async function prepareLiveManifestUrl(url: string, decipher: (url: string) => Pr
 async function fetchVideoInfoUncached(videoId: string): Promise<VideoInfoResult> {
   const t0 = performance.now()
   console.log(`[youtube] fetchVideoInfo(${videoId})`)
-  const yt = await getClient()
+  const revision = accountRevision()
+  const profileId = (await getSessionState()).activeProfileId
+  const accountClient = hasYoutubeAccount() ? await getClient() : null
+  const yt = await getPlaybackClient()
 
   // The poToken is content-bound to this exact videoId (see script.ts's
   // mintAsWebsafeString call), so it's minted fresh per video — but that
@@ -942,7 +956,15 @@ async function fetchVideoInfoUncached(videoId: string): Promise<VideoInfoResult>
     }
   }
 
+  // Recommendations use the authenticated account; stream extraction remains
+  // anonymous so its visitor-bound BotGuard tokens cannot overwrite account state.
+  let relatedInfo = info
+  if (accountClient) {
+    try { relatedInfo = await accountClient.getInfo(videoId) }
+    catch { /* A recommendation outage must not prevent direct playback. */ }
+  }
   const result: VideoInfoResult = {
+    playbackToken: '',
     videoId,
     title: info.basic_info.title ?? translateFor(getAppLanguage(), '(untitled)'),
     channelId: info.basic_info.channel?.id ?? null,
@@ -951,7 +973,7 @@ async function fetchVideoInfoUncached(videoId: string): Promise<VideoInfoResult>
     subscriberCountText: getSubscriberCountText(info),
     captions: info.captions ? extractCaptionTracks(info.captions) : [],
     storyboardVtt: isLive ? null : buildStoryboardVtt(info.storyboards, info.basic_info.duration ?? null),
-    relatedVideos: info.watch_next_feed ? await resolveChannelNames(mapWatchNextFeed(info.watch_next_feed)) : [],
+    relatedVideos: relatedInfo.watch_next_feed ? await resolveChannelNames(mapWatchNextFeed(relatedInfo.watch_next_feed)) : [],
     thumbnailUrl: info.basic_info.thumbnail?.[0]?.url ?? null,
     lengthSeconds: info.basic_info.duration ?? null,
     durationText: isLive ? 'LIVE' : formatDurationText(info.basic_info.duration ?? null),
@@ -965,18 +987,47 @@ async function fetchVideoInfoUncached(videoId: string): Promise<VideoInfoResult>
     sabr
   }
 
-  // Best-effort: a broken history write shouldn't fail video playback.
-  recordHistoryEntry({
-    videoId: result.videoId,
-    title: result.title,
-    channelId: result.channelId,
-    channelName: result.channelName,
-    thumbnailUrl: result.thumbnailUrl
-  }).catch((error) => console.error('[history] failed to record entry', error))
+  if (profileId) result.playbackToken = playbackHistory.register({
+    entry: { videoId: result.videoId, title: result.title, channelId: result.channelId,
+      channelName: result.channelName, thumbnailUrl: result.thumbnailUrl },
+    revision, profileId,
+    remote: accountClient ? () => accountClient.getInfo(videoId) : null
+  })
 
   console.log(
     `[youtube] fetchVideoInfo(${videoId}) done in ${(performance.now() - t0).toFixed(0)}ms (poToken ${tPoToken.toFixed(0)}ms, getInfo ${tGetInfo.toFixed(0)}ms)`
   )
 
   return result
+}
+
+export const playbackHistory = new PlaybackHistory({
+  currentRevision: accountRevision,
+  currentProfile: async () => (await getSessionState()).activeProfileId,
+  recordLocal: (entry, profileId) => recordProfileHistoryEntry(profileId, entry),
+  syncFailed: reportHistorySyncFailure
+})
+
+// Continuations are opaque tokens scoped to the current account revision.
+const historyPages = new Map<string, { revision: number; page: Awaited<ReturnType<Innertube['getHistory']>> }>()
+export async function getYoutubeHistory(continuation?: string): Promise<import('../shared/ipc').YoutubeHistoryPage> {
+  if (!hasYoutubeAccount()) throw new Error('Sign in to YouTube to view account history')
+  const revision = accountRevision()
+  const previous = continuation ? historyPages.get(continuation) : null
+  if (continuation && (!previous || previous.revision !== revision)) throw new Error('History page expired. Reload history.')
+  const page = previous ? await previous.page.getContinuation() : await (await getClient()).getHistory()
+  if (revision !== accountRevision()) throw new Error('Your YouTube account changed. Reload history.')
+  if (continuation) historyPages.delete(continuation)
+  let next: string | null = null
+  if (page.has_continuation) {
+    next = crypto.randomUUID()
+    historyPages.set(next, { revision, page })
+    while (historyPages.size > 20) historyPages.delete(historyPages.keys().next().value!)
+  }
+  return { videos: mapSearchResultNodes(page.videos), continuation: next,
+    paused: page.feed_actions?.contents.some((node) => node instanceof YTNodes.Button && node.icon_type === 'PLAY_OUTLINED') ?? false }
+}
+
+export async function getYoutubeSubscriptionsFeed(): Promise<SearchResultItem[]> {
+  return mapSearchResultNodes((await (await getClient()).getSubscriptionsFeed()).videos)
 }

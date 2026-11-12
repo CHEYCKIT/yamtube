@@ -25,10 +25,12 @@ extraResources:
     to: icon.png
   - from: build/botguard.js
     to: botguard.js
+  - from: resources/filters
+    to: filters
 publish:
   provider: github
-  owner: riberojuanca
-  repo: worldtube
+  owner: CHEYCKIT
+  repo: yamtube
   releaseType: draft
 linux:
   syncDesktopName: true

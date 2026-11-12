@@ -1,6 +1,16 @@
 // Shared between main and renderer so both sides agree on channel names and payload shapes.
 
 export const IPC_CHANNELS = {
+  YOUTUBE_ACCOUNT_STATE: 'youtube:account-state',
+  YOUTUBE_SIGN_IN: 'youtube:sign-in',
+  YOUTUBE_SIGN_IN_CANCEL: 'youtube:sign-in-cancel',
+  YOUTUBE_IMPORT_COOKIES: 'youtube:import-cookies',
+  YOUTUBE_SIGN_OUT: 'youtube:sign-out',
+  YOUTUBE_HISTORY: 'youtube:history',
+  YOUTUBE_HISTORY_MORE: 'youtube:history-more',
+  PLAYBACK_PROGRESS: 'youtube:playback-progress',
+  PROTECTION_STATE: 'protection:state',
+  PROTECTION_UPDATE: 'protection:update',
   APP_PREFERENCES_GET: 'app:preferences-get',
   APP_PREFERENCES_SET: 'app:preferences-set',
   UPDATES_STATE: 'updates:state',
@@ -43,6 +53,34 @@ export const IPC_CHANNELS = {
   SUBSCRIPTIONS_ADD: 'subscriptions:add',
   SUBSCRIPTIONS_REMOVE: 'subscriptions:remove'
 } as const
+
+export interface YoutubeAccountState {
+  signedIn: boolean
+  name: string | null
+  avatarUrl: string | null
+  persistent: boolean
+  error: string | null
+  syncError: string | null
+}
+
+export interface ProtectionState {
+  enabled: boolean
+  blocked: number
+  updatedAt: string
+  lists: string[]
+}
+
+export interface PlaybackProgress {
+  token: string
+  position: number
+  ended: boolean
+}
+
+export interface YoutubeHistoryPage {
+  videos: SearchResultItem[]
+  continuation: string | null
+  paused: boolean
+}
 
 export interface UpdateState {
   status: 'development' | 'idle' | 'checking' | 'available' | 'current' | 'downloading' | 'downloaded' | 'error'
@@ -403,6 +441,7 @@ export interface CaptionTrack {
 }
 
 export interface VideoInfoResult {
+  playbackToken: string
   videoId: string
   title: string
   channelId: string | null

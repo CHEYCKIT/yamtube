@@ -168,16 +168,20 @@ export async function getChannelPage(request: ChannelPageRequest): Promise<Chann
           feed = await channel.search(request.query.trim()); break
         default: throw new Error('Seccion desconocida')
       }
-      filters = feed.filters
-      sorts = feed.sort_filters
-      secondaryFilters = feed.secondary_filters
-      const subMenu = feed.current_tab?.content
-      if (subMenu instanceof YTNodes.SectionList && subMenu.sub_menu instanceof YTNodes.ChannelSubMenu) {
-        contentTypes = feed.content_type_filters
+      // Shorts may return ChannelListContinuation, which has videos but no
+      // channel filtering API. Only expose/apply controls the feed supports.
+      if ('filters' in feed) {
+        filters = feed.filters
+        sorts = feed.sort_filters
+        secondaryFilters = feed.secondary_filters
+        const subMenu = feed.current_tab?.content
+        if (subMenu instanceof YTNodes.SectionList && subMenu.sub_menu instanceof YTNodes.ChannelSubMenu) {
+          contentTypes = feed.content_type_filters
+        }
       }
-      if (request.contentType) feed = await feed.applyContentTypeFilter(request.contentType)
-      if (request.sort) feed = await feed.applySort(request.sort)
-      if (request.filter || request.secondaryFilter) feed = await feed.applyFilter(request.filter || filters[0], request.secondaryFilter)
+      if (request.contentType && 'applyContentTypeFilter' in feed) feed = await feed.applyContentTypeFilter(request.contentType)
+      if (request.sort && 'applySort' in feed) feed = await feed.applySort(request.sort)
+      if ((request.filter || request.secondaryFilter) && 'applyFilter' in feed) feed = await feed.applyFilter(request.filter || filters[0], request.secondaryFilter)
     }
   }
   const result = emptyPage()

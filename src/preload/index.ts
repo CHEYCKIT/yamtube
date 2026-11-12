@@ -33,6 +33,21 @@ import type {
 } from '../shared/ipc'
 
 const api = {
+  getYoutubeAccount: (): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_ACCOUNT_STATE),
+  signInYoutube: (): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_IN),
+  cancelYoutubeSignIn: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_IN_CANCEL),
+  importYoutubeCookies: (): Promise<import('../shared/ipc').YoutubeAccountState | null> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_IMPORT_COOKIES),
+  signOutYoutube: (): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_OUT),
+  onYoutubeAccount: (listener: (state: import('../shared/ipc').YoutubeAccountState) => void): (() => void) => {
+    const receive = (_event: Electron.IpcRendererEvent, state: import('../shared/ipc').YoutubeAccountState) => listener(state)
+    ipcRenderer.on(IPC_CHANNELS.YOUTUBE_ACCOUNT_STATE, receive)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.YOUTUBE_ACCOUNT_STATE, receive)
+  },
+  getYoutubeHistory: (): Promise<import('../shared/ipc').YoutubeHistoryPage> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_HISTORY),
+  getMoreYoutubeHistory: (continuation: string): Promise<import('../shared/ipc').YoutubeHistoryPage> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_HISTORY_MORE, continuation),
+  reportPlaybackProgress: (progress: import('../shared/ipc').PlaybackProgress): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.PLAYBACK_PROGRESS, progress),
+  getProtection: (): Promise<import('../shared/ipc').ProtectionState> => ipcRenderer.invoke(IPC_CHANNELS.PROTECTION_STATE),
+  updateProtection: (): Promise<import('../shared/ipc').ProtectionState> => ipcRenderer.invoke(IPC_CHANNELS.PROTECTION_UPDATE),
   getVideoPreview: (videoId: string): Promise<import('../shared/ipc').VideoPreview | null> => ipcRenderer.invoke(IPC_CHANNELS.GET_VIDEO_PREVIEW, videoId),
   getAppPreferences: (): Promise<AppPreferences> => ipcRenderer.invoke(IPC_CHANNELS.APP_PREFERENCES_GET),
   setAppPreferences: (preferences: AppPreferences): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.APP_PREFERENCES_SET, preferences),

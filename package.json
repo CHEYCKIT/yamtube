@@ -2,14 +2,14 @@
   "name": "worldtube",
   "private": true,
   "license": "AGPL-3.0-only",
-  "version": "0.0.6",
-  "description": "A local-first YouTube desktop client with persistent playback and independent tabs.",
+  "version": "0.1.0-beta.1",
+  "description": "A YouTube desktop client with Firefox sign-in, account history and app-wide ad protection.",
   "author": "riberojuanca",
-  "homepage": "https://github.com/riberojuanca/worldtube",
+  "homepage": "https://github.com/CHEYCKIT/yamtube",
   "desktopName": "com.riberojuanca.worldtube.desktop",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/riberojuanca/worldtube.git"
+    "url": "git+https://github.com/CHEYCKIT/yamtube.git"
   },
   "packageManager": "pnpm@12.4.1",
   "main": "./out/main/index.js",
@@ -23,9 +23,12 @@
     "package": "corepack pnpm notices && corepack pnpm build && node scripts/bundle-botguard.mjs && electron-builder --publish never",
     "release": "corepack pnpm notices && corepack pnpm build && node scripts/bundle-botguard.mjs && electron-builder --publish always",
     "preview": "electron-vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "node scripts/test.mjs",
+    "test:desktop": "node tests/desktop-smoke.cjs"
   },
   "dependencies": {
+    "@ghostery/adblocker": "2.20.3",
     "acorn": "^8.18.0",
     "acorn-walk": "^8.3.5",
     "bgutils-js": "^4.0.3",
@@ -48,6 +51,7 @@
     "electron": "^43.4.0",
     "electron-builder": "^26.15.3",
     "electron-vite": "^2.3.0",
+    "playwright": "1.58.2",
     "postcss": "^8.4.47",
     "shaka-player": "^5.1.12",
     "tailwindcss": "^3.4.13",

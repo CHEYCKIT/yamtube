@@ -29,6 +29,17 @@ import type {
 declare global {
   interface Window {
     api: {
+      getYoutubeAccount: () => Promise<import('../../shared/ipc').YoutubeAccountState>
+      signInYoutube: () => Promise<import('../../shared/ipc').YoutubeAccountState>
+      cancelYoutubeSignIn: () => Promise<void>
+      importYoutubeCookies: () => Promise<import('../../shared/ipc').YoutubeAccountState | null>
+      signOutYoutube: () => Promise<import('../../shared/ipc').YoutubeAccountState>
+      onYoutubeAccount: (listener: (state: import('../../shared/ipc').YoutubeAccountState) => void) => () => void
+      getYoutubeHistory: () => Promise<import('../../shared/ipc').YoutubeHistoryPage>
+      getMoreYoutubeHistory: (continuation: string) => Promise<import('../../shared/ipc').YoutubeHistoryPage>
+      reportPlaybackProgress: (progress: import('../../shared/ipc').PlaybackProgress) => Promise<void>
+      getProtection: () => Promise<import('../../shared/ipc').ProtectionState>
+      updateProtection: () => Promise<import('../../shared/ipc').ProtectionState>
       getVideoPreview: (videoId: string) => Promise<import('../../shared/ipc').VideoPreview | null>
       getAppPreferences: () => Promise<import('../../shared/locale').AppPreferences>
       setAppPreferences: (preferences: import('../../shared/locale').AppPreferences) => Promise<void>

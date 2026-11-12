@@ -445,6 +445,26 @@ export async function getSessionState(): Promise<LocalSessionState> {
   return toSessionState(await loadDb())
 }
 
+// Local storage remains a library cache. Authentication belongs to YouTube;
+// users never need to create a local account or choose a local password.
+export async function activateLibraryOwner(key: string, name: string): Promise<void> {
+  const db = await loadDb()
+  const owners = (db.settings.youtubeLibraryOwners ?? {}) as Record<string, string>
+  let user = db.users.find((entry) => entry.id === owners[key])
+  if (!user) {
+    user = createStoredUser(name, undefined)
+    const profile = createProfile(user.id, name, PROFILE_COLORS[db.users.length % PROFILE_COLORS.length])
+    db.users.push(user)
+    db.profiles.push(profile)
+    db.session.activeProfileIdByUser[user.id] = profile.id
+    owners[key] = user.id
+    db.settings.youtubeLibraryOwners = owners
+  }
+  user.name = name
+  db.session.activeUserId = user.id
+  await persistDb(db)
+}
+
 export async function createLocalUser(request: CreateLocalUserRequest): Promise<LocalSessionState> {
   const db = await loadDb()
   const name = normalizeName(request.name)
@@ -590,6 +610,13 @@ export async function getActiveHistory(): Promise<HistoryEntry[]> {
 export async function recordActiveHistoryEntry(entry: Omit<HistoryEntry, 'watchedAt'>): Promise<void> {
   const db = await loadDb()
   const profile = requireActiveProfile(db)
+  return recordProfileHistoryEntry(profile.id, entry)
+}
+
+export async function recordProfileHistoryEntry(profileId: string, entry: Omit<HistoryEntry, 'watchedAt'>): Promise<void> {
+  const db = await loadDb()
+  const profile = db.profiles.find((candidate) => candidate.id === profileId)
+  if (!profile) return
   const entries = db.histories[profile.id] ?? []
   const withoutExisting = entries.filter((existing) => existing.videoId !== entry.videoId)
   withoutExisting.push({ ...entry, watchedAt: now() })
