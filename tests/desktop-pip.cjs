@@ -33,7 +33,7 @@ module.exports=async({app,page})=>{
   await page.getByRole('button',{name:'New tab',exact:true}).click()
   await page.evaluate(()=>document.exitPictureInPicture())
   await returned()
-  await page.locator('a[href="#/"]').first().click()
+  await page.locator('a[href="#/"]:visible').first().click()
   await page.getByRole('heading',{name:'Home',exact:true}).waitFor()
   await page.getByRole('button',{name:'Return to video',exact:true}).click()
   await returned()
