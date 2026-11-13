@@ -29,6 +29,27 @@ AppImage may require FUSE 2; `--appimage-extract-and-run` is an alternative on
 systems without it. Windows packages are initially unsigned; verify the source
 and download location. macOS downloads remain unavailable until signed builds exist.
 
+## 1.1.0
+
+Signed-in **Playlists** now comes from your YouTube account. Create private
+playlists and add/remove videos directly on YouTube. The save dialog shows
+YouTube's editable playlists and their current membership for the selected video.
+**Saved** becomes **Watch Later**, including account additions and removals.
+
+**Music** shows your YouTube Music library songs, liked songs, saved playlists
+and albums. Saving a supported track to Music uses YouTube Music's own
+**Add to library** action; playlist changes also update the account. Albums and
+liked-song collections are read-only here. Unsupported tracks can still be
+added to playlists. Large collections load additional pages on demand.
+
+The theater header has a larger 36px reveal zone, a grace period when moving
+away, and stays visible while using search, menus or tabs. The reveal trigger
+no longer covers the header's controls once open.
+
+Guest libraries remain local. Existing local account collections are retained
+in local backups and are not automatically uploaded or merged into YouTube.
+Account errors are shown for retry without creating local-only saves.
+
 ## 1.0.0
 
 Shorts appear in the normal history order instead of being grouped above
@@ -93,7 +114,7 @@ Existing account cookies, libraries and settings are retained on upgrade.
 - Real YouTube session sign-in through Zen, Firefox and other Firefox-based browsers, with guest browsing and no local login.
 - Account home recommendations, watch history and subscriptions.
 - App-wide EasyList/EasyPrivacy protection with bundled filters and automatic updates.
-- Local saved videos/playlists and search history, kept separately for each account.
+- Account playlists, Watch Later and YouTube Music library; local guest collections and account-separated search history.
 - Full local data export/import, including global volume and application settings.
 - Independent tabs with per-tab navigation and persistent playback sessions.
 - Draggable mini player that minimizes into a bottom playback bar and restores
@@ -132,7 +153,9 @@ Shortcuts respect text fields and act on the player represented in the interface
 
 The existing local data file is stored in Electron's user-data directory. Account exposes
 its path, data totals and full-data export/import. Local library contents
-are not uploaded to a LokTube server or GitHub.
+are not uploaded to a LokTube server or GitHub. Signed-in save, playlist and
+Music actions update the connected YouTube account. Local exports do not back
+up the remote YouTube library.
 
 Exports include local users, password hashes, the active session, profile photos,
 subscriptions, playlists, saved videos, history, search history and settings.

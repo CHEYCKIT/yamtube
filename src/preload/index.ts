@@ -24,6 +24,8 @@ import type {
   SearchFilters,
   SearchResponse,
   SearchSuggestionsResponse,
+  LibraryVideosPage,
+  LibrarySaveOptions,
   SavedPlaylist,
   SavedVideo,
   Subscription,
@@ -108,6 +110,8 @@ const api = {
   removeProfile: (profileId: string): Promise<ProfilesState> => ipcRenderer.invoke(IPC_CHANNELS.PROFILES_REMOVE, profileId),
   getHistory: (): Promise<HistoryEntry[]> => ipcRenderer.invoke(IPC_CHANNELS.HISTORY_LIST),
   clearHistory: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.HISTORY_CLEAR),
+  getLibraryVideos: (playlistId: string | null, library: LibraryKind = 'video', continuation?: string): Promise<LibraryVideosPage> => ipcRenderer.invoke(IPC_CHANNELS.LIBRARY_VIDEOS_PAGE, playlistId, library, continuation),
+  getLibrarySaveOptions: (videoId: string, library: LibraryKind = 'video'): Promise<LibrarySaveOptions> => ipcRenderer.invoke(IPC_CHANNELS.LIBRARY_SAVE_OPTIONS, videoId, library),
   listSavedPlaylists: (library?: LibraryKind): Promise<SavedPlaylist[]> => ipcRenderer.invoke(IPC_CHANNELS.SAVED_PLAYLISTS_LIST, library),
   createSavedPlaylist: (request: CreateSavedPlaylistRequest): Promise<SavedPlaylist> =>
     ipcRenderer.invoke(IPC_CHANNELS.SAVED_PLAYLISTS_CREATE, request),

@@ -187,7 +187,7 @@ export function Watch() {
     if (!playlistId) return
     const load = () => {
       const current = ++generation
-      Promise.all([window.api.listSavedPlaylists(), window.api.listSavedVideos()]).then(([lists, items]) => {
+      Promise.all([window.api.listSavedPlaylists(), window.api.listSavedVideos(playlistId)]).then(([lists, items]) => {
         if (cancelled || current !== generation) return
         setPlaylist(lists.find((item) => item.id === playlistId) ?? null)
         setPlaylistVideos(items.filter((item) => item.playlistId === playlistId))

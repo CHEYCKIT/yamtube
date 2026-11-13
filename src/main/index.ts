@@ -39,7 +39,6 @@ import {
   createLocalUser,
   getAppPreferences,
   setAppPreferences,
-  createActiveSavedPlaylist,
   deleteLocalUser,
   createUserProfile,
   exportLocalData,
@@ -49,17 +48,14 @@ import {
   setPlayerAudioPreferences,
   importLocalData,
   listActiveSearchHistory,
-  listActiveSavedPlaylists,
-  listActiveSavedVideos,
   loginLocalUser,
   logoutLocalUser,
   recordActiveSearchQuery,
-  removeActiveSavedVideo,
   removeUserProfile,
-  saveActiveVideo,
   setActiveUserProfile,
   updateUserProfile
 } from './localDb'
+import { createSavedPlaylist, listSavedPlaylists, listSavedVideos, saveVideo, removeSavedVideo, getLibraryVideos, getLibrarySaveOptions } from './accountLibrary'
 import { addSubscription, listSubscriptions, removeSubscription } from './subscriptionsStore'
 
 // AppImage launches do not always keep stdout/stderr attached. Node emits an
@@ -367,12 +363,14 @@ ipcMain.handle(IPC_CHANNELS.PROFILES_REMOVE, (_event, profileId: string): Promis
 ipcMain.handle(IPC_CHANNELS.HISTORY_LIST, () => getHistory())
 ipcMain.handle(IPC_CHANNELS.HISTORY_CLEAR, () => clearHistory())
 
-ipcMain.handle(IPC_CHANNELS.SAVED_PLAYLISTS_LIST, (_event, library?: LibraryKind) => listActiveSavedPlaylists(library))
-ipcMain.handle(IPC_CHANNELS.SAVED_PLAYLISTS_CREATE, (_event, request: CreateSavedPlaylistRequest) => createActiveSavedPlaylist(request))
-ipcMain.handle(IPC_CHANNELS.SAVED_VIDEOS_LIST, (_event, playlistId?: string | null, library?: LibraryKind) => listActiveSavedVideos(playlistId, library))
-ipcMain.handle(IPC_CHANNELS.SAVED_VIDEOS_SAVE, (_event, request: SaveVideoRequest) => saveActiveVideo(request))
+ipcMain.handle(IPC_CHANNELS.LIBRARY_VIDEOS_PAGE, (_event, playlistId: string | null, library?: LibraryKind, continuation?: string) => getLibraryVideos(playlistId, library, continuation))
+ipcMain.handle(IPC_CHANNELS.LIBRARY_SAVE_OPTIONS, (_event, videoId: string, library?: LibraryKind) => getLibrarySaveOptions(videoId, library))
+ipcMain.handle(IPC_CHANNELS.SAVED_PLAYLISTS_LIST, (_event, library?: LibraryKind) => listSavedPlaylists(library))
+ipcMain.handle(IPC_CHANNELS.SAVED_PLAYLISTS_CREATE, (_event, request: CreateSavedPlaylistRequest) => createSavedPlaylist(request))
+ipcMain.handle(IPC_CHANNELS.SAVED_VIDEOS_LIST, (_event, playlistId?: string | null, library?: LibraryKind) => listSavedVideos(playlistId, library))
+ipcMain.handle(IPC_CHANNELS.SAVED_VIDEOS_SAVE, (_event, request: SaveVideoRequest) => saveVideo(request))
 ipcMain.handle(IPC_CHANNELS.SAVED_VIDEOS_REMOVE, (_event, videoId: string, playlistId?: string | null, library?: LibraryKind) =>
-  removeActiveSavedVideo(videoId, playlistId, library)
+  removeSavedVideo(videoId, playlistId, library)
 )
 ipcMain.handle(IPC_CHANNELS.SEARCH_HISTORY_LIST, () => listActiveSearchHistory())
 ipcMain.handle(IPC_CHANNELS.SEARCH_HISTORY_RECORD, (_event, query: string) => recordActiveSearchQuery(query))

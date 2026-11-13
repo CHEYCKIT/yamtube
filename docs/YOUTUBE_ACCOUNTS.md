@@ -220,3 +220,23 @@ window. Existing storage/keyring/installer IDs stay unchanged.
 
 1.0.0 is a stable release. Both stable update metadata and aliases for older beta
 clients are published so previous installations can discover this upgrade.
+
+## Account libraries (1.1)
+
+When signed in, Playlists reads the connected YouTube account, Saved reads
+Watch Later, and Music reads the YouTube Music library, including playlists,
+albums and liked songs. Playlist creation is private by default. Add/remove
+actions use YouTube's playlist commands or Music library feedback actions,
+with account-revision checks around requests. Service and pagination tokens
+stay in the main process. Remote errors never fall back to local writes.
+
+The save dialog reads membership per video rather than downloading every
+playlist's contents. Collection contents load in pages; playback queues read
+the selected playlist. Unsupported Music library actions are disabled while
+playlist saving remains available. Albums and liked songs are read-only.
+
+Guest collections remain on disk. Existing account-local saves are retained
+for backups; this release does not migrate or merge them into YouTube. Local
+backups do not include the remote account library. Live account-library
+requests cannot be verified in the build environment because YouTube access
+is blocked there.

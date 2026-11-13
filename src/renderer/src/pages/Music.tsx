@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { t, useLocale } from '../i18n/LocaleContext'
 import { NavigationIcon } from '../components/NavigationIcon'
+import { useLibraryVideos } from '../library/useLibraryVideos'
 import { PageLoader } from '../components/PageLoader'
 import { VideoThumbnail } from '../components/VideoCard'
 import { PlaybackLoadingIcon, PlaybackStatusIcon } from '../components/PlaybackStatusIcon'
@@ -17,13 +18,14 @@ import type { SavedPlaylist, SavedVideo } from '../../../shared/ipc'
 export function Music() {
   useLocale()
   const location = useLocation()
-  const { activeProfileId } = useProfiles()
+  const { activeProfileId, youtubeAccount } = useProfiles()
   const { playMusic, videoId, playbackMode, ownerTabId, status } = useGlobalPlayer()
   const { requestPlayback } = usePlayerWorkspace()
   const { id: tabId } = usePageTab()
   const [params, setParams] = useSearchParams()
   const [playlists, setPlaylists] = useState<SavedPlaylist[] | null>(null)
-  const [songs, setSongs] = useState<SavedVideo[]>([])
+  const accountSongs = useLibraryVideos(params.get('playlist'), 'music')
+  const songs = accountSongs.videos
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
@@ -47,16 +49,17 @@ export function Music() {
 
   useEffect(() => {
     let cancelled = false
+    let generation = 0
     const load = () => {
+      const current = ++generation
       setError(null)
-      Promise.all([window.api.listSavedPlaylists('music'), window.api.listSavedVideos(undefined, 'music')])
-        .then(([nextPlaylists, nextSongs]) => {
-          if (cancelled) return
+      window.api.listSavedPlaylists('music')
+        .then((nextPlaylists) => {
+          if (cancelled || current !== generation) return
           setPlaylists(nextPlaylists)
-          setSongs(nextSongs)
         })
         .catch((cause) => {
-          if (!cancelled) {
+          if (!cancelled && current === generation) {
             setPlaylists([])
             setError(cause instanceof Error ? cause.message : String(cause))
           }
@@ -69,7 +72,7 @@ export function Music() {
       cancelled = true
       window.removeEventListener(PROFILE_DATA_CHANGED_EVENT, load)
     }
-  }, [activeProfileId])
+  }, [activeProfileId, youtubeAccount.signedIn, youtubeAccount.name])
 
   const selected = playlists?.find((playlist) => playlist.id === params.get('playlist')) ?? null
   const visibleSongs = useMemo(() => {
@@ -124,10 +127,10 @@ export function Music() {
 
   return <section className="w-full">
     <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <div><h1 className="text-2xl font-semibold">{t("LokTube Music")}</h1><p className="mt-1 text-sm text-neutral-400">{t("Your music and playlists, all in one app.")}</p></div>
+      <div><h1 className="text-2xl font-semibold">{youtubeAccount.signedIn ? t("YouTube Music") : t("LokTube Music")}</h1><p className="mt-1 text-sm text-neutral-400">{youtubeAccount.signedIn ? t("Your YouTube Music library, albums and playlists.") : t("Your music and playlists, all in one app.")}</p></div>
       <button type="button" onClick={() => setCreating((value) => !value)} className="wt-action flex cursor-pointer items-center gap-2 rounded px-3 py-2 text-sm font-medium"><NavigationIcon name="music" />{t("New playlist")}</button>
     </header>
-    {error && <p role="alert" className="mb-4 text-sm text-red-400">{error}</p>}
+    {(error || accountSongs.error) && <p role="alert" className="mb-4 text-sm text-red-400">{error || accountSongs.error} <button onClick={() => window.dispatchEvent(new CustomEvent(PROFILE_DATA_CHANGED_EVENT))} className="underline">{t("Retry")}</button></p>}
     {creating && <form onSubmit={createPlaylist} className="mb-5 flex gap-2"><input autoFocus required maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder={t("Playlist name")} className="min-w-0 flex-1 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" /><button disabled={busy || !name.trim()} className="wt-action cursor-pointer rounded px-4 py-2 text-sm disabled:opacity-50">{t("Create")}</button></form>}
 
     <MusicPlayerPanel />
@@ -154,10 +157,12 @@ export function Music() {
               </button>
               <button type="button" disabled={loading} onClick={() => startMusic(song, visibleSongs)} className="min-w-0 cursor-pointer text-left disabled:cursor-wait"><span className={`block truncate text-sm font-medium ${active ? 'text-[var(--wt-accent)]' : ''}`}>{song.title}</span><span className="block truncate text-xs text-neutral-400">{song.channelName}</span></button>
             </div>
-            <button type="button" disabled={busy} onClick={() => void removeSong(song)} className="cursor-pointer rounded px-2 py-2 text-xs text-neutral-400 hover:bg-neutral-800 hover:text-white disabled:opacity-50">{t("Remove")}</button>
+            <button type="button" disabled={busy || song.canRemove === false || selected?.canEdit === false} onClick={() => void removeSong(song)} className="cursor-pointer rounded px-2 py-2 text-xs text-neutral-400 hover:bg-neutral-800 hover:text-white disabled:opacity-50">{t("Remove")}</button>
           </div>})}
-          {!visibleSongs.length && <p className="py-8 text-center text-sm text-neutral-400">{selected ? t("This playlist is empty.") : t("Save songs using the Music button on any video.")}</p>}
+          {!visibleSongs.length && !accountSongs.loading && !accountSongs.error && <p className="py-8 text-center text-sm text-neutral-400">{selected ? t("This playlist is empty.") : t("Save songs using the Music button on any video.")}</p>}
         </div>
+        {accountSongs.loading && <PageLoader />}
+        {accountSongs.continuation && <button disabled={accountSongs.loading} onClick={() => void accountSongs.loadMore()} className="wt-action mt-4 rounded px-4 py-2">{t("Load more")}</button>}
       </div>
     </div>
   </section>

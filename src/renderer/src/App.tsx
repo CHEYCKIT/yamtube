@@ -58,7 +58,7 @@ import { Watch } from './pages/Watch'
 import { TabBar, TabPages, TabLinkHandler } from './tabs/AppTabs'
 import { useAppTabs, usePageTab } from './tabs/AppTabs'
 import { PlayerWorkspaceProvider, RegisterTabPlayer, usePlayerWorkspace } from './player/PlayerWorkspace'
-import { TheaterModeProvider, useTheaterMode } from './player/TheaterMode'
+import { TheaterModeProvider, useTheaterMode, useTheaterHeaderReveal } from './player/TheaterMode'
 import type { SearchHistoryEntry, Subscription, UserProfile } from '../../shared/ipc'
 
 type IconName =
@@ -384,7 +384,7 @@ function navClass(isOpen: boolean, isActive: boolean): string {
 function SideNav({ isOpen }: { isOpen: boolean }) {
   useLocale()
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
-  const { activeProfileId } = useProfiles()
+  const { activeProfileId, youtubeAccount } = useProfiles()
 
   useEffect(() => {
     let cancelled = false
@@ -430,11 +430,11 @@ function SideNav({ isOpen }: { isOpen: boolean }) {
           </span>
           <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("History")}</span>
         </NavLink>
-        <NavLink to="/saved" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Saved")}>
+        <NavLink to="/saved" className={({ isActive }) => navClass(isOpen, isActive)} title={youtubeAccount.signedIn ? t("Watch Later") : t("Saved")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
             <NavigationIcon name="saved" />
           </span>
-          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("Saved")}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{youtubeAccount.signedIn ? t("Watch Later") : t("Saved")}</span>
         </NavLink>
         <NavLink to="/playlists" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Playlists")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
@@ -1012,8 +1012,9 @@ export default function App() {
 function AppShell() {
   useLocale()
   const { active: theater } = useTheaterMode()
+  const headerVisible = useTheaterHeaderReveal(theater)
   const isSideNavOpen = false
-  return <AppNavigation><div className={`wt-app-shell min-h-screen text-neutral-100 ${theater ? 'wt-theater' : ''}`}>
+  return <AppNavigation><div className={`wt-app-shell min-h-screen text-neutral-100 ${theater ? 'wt-theater' : ''} ${headerVisible ? 'wt-theater-header-visible' : ''}`}>
           {theater && <>
             <button className="wt-theater-edge wt-theater-top-edge" aria-label={t('Show search and tabs')}
               onClick={() => {

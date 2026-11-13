@@ -15,6 +15,8 @@ import type {
   LoginLocalUserRequest,
   ProfilesState,
   SaveVideoRequest,
+  LibraryVideosPage,
+  LibrarySaveOptions,
   SavedPlaylist,
   SavedVideo,
   SearchHistoryEntry,
@@ -84,6 +86,8 @@ declare global {
       removeProfile: (profileId: string) => Promise<ProfilesState>
       getHistory: () => Promise<HistoryEntry[]>
       clearHistory: () => Promise<void>
+      getLibraryVideos: (playlistId: string | null, library?: LibraryKind, continuation?: string) => Promise<LibraryVideosPage>
+      getLibrarySaveOptions: (videoId: string, library?: LibraryKind) => Promise<LibrarySaveOptions>
       listSavedPlaylists: (library?: LibraryKind) => Promise<SavedPlaylist[]>
       createSavedPlaylist: (request: CreateSavedPlaylistRequest) => Promise<SavedPlaylist>
       listSavedVideos: (playlistId?: string | null, library?: LibraryKind) => Promise<SavedVideo[]>

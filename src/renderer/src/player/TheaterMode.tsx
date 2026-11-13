@@ -47,3 +47,54 @@ export function TheaterModeProvider({ children }: { children: ReactNode }) {
   }, [isWatch, activeId])
   return <TheaterContext.Provider value={{ active }}>{children}</TheaterContext.Provider>
 }
+
+// An immediate CSS :hover retracts mid-animation when the pointer moves off the
+// edge trigger. Retain the reveal while crossing into the toolbar or its menus.
+export function useTheaterHeaderReveal(active: boolean): boolean {
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    setVisible(false)
+    if (!active) return
+    let shown = false
+    let lastY = Number.POSITIVE_INFINITY
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const toolbar = '.wt-topbar, .wt-tabbar, .wt-theater-top-edge'
+    const cancel = () => { if (timer) { clearTimeout(timer); timer = undefined } }
+    const show = () => { cancel(); shown = true; setVisible(true) }
+    const focused = () => !!document.activeElement?.closest(toolbar)
+    const hideLater = () => {
+      if (timer || focused()) return
+      timer = setTimeout(() => {
+        timer = undefined
+        if (focused()) return
+        shown = false; setVisible(false)
+      }, 850)
+    }
+    const move = (event: PointerEvent) => {
+      lastY = event.clientY
+      if (document.fullscreenElement) return
+      const target = event.target instanceof Element ? event.target : null
+      if (lastY <= 36 || (shown && lastY <= 136) || target?.closest(toolbar)) show()
+      else hideLater()
+    }
+    const focus = () => { if (focused()) show(); else if (lastY > 136) hideLater() }
+    const leave = () => { lastY = Number.POSITIVE_INFINITY; hideLater() }
+    const fullscreen = () => {
+      if (document.fullscreenElement) { cancel(); shown = false; setVisible(false) }
+    }
+    document.addEventListener('pointermove', move, true)
+    document.addEventListener('pointerleave', leave)
+    document.addEventListener('focusin', focus)
+    document.addEventListener('focusout', focus)
+    document.addEventListener('fullscreenchange', fullscreen)
+    return () => {
+      cancel()
+      document.removeEventListener('pointermove', move, true)
+      document.removeEventListener('pointerleave', leave)
+      document.removeEventListener('focusin', focus)
+      document.removeEventListener('focusout', focus)
+      document.removeEventListener('fullscreenchange', fullscreen)
+    }
+  }, [active])
+  return active && visible
+}

@@ -53,6 +53,8 @@ export const IPC_CHANNELS = {
   HISTORY_LIST: 'history:list',
   HISTORY_CLEAR: 'history:clear',
   HISTORY_REMOVE: 'history:remove',
+  LIBRARY_VIDEOS_PAGE: 'library:videos:page',
+  LIBRARY_SAVE_OPTIONS: 'library:save:options',
   SAVED_PLAYLISTS_LIST: 'saved:playlists:list',
   SAVED_PLAYLISTS_CREATE: 'saved:playlists:create',
   SAVED_VIDEOS_LIST: 'saved:videos:list',
@@ -133,7 +135,25 @@ export interface UserProfile {
 
 export type LibraryKind = 'video' | 'music'
 
+export interface LibraryVideosPage {
+  videos: SavedVideo[]
+  continuation: string | null
+}
+
+export interface LibrarySaveOptions {
+  looseError?: string
+  playlists: SavedPlaylist[]
+  selectedPlaylistIds: string[]
+  looseSaved: boolean
+  canSaveLoose: boolean
+}
+
 export interface SavedPlaylist {
+  source?: 'youtube'
+  canEdit?: boolean
+  kind?: 'playlist' | 'album'
+  thumbnailUrl?: string | null
+  itemCount?: string | null
   id: string
   profileId: string
   name: string
@@ -144,6 +164,7 @@ export interface SavedPlaylist {
 }
 
 export interface SavedVideo {
+  canRemove?: boolean
   id: string
   profileId: string
   videoId: string

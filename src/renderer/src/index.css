@@ -675,10 +675,13 @@ input[type='checkbox'] {
   border: 0;
   padding: 0;
 }
-.wt-theater-top-edge { inset: 0 0 auto; height: 10px; }
+.wt-theater-top-edge { inset: 0 0 auto; height: 36px; }
+/* Once revealed, the trigger must not cover window buttons or the search bar. */
+.wt-theater-header-visible .wt-theater-top-edge { pointer-events: none; }
 .wt-theater-side-edge { inset: 0 auto 0 0; width: 10px; }
 .wt-theater-edge:focus-visible { outline: 2px solid var(--wt-accent); outline-offset: -2px; }
-.wt-theater:has(.wt-theater-top-edge:hover, .wt-theater-top-edge:focus-visible, .wt-topbar:hover, .wt-topbar:focus-within, .wt-tabbar:hover, .wt-tabbar:focus-within) :is(.wt-topbar, .wt-tabbar),
+.wt-theater-header-visible :is(.wt-topbar, .wt-tabbar),
+.wt-theater:has(.wt-theater-top-edge:focus-visible, .wt-topbar:focus-within, .wt-tabbar:focus-within) :is(.wt-topbar, .wt-tabbar),
 .wt-theater:has(.wt-theater-side-edge:hover, .wt-theater-side-edge:focus-visible, .wt-sidebar:hover, .wt-sidebar:focus-within) .wt-sidebar {
   transform: translate(0, 0);
   opacity: 1;

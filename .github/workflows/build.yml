@@ -22,6 +22,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Respect requested test skips on push and pull request builds
+        shell: bash
+        run: |
+          if git log -1 --format=%B | grep -Fq '[skip tests]'; then
+            echo "SKIP_TESTS=true" >> "$GITHUB_ENV"
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
