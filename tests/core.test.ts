@@ -6,6 +6,7 @@ import { youtubeCookieHeader, parseNetscapeCookies, parseYoutubeCookies } from '
 import { inspectAccountResponse } from '../src/main/youtubeIdentity'
 import { browserCandidates, browserFromExecutable, registryBrowserExecutables } from '../src/main/browserDiscovery'
 import { PlaybackHistory } from '../src/main/playbackHistory'
+import { assertPlayableVideo, getPlayableResponse } from '../src/main/playbackAvailability'
 
 const policy = new RequestPolicy(['easylist', 'easyprivacy'].map((name) => readFileSync(`resources/filters/${name}.txt`, 'utf8')).join('\n'))
 
@@ -409,3 +410,47 @@ test('failed history deletion resumes tracking and waits for in-flight writes be
   await context.tracking.progress({token,position:31,ended:false})
   assert.equal(context.events.includes('updated'),true)
 })
+
+
+test('a valid streaming player response continues without triggering a fallback', async () => {
+  let fallbackCalls = 0
+  const accepted = {playability_status:{status:'OK'},streaming_data:{adaptive_formats:[{itag:251}]}}
+  const result = await getPlayableResponse(async()=>accepted,async()=>{fallbackCalls++;return accepted})
+  assert.equal(result.fromAccount,false)
+  assert.equal(fallbackCalls,0)
+})
+
+test('anonymous LOGIN_REQUIRED is recovered using the connected account once', async () => {
+  const calls: string[] = []
+  const result = await getPlayableResponse(
+    async()=>{calls.push('anonymous');return {playability_status:{status:'LOGIN_REQUIRED'}}},
+    async()=>{calls.push('signed-in');return {playability_status:{status:'OK'},streaming_data:{adaptive_formats:[]}}})
+  assert.deepEqual(calls,['anonymous','signed-in'])
+  assert.equal(result.fromAccount,true)
+  assert.equal(result.info.playability_status.status,'OK')
+})
+
+test('when YouTube rejects both clients, playback fails with an actionable denial and no extra requests', async () => {
+  let signedInCalls = 0
+  await assert.rejects(
+    getPlayableResponse(
+      async()=>({playability_status:{status:'LOGIN_REQUIRED'}}),
+      async()=>{signedInCalls++;return {playability_status:{status:'LOGIN_REQUIRED'}}}),
+    /YouTube declined playback/
+  )
+  assert.equal(signedInCalls,1)
+})
+
+test('LOGIN_REQUIRED never falls through to DASH generation or a generic streaming error', async () => {
+  await assert.rejects(getPlayableResponse(async()=>({playability_status:{status:'LOGIN_REQUIRED'}})), /requires a signed-in account/)
+  assert.throws(()=>assertPlayableVideo({playability_status:{status:'OK'}},false),/no streaming formats/)
+  assert.throws(()=>assertPlayableVideo({playability_status:{status:'UNPLAYABLE'},streaming_data:{}},true),/status: UNPLAYABLE/)
+})
+
+test('failed signed-in playback request surfaces YouTube denial and reports no credentials', async () => {
+  const reported: unknown[] = []
+  await assert.rejects(getPlayableResponse(async()=>({playability_status:{status:'LOGIN_REQUIRED'}}),
+    async()=>{throw new Error('simulated network failure')},(error)=>reported.push(error)),/YouTube declined playback/)
+  assert.equal(reported.length,1)
+})
+
