@@ -5,6 +5,8 @@ export interface AppPreferences {
   checkForUpdatesOnStartup: boolean
   autoplayNext?: boolean
   showVideoComments?: boolean
+  showShortsHistory?: boolean
+  subscriptionsExpanded?: boolean
 }
 
 // Source phrases are kept as stable keys while migrating the existing UI.
@@ -201,6 +203,8 @@ const spanish: Record<string, string> = {
   'Comments': 'Comentarios', 'Show video comments': 'Mostrar comentarios del video',
   'Loading comments...': 'Cargando comentarios...', 'Comments are unavailable for this video.': 'No hay comentarios disponibles para este video.',
   'Load more comments': 'Cargar más comentarios', 'Pinned comment': 'Comentario fijado',
+  'Shorts': 'Shorts', 'Show Shorts': 'Mostrar Shorts', 'Hide Shorts': 'Ocultar Shorts',
+  'Subscribed channels': 'Canales suscritos', 'Expand channels': 'Expandir canales', 'Collapse channels': 'Contraer canales',
 }
 
 // English is the canonical UI source language; retain old keys for saved errors/data.
