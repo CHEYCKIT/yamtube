@@ -33,7 +33,7 @@ module.exports=async({app,page})=>{
   }
   console.log('PASS: all sidebar labels fit laptop, narrow-window and 150% zoom layouts, including a scrolling sidebar')
   await resize(1366,768)
-  await page.locator('[data-video-id="jNQXAC9IVRw"] a[href="#/watch/jNQXAC9IVRw"]').first().click()
+  await page.locator('[data-video-id="jNQXAC9IVRw"]:visible a[href="#/watch/jNQXAC9IVRw"]').first().click()
   const slot=page.locator('.wt-watch-player-slot:visible')
   await slot.locator('video').waitFor()
   await page.waitForFunction(()=>{const video=document.querySelector('.wt-watch-player-slot video');return video?.readyState>=2})
