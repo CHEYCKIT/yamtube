@@ -73,6 +73,8 @@ for (const stream of [process.stdout, process.stderr]) {
 // Keep the encryption/keyring identity and storage location compatible with beta 1.
 // The window, installer, executable and desktop entry use the LokTube product name.
 app.setName('worldtube')
+// Use the installer app ID for Windows media controls and shell integration.
+if (process.platform === 'win32') app.setAppUserModelId('com.riberojuanca.worldtube')
 app.setPath('userData', join(app.getPath('appData'), 'worldtube'))
 const primaryInstance = app.requestSingleInstanceLock()
 if (!primaryInstance) app.quit()
