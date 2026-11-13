@@ -7,6 +7,7 @@ import { evaluatePlayerScript } from './jsEvaluator'
 import { getHistory } from './historyStore'
 import { getAppLanguage, getSessionState, listActiveSubscriptions, recordProfileHistoryEntry } from './localDb'
 import { getAccountClient, getAccountPlaybackClient, hasYoutubeAccount, accountRevision, reportHistorySyncFailure } from './youtubeAccount'
+import { ratingFromInfo } from './videoRatings'
 import { getPlayableResponse, playbackStatus } from './playbackAvailability'
 import { protectedFetch } from './adBlock'
 import { PlaybackHistory } from './playbackHistory'
@@ -1053,7 +1054,8 @@ async function fetchVideoInfoUncached(videoId: string): Promise<VideoInfoResult>
     lengthSeconds: info.basic_info.duration ?? null,
     durationText: isLive ? 'LIVE' : formatDurationText(info.basic_info.duration ?? null),
     viewCountText: getViewCountText(info),
-    likeCountText: getLikeCountText(info.basic_info.like_count),
+    likeCountText: getLikeCountText(relatedInfo.basic_info.like_count ?? info.basic_info.like_count),
+    rating: accountClient ? ratingFromInfo(relatedInfo) : 'none',
     publishedText: getPublishedText(relatedInfo),
     category: info.basic_info.category,
     description: getDescriptionText(relatedInfo),
