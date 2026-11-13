@@ -63,9 +63,9 @@ jobs:
           else
             NOTES=".github/release-notes/$TAG.md"
             if [ -f "$NOTES" ]; then
-              gh release create "$TAG" --draft --title "LokTube $VERSION" --notes-file "$NOTES" --target "$GITHUB_SHA"
+              gh release create "$TAG" --draft --title "LokTube ${TAG#v}" --notes-file "$NOTES" --target "$GITHUB_SHA"
             else
-              gh release create "$TAG" --draft --title "LokTube $VERSION" --generate-notes --target "$GITHUB_SHA"
+              gh release create "$TAG" --draft --title "LokTube ${TAG#v}" --generate-notes --target "$GITHUB_SHA"
             fi
           fi
 
