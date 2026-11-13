@@ -55,7 +55,7 @@ import { Saved } from './pages/Saved'
 import { Search } from './pages/Search'
 import { Subscriptions } from './pages/Subscriptions'
 import { Watch } from './pages/Watch'
-import { TabBar, TabPages, TabLinkHandler } from './tabs/AppTabs'
+import { TabBar, TabPages, TabRoutePages, TabLinkHandler } from './tabs/AppTabs'
 import { useAppTabs, usePageTab } from './tabs/AppTabs'
 import { PlayerWorkspaceProvider, RegisterTabPlayer, usePlayerWorkspace } from './player/PlayerWorkspace'
 import { TheaterModeProvider, useTheaterMode, useTheaterHeaderReveal } from './player/TheaterMode'
@@ -1052,13 +1052,15 @@ function PlayerTabBar() {
 }
 
 function TabPlayer() {
-  useLocale()
+  const { language } = useLocale()
   const { id } = usePageTab()
+  const { activeProfileId, youtubeAccount } = useProfiles()
+  const pageScope = `${activeProfileId}:${youtubeAccount.signedIn}:${youtubeAccount.name}:${language}`
   const { requestPlayback } = usePlayerWorkspace()
   const startShort = useCallback(() => requestPlayback(id), [requestPlayback, id])
   return <GlobalPlayerProvider tabId={id} onOpenShort={startShort}>
     <RegisterTabPlayer />
-    <AppRoutes />
+    <TabRoutePages key={pageScope}><AppRoutes /></TabRoutePages>
     <TabPlayerMedia />
   </GlobalPlayerProvider>
 }

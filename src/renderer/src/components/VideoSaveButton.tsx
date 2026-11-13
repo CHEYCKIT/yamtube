@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Check } from 'lucide-react'
 import { PROFILE_DATA_CHANGED_EVENT } from '../profiles/events'
+import { usePageTab } from '../tabs/AppTabs'
 import { useProfiles } from '../profiles/ProfileContext'
 import type { LibraryKind, SavedPlaylist, LibrarySaveOptions, SaveVideoRequest } from '../../../shared/ipc'
 
@@ -32,7 +33,9 @@ function UnifiedSaveButton({ video, className = '', buttonClassName }: VideoSave
   const scopeKey = `${activeProfileId}:${signedIn}:${youtubeAccount.name}:${video.videoId}`
   const scopeRef = useRef(scopeKey)
   scopeRef.current = scopeKey
+  const { active: pageActive } = usePageTab()
   const [open, setOpen] = useState(false)
+  useEffect(() => { if (!pageActive) setOpen(false) }, [pageActive])
   const [videoPlaylists, setVideoPlaylists] = useState<SavedPlaylist[]>([])
   const [musicPlaylists, setMusicPlaylists] = useState<SavedPlaylist[]>([])
   const [videoOptions, setVideoOptions] = useState<LibrarySaveOptions | null>(null)
@@ -134,7 +137,7 @@ function UnifiedSaveButton({ video, className = '', buttonClassName }: VideoSave
 
   return <div className={className} onClick={(event) => event.stopPropagation()}>
     <button type="button" onClick={() => setOpen(true)} className={buttonClassName ?? 'grid h-8 w-8 place-items-center rounded bg-black/70 text-neutral-100 shadow-lg shadow-black/25 hover:bg-black/85'} aria-label={t("Save or add")} title={t("Save or add")}><span aria-hidden="true" className="text-xl leading-none">+</span></button>
-    {open && createPortal(<div className="fixed inset-0 z-[100] grid place-items-center bg-black/65 p-4" onClick={() => setOpen(false)}>
+    {open && pageActive && createPortal(<div className="fixed inset-0 z-[100] grid place-items-center bg-black/65 p-4" onClick={() => setOpen(false)}>
       <div role="dialog" aria-modal="true" aria-label={t("Save or add")} onClick={(event) => event.stopPropagation()} className="w-full max-w-2xl rounded-xl border border-neutral-800 bg-neutral-950 shadow-2xl">
         <header className="flex items-center justify-between border-b border-neutral-800 px-5 py-4"><div className="min-w-0"><h2 className="text-lg font-semibold">{t("Save or add")}</h2><p className="mt-1 truncate text-xs text-neutral-400">{video.title}</p></div><button type="button" onClick={() => setOpen(false)} aria-label={t("Close")} className="grid h-9 w-9 cursor-pointer place-items-center rounded-full text-xl hover:bg-neutral-800">×</button></header>
         <div className="grid gap-6 p-5 sm:grid-cols-2">{section('video', signedIn ? t("YouTube playlists") : t("Videos"), videoPlaylists, videoIds, videoPlaylistName, setVideoPlaylistName)}{section('music', signedIn ? t('YouTube Music') : t('Music'), musicPlaylists, musicIds, musicPlaylistName, setMusicPlaylistName)}</div>

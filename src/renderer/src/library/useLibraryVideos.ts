@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useProfiles } from '../profiles/ProfileContext'
 import { PROFILE_DATA_CHANGED_EVENT } from '../profiles/events'
-import type { LibraryKind, SavedVideo } from '../../../shared/ipc'
+import type { LibraryKind, LibraryVideosPage, SavedVideo } from '../../../shared/ipc'
 
 export function useLibraryVideos(playlistId: string | null, library: LibraryKind = 'video', enabled = true) {
   const { activeProfileId, youtubeAccount } = useProfiles()
@@ -10,6 +10,7 @@ export function useLibraryVideos(playlistId: string | null, library: LibraryKind
   const [error, setError] = useState<string | null>(null)
   const [continuation, setContinuation] = useState<string | null>(null)
   const [revision, setRevision] = useState(0)
+  const cache = useRef({ owner: '', pages: new Map<string | null, LibraryVideosPage>() })
   const generation = useRef(0)
   const pending = useRef(false)
   const reload = () => setRevision((value) => value + 1)
@@ -19,8 +20,16 @@ export function useLibraryVideos(playlistId: string | null, library: LibraryKind
     pending.current = false
     setLoading(enabled)
     if (!enabled) return
+    const cacheOwner = `${activeProfileId}:${youtubeAccount.signedIn}:${youtubeAccount.name}:${library}:${revision}`
+    if (cache.current.owner !== cacheOwner) cache.current = { owner: cacheOwner, pages: new Map() }
+    const cached = cache.current.pages.get(playlistId)
+    if (cached) {
+      setVideos(cached.videos); setContinuation(cached.continuation); setLoading(false)
+      return () => { generation.current++ }
+    }
     void window.api.getLibraryVideos(playlistId, library).then((page) => {
       if (owner !== generation.current) return
+      cache.current.pages.set(playlistId, page)
       setVideos(page.videos); setContinuation(page.continuation)
     }).catch((cause) => {
       if (owner === generation.current) setError(cause instanceof Error ? cause.message : String(cause))
@@ -38,7 +47,9 @@ export function useLibraryVideos(playlistId: string | null, library: LibraryKind
     try {
       const page = await window.api.getLibraryVideos(playlistId, library, continuation)
       if (owner !== generation.current) return
-      setVideos((items) => [...items, ...page.videos]); setContinuation(page.continuation)
+      const merged = [...(cache.current.pages.get(playlistId)?.videos ?? []), ...page.videos]
+      cache.current.pages.set(playlistId, { videos: merged, continuation: page.continuation })
+      setVideos(merged); setContinuation(page.continuation)
     } catch (cause) { if (owner === generation.current) setError(cause instanceof Error ? cause.message : String(cause)) }
     finally { if (owner === generation.current) { pending.current = false; setLoading(false) } }
   }

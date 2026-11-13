@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { useLocation } from 'react-router-dom'
 import { RotateCcw, RotateCw, SkipBack, SkipForward, Volume2, X, type LucideIcon } from 'lucide-react'
 import { t, useLocale } from '../i18n/LocaleContext'
-import { useAppTabs } from '../tabs/AppTabs'
+import { useAppTabs, usePageTab } from '../tabs/AppTabs'
 import { PlaybackLoadingIcon, PlaybackStatusIcon } from '../components/PlaybackStatusIcon'
 import { useGlobalPlayer, type MusicQueueItem } from './GlobalPlayerContext'
 import { PLAYER_COMMAND_EVENT, PLAYER_STATE_EVENT, type PlayerCommandDetail, type PlayerStateDetail } from './events'
@@ -32,6 +32,7 @@ function CompactButton({ label, accent = false, disabled = false, children, onCl
 
 export function MusicPlayerPanel({ compact = false, showQueue = false }: { compact?: boolean; showQueue?: boolean }) {
   useLocale()
+  const { active: pageActive } = usePageTab()
   const { videoId, title, channelName, thumbnailUrl, ownerTabId, playbackMode, musicQueue, musicSourcePath, relatedVideos, playMusic, extendMusicQueue, closePlayer, status, error } = useGlobalPlayer()
   const [playerState, setPlayerState] = useState<PlayerStateDetail>({ started: false, paused: true, currentTime: 0, duration: 0, volume: 1 })
   const endedVideoRef = useRef<string | null>(null)
@@ -61,7 +62,7 @@ export function MusicPlayerPanel({ compact = false, showQueue = false }: { compa
       if (detail.tabId !== ownerTabId || detail.videoId !== videoId) return
       setPlayerState(detail)
       const ended = detail.duration > 0 && detail.paused && detail.currentTime >= detail.duration - 0.35
-      if (ended && videoId && endedVideoRef.current !== videoId) {
+      if (pageActive && playbackMode === 'music' && ended && videoId && endedVideoRef.current !== videoId) {
         endedVideoRef.current = videoId
         const next = musicQueue[currentIndex + 1]
         if (next) void playMusic(next.videoId, musicQueue, musicSourcePath ?? undefined)
@@ -75,12 +76,12 @@ export function MusicPlayerPanel({ compact = false, showQueue = false }: { compa
     window.addEventListener(PLAYER_STATE_EVENT, onState)
     send({ action: 'sync' })
     return () => window.removeEventListener(PLAYER_STATE_EVENT, onState)
-  }, [ownerTabId, videoId, currentIndex, musicQueue, musicSourcePath, recommendations, playMusic])
+  }, [ownerTabId, videoId, currentIndex, musicQueue, musicSourcePath, recommendations, playMusic, pageActive, playbackMode])
 
   useEffect(() => {
-    if (playbackMode !== 'music' || currentIndex < 0 || musicQueue.length - currentIndex - 1 > 2 || !recommendations.length) return
+    if (!pageActive || playbackMode !== 'music' || currentIndex < 0 || musicQueue.length - currentIndex - 1 > 2 || !recommendations.length) return
     extendMusicQueue(recommendations)
-  }, [playbackMode, currentIndex, musicQueue.length, recommendations, extendMusicQueue])
+  }, [playbackMode, currentIndex, musicQueue.length, recommendations, extendMusicQueue, pageActive])
 
   const duration = Number.isFinite(playerState.duration) ? playerState.duration : 0
   const currentTime = duration > 0 ? Math.min(playerState.currentTime, duration) : 0

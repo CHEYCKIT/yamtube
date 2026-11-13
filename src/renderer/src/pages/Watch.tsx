@@ -202,9 +202,8 @@ export function Watch() {
   }, [playlistId, activeProfileId])
 
   useEffect(() => {
-    if (!isTabActive || openedVideo.current === videoId) return
+    if (!isTabActive || (openedVideo.current === videoId && activeVideoId === videoId)) return
     openedVideo.current = videoId || null
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
     setIsDescriptionExpanded(false)
     setCopyState('idle')
     if (videoId && videoId !== activeVideoId) {
@@ -218,7 +217,7 @@ export function Watch() {
   }, [videoId, isTabActive])
 
   useEffect(() => {
-    if (!playlistId || !videoId || activeVideoId !== videoId || !playlistVideos.length) return
+    if (!isTabActive || !playlistId || !videoId || activeVideoId !== videoId || !playlistVideos.length) return
     globalPlayer.extendVideoQueue(playlistVideos.map((video) => ({
       videoId: video.videoId,
       title: video.title,
@@ -229,7 +228,7 @@ export function Watch() {
       viewCountText: null,
       publishedText: null
     })))
-  }, [playlistId, playlistVideos, videoId, activeVideoId, globalPlayer.extendVideoQueue])
+  }, [playlistId, playlistVideos, videoId, activeVideoId, globalPlayer.extendVideoQueue, isTabActive])
 
   useEffect(() => {
     if (isCurrentVideo && title && status === 'ready') rename(tabId, title)

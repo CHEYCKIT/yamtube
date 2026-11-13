@@ -29,6 +29,20 @@ AppImage may require FUSE 2; `--appimage-extract-and-run` is an alternative on
 systems without it. Windows packages are initially unsigned; verify the source
 and download location. macOS downloads remain unavailable until signed builds exist.
 
+## 1.1.3
+
+Visited pages now stay loaded within each tab during navigation. Home feeds,
+search results and filters, channel sections, playlist pages and loaded library
+pagination are retained when you leave and return. Back/Forward, sidebar
+navigation and PiP return to the saved page and scroll position instead of
+restarting it. A first visit still loads normally.
+
+Refresh deliberately reloads the current page; account or language changes
+clear retained pages. Closing a tab releases its page state. Retention is for
+the running session, not restoration after quitting the app. Hidden pages
+cannot initiate watch playback or music queue advances, and save dialogs
+close when their page is left.
+
 ## 1.1.2
 
 Fix account playlist loading by using YouTube's playlist aggregation browse

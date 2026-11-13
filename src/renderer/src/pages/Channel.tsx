@@ -5,6 +5,7 @@ import { ChannelAvatar } from '../components/ChannelAvatar'
 import { SubscribeButton } from '../components/SubscribeButton'
 import { VideoCard } from '../components/VideoCard'
 import { PageLoader } from '../components/PageLoader'
+import { usePageTab } from '../tabs/AppTabs'
 import { useProfiles } from '../profiles/ProfileContext'
 import { PROFILE_DATA_CHANGED_EVENT } from '../profiles/events'
 import type { ChannelInfoResult, ChannelPageResult, ChannelPlaylistItem, ChannelTab, SearchResultItem } from '../../../shared/ipc'
@@ -67,6 +68,7 @@ export function Channel() {
   const [bannerFailed, setBannerFailed] = useState(false)
   const [automaticLoads, setAutomaticLoads] = useState(0)
   const automaticLoadCounts = useRef(new Map<string, number>())
+  const { active: pageActive } = usePageTab()
   const { activeProfileId } = useProfiles()
   const cache = useRef(new Map<string, ChannelPageResult>())
   const generation = useRef(0)
@@ -159,11 +161,11 @@ export function Channel() {
   }, [channel, page, pageKey, tab, playlistId])
 
   useEffect(() => {
-    if (!page?.continuation || automaticLoads >= 3 || loading || error || !sentinel.current) return
+    if (!pageActive || !page?.continuation || automaticLoads >= 3 || loading || error || !sentinel.current) return
     const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) void loadMore(true) }, { rootMargin: '400px' })
     observer.observe(sentinel.current)
     return () => observer.disconnect()
-  }, [page?.continuation, automaticLoads, loading, error, loadMore])
+  }, [page?.continuation, automaticLoads, loading, error, loadMore, pageActive])
 
   function changeTab(nextTab: ChannelTab) { setParams({ tab: nextTab }) }
   function changeOption(key: string, value: string) {

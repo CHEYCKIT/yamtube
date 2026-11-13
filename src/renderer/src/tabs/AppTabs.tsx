@@ -1,6 +1,6 @@
 import { t, useLocale } from '../i18n/LocaleContext'
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
-import { NavigationType, Router, createPath, parsePath, UNSAFE_LocationContext, UNSAFE_NavigationContext, type Navigator, type To } from 'react-router-dom'
+import { NavigationType, Router, createPath, parsePath, UNSAFE_LocationContext, UNSAFE_NavigationContext, type Location, type Navigator, type To } from 'react-router-dom'
 import { Play, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { MouseHistoryNavigation } from './mouseNavigation'
@@ -43,7 +43,6 @@ export function AppTabsProvider({ children }: { children: ReactNode }) {
   const tabsRef = useRef(tabs)
   tabsRef.current = tabs
   const scrolls = useRef(new Map<string, number>())
-  const previousId = useRef(activeId)
   const active = tabs.find((tab) => tab.id === activeId) || tabs[0]
   const path = active.entries[active.index]
   const rename = useCallback((id: string, title: string) => setTabs((items) => {
@@ -52,14 +51,19 @@ export function AppTabsProvider({ children }: { children: ReactNode }) {
   }), [])
 
   const value = useMemo<TabsValue>(() => {
+    const rememberScroll = (id: string) => {
+      if (id !== activeId) return
+      const tab = tabsRef.current.find((item) => item.id === id)
+      if (tab) scrolls.current.set(`${id}:${tab.entries[tab.index]}`, window.scrollY)
+    }
     const navigatorFor = (id: string): Navigator => ({
       createHref: (to) => `#${pathFor(to)}`,
-      go: (delta) => setTabs((items) => items.map((tab) => tab.id === id
-        ? { ...tab, index: Math.max(0, Math.min(tab.entries.length - 1, tab.index + delta)) } : tab)),
-      push: (to) => setTabs((items) => items.map((tab) => tab.id === id
-        ? { ...tab, entries: [...tab.entries.slice(0, tab.index + 1), pathFor(to)], index: tab.index + 1 } : tab)),
-      replace: (to) => setTabs((items) => items.map((tab) => tab.id === id
-        ? { ...tab, entries: tab.entries.map((entry, index) => index === tab.index ? pathFor(to) : entry) } : tab))
+      go: (delta) => { rememberScroll(id); setTabs((items) => items.map((tab) => tab.id === id
+        ? { ...tab, index: Math.max(0, Math.min(tab.entries.length - 1, tab.index + delta)) } : tab)) },
+      push: (to) => { rememberScroll(id); setTabs((items) => items.map((tab) => tab.id === id
+        ? { ...tab, entries: [...tab.entries.slice(0, tab.index + 1), pathFor(to)], index: tab.index + 1 } : tab)) },
+      replace: (to) => { rememberScroll(id); setTabs((items) => items.map((tab) => tab.id === id
+        ? { ...tab, entries: tab.entries.map((entry, index) => index === tab.index ? pathFor(to) : entry) } : tab)) }
     })
     return {
       tabs, activeId,
@@ -69,12 +73,12 @@ export function AppTabsProvider({ children }: { children: ReactNode }) {
         const tab = makeTab(nextPath, title)
         setTabs((items) => [...items, tab])
         if (!background) {
-          scrolls.current.set(activeId, window.scrollY)
+          rememberScroll(activeId)
           setActiveId(tab.id)
         }
       },
       select: (id) => {
-        scrolls.current.set(activeId, window.scrollY)
+        rememberScroll(activeId)
         setActiveId(id)
       },
       reorder: (from, to) => setTabs((items) => {
@@ -94,7 +98,7 @@ export function AppTabsProvider({ children }: { children: ReactNode }) {
         if (!remaining.length) remaining.push(makeTab())
         setTabs(remaining)
         if (id === activeId) setActiveId(remaining[Math.min(index, remaining.length - 1)].id)
-        scrolls.current.delete(id)
+        for (const key of scrolls.current.keys()) if (key.startsWith(`${id}:`)) scrolls.current.delete(key)
       },
       rename
     }
@@ -102,10 +106,13 @@ export function AppTabsProvider({ children }: { children: ReactNode }) {
 
   useLayoutEffect(() => {
     window.history.replaceState(null, '', `#${path}`)
-    if (previousId.current !== activeId) {
-      window.scrollTo(0, scrolls.current.get(activeId) || 0)
-      previousId.current = activeId
-    }
+    const top = scrolls.current.get(`${activeId}:${path}`) ?? 0
+    const restore = () => window.scrollTo({ top, left: 0, behavior: 'instant' })
+    restore()
+    // Library views restore their cached selection in an effect; apply again
+    // after that content has committed rather than clamping to the old height.
+    const frame = requestAnimationFrame(restore)
+    return () => cancelAnimationFrame(frame)
   }, [activeId, path])
 
   useEffect(() => {
@@ -164,6 +171,33 @@ export function TabPages({ children }: { children: ReactNode }) {
       </PageTabContext.Provider>
     </div>
   })}</>
+}
+
+// A tab owns one player, but retains each visited browsing page independently.
+// Inactive pages keep their state and frozen URL without becoming active players.
+export function TabRoutePages({ children }: { children: ReactNode }) {
+  const tab = usePageTab()
+  const location = useContext(UNSAFE_LocationContext)
+  const path = createPath(location.location)
+  // Watch has a single player slot per tab; never retain duplicate slot IDs.
+  const pathname = location.location.pathname
+  const selected = pathname.startsWith('/watch/') ? '/watch' : pathname === '/search' ? path : pathname
+  const pages = useRef(new Map<string, { location: Location; revision: number }>())
+  const lastRefresh = useRef(tab.revision)
+  const previous = pages.current.get(selected)
+  const revision = (previous?.revision ?? 0) + (lastRefresh.current !== tab.revision ? 1 : 0)
+  lastRefresh.current = tab.revision
+  pages.current.set(selected, { location: location.location, revision })
+  // Redirect components must unmount after forwarding rather than redirecting
+  // later navigation from a retained hidden page.
+  if (selected !== '/profile') pages.current.delete('/profile')
+  return <>{[...pages.current].map(([key, page]) => <div key={key} hidden={key !== selected}>
+    <PageTabContext.Provider value={{ ...tab, active: tab.active && key === selected, revision: page.revision }}>
+      <UNSAFE_LocationContext.Provider value={{ ...location, location: page.location }}>
+        {children}
+      </UNSAFE_LocationContext.Provider>
+    </PageTabContext.Provider>
+  </div>)}</>
 }
 
 function routeTitle(path: string) {
