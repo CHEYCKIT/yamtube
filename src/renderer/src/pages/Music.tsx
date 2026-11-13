@@ -4,7 +4,7 @@ import { t, useLocale } from '../i18n/LocaleContext'
 import { NavigationIcon } from '../components/NavigationIcon'
 import { useLibraryVideos } from '../library/useLibraryVideos'
 import { PageLoader } from '../components/PageLoader'
-import { VideoThumbnail } from '../components/VideoCard'
+import { MusicArtwork } from '../components/MusicArtwork'
 import { PlaybackLoadingIcon, PlaybackStatusIcon } from '../components/PlaybackStatusIcon'
 import { MusicPlayerPanel } from '../player/MusicPlayer'
 import { useGlobalPlayer } from '../player/GlobalPlayerContext'
@@ -152,7 +152,7 @@ export function Music() {
             <div className="grid min-w-0 grid-cols-[28px_64px_minmax(0,1fr)] items-center gap-3">
               <span className="text-center text-xs text-neutral-500">{index + 1}</span>
               <button type="button" disabled={loading} onClick={() => startMusic(song, visibleSongs)} aria-label={loading ? t("Loading...") : active && !playerPaused ? t("Pause") : t("Play")} className="group relative aspect-square cursor-pointer overflow-hidden rounded bg-neutral-900 disabled:cursor-wait">
-                <VideoThumbnail videoId={song.videoId} thumbnailUrl={song.thumbnailUrl} title={song.title} quality="compact" />
+                <MusicArtwork videoId={song.videoId} thumbnailUrl={song.thumbnailUrl} title={song.title} />
                 <span className={`absolute inset-0 grid place-items-center bg-black/55 text-white transition-opacity ${loading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}>{loading ? <PlaybackLoadingIcon /> : <PlaybackStatusIcon paused={!active || playerPaused} />}</span>
               </button>
               <button type="button" disabled={loading} onClick={() => startMusic(song, visibleSongs)} className="min-w-0 cursor-pointer text-left disabled:cursor-wait"><span className={`block truncate text-sm font-medium ${active ? 'text-[var(--wt-accent)]' : ''}`}>{song.title}</span><span className="block truncate text-xs text-neutral-400">{song.channelName}</span></button>

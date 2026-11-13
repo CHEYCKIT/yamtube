@@ -5,6 +5,7 @@ import { t, useLocale } from '../i18n/LocaleContext'
 import { useAppTabs, usePageTab } from '../tabs/AppTabs'
 import { PlaybackLoadingIcon, PlaybackStatusIcon } from '../components/PlaybackStatusIcon'
 import { useGlobalPlayer, type MusicQueueItem } from './GlobalPlayerContext'
+import { MusicArtwork } from '../components/MusicArtwork'
 import { PLAYER_COMMAND_EVENT, PLAYER_STATE_EVENT, type PlayerCommandDetail, type PlayerStateDetail } from './events'
 
 function formatTime(seconds: number): string {
@@ -93,7 +94,7 @@ export function MusicPlayerPanel({ compact = false, showQueue = false }: { compa
   return <section className={`relative overflow-hidden border border-neutral-800 ${compact ? 'wt-player-bar border-x-0 border-b-0 bg-neutral-900 shadow-2xl shadow-black/40' : 'rounded-xl bg-gradient-to-r from-neutral-900 via-neutral-950 to-neutral-900 shadow-xl shadow-black/20'}`}>
     <div className={`grid ${compact ? 'min-h-[58px] grid-cols-[80px_minmax(120px,1fr)_minmax(220px,520px)_auto] items-center gap-4 px-4 max-[840px]:grid-cols-[64px_minmax(0,1fr)_auto] max-[840px]:gap-2' : 'grid-cols-[minmax(140px,24%)_minmax(0,1fr)] items-stretch gap-0 sm:grid-cols-[minmax(180px,22%)_minmax(0,1fr)]'}`}>
       <div className={`overflow-hidden bg-black ${compact ? 'h-11 w-20 rounded max-[840px]:w-16' : 'h-full min-h-48 w-full'}`}>
-        {(current?.thumbnailUrl ?? thumbnailUrl) && <img src={(current?.thumbnailUrl ?? thumbnailUrl) ?? ''} alt="" decoding="async" className={`h-full w-full ${compact ? 'object-contain' : 'object-cover'}`} />}
+        <MusicArtwork videoId={videoId} thumbnailUrl={current?.thumbnailUrl ?? thumbnailUrl} title={title || current?.title || ''} className={compact ? 'object-contain' : 'object-cover'} />
       </div>
       <div className={`min-w-0 ${compact ? '' : 'self-center p-5 sm:p-6'}`}>
         <p className={`${compact ? 'text-sm' : 'text-lg'} truncate font-semibold`}>{title || current?.title}</p>
