@@ -15,7 +15,7 @@ module.exports=async({app,page,profile})=>{
   assert.deepEqual(parser,{count:1,title:'Playable item'})
   console.log('PASS: packaged parser warning recovers instead of crashing on missing bugs.url')
 
-  await page.locator('a[href="#/"]').first().click()
+  await page.locator('a[href="#/"]:visible').first().click()
   await page.getByRole('heading',{name:'Home',exact:true}).waitFor()
   const card=page.locator('[data-video-id="jNQXAC9IVRw"]:visible').first()
   await card.waitFor()
@@ -30,10 +30,10 @@ module.exports=async({app,page,profile})=>{
   console.log('PASS: video context menu opens a background tab and dismisses with Escape')
 
   // Send the actual Windows BrowserWindow event through main/preload IPC.
-  await page.locator('a[href="#/music"]').first().click()
+  await page.locator('a[href="#/music"]:visible').first().click()
   await page.getByRole('heading',{name:'LokTube Music',exact:true}).waitFor()
   assert.equal(await page.getByText('All songs',{exact:true}).count()>0,true)
-  await page.locator('a[href="#/account"]').first().click()
+  await page.locator('a[href="#/account"]:visible').first().click()
   await page.getByRole('heading',{name:'Account & privacy'}).waitFor()
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].emit('app-command',{},'browser-backward'))
   await page.getByRole('heading',{name:'LokTube Music',exact:true}).waitFor()
@@ -72,7 +72,7 @@ module.exports=async({app,page,profile})=>{
         dashManifest:null,sabr:null,liveManifests:[{url,mimeType:'video/webm'}]}}
     })
   },blob)
-  await page.locator('a[href="#/"]').first().click()
+  await page.locator('a[href="#/"]:visible').first().click()
   await page.getByRole('heading',{name:'Home',exact:true}).waitFor()
   await page.locator('[data-video-id="jNQXAC9IVRw"]:visible').first().click({button:'right'})
   await page.getByRole('menuitem',{name:'Play in mini player',exact:true}).click()
@@ -114,7 +114,7 @@ module.exports=async({app,page,profile})=>{
   await require('./desktop-theater.cjs')({app,page})
   await require('./desktop-pip.cjs')({app,page})
   await require('./desktop-fullscreen.cjs')({app,page})
-  await page.locator('a[href="#/account"]').first().click()
+  await page.locator('a[href="#/account"]:visible').first().click()
   await page.getByRole('heading',{name:'Account & privacy'}).waitFor()
   await app.evaluate(()=>console.warn('Diagnostics fixture', {Cookie:'SID=diagnostics-secret; SAPISID=diagnostics-secret',authorization:'Bearer diagnostics-secret',poToken:'diagnostics-secret'}))
   await page.getByRole('button',{name:'View logs',exact:true}).click()
