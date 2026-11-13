@@ -88,7 +88,10 @@ module.exports=async({app,page,profile})=>{
   assert.equal(await autoplay.getAttribute('aria-checked'),'true')
   await autoplay.click()
   await page.waitForFunction(async()=> (await window.api.getAppPreferences()).autoplayNext===false)
-  // Wait for the setting to propagate to the player's React context.
+  // The preferences IPC commit can resolve before its React context update.
+  // Confirm the Shaka control reflects the new preference before simulating
+  // the media ending, rather than racing against the previous listener.
+  await page.waitForFunction(()=>document.querySelector('.shaka-autoplay-button')?.getAttribute('aria-checked')==='false')
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))
   const requested=await app.evaluate(()=>globalThis.__featurePlaybackRequests.length)
   await page.evaluate(()=>{const video=[...document.querySelectorAll('video')].find(item=>!item.paused);video.currentTime=video.duration-0.05})
