@@ -17,9 +17,9 @@ concurrency:
 
 jobs:
   prepare:
-    # A deliberately marked merge commit can publish 1.1.5 without manually
+    # A deliberately marked merge commit can publish 1.1.6 without manually
     # creating a tag. Other main pushes never start a release.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.ref_type == 'tag' || (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release v1.1.5]')) }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref_type == 'tag' || (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release v1.1.6]')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -61,7 +61,12 @@ jobs:
               exit 0
             fi
           else
-            gh release create "$TAG" --draft --title "LokTube $TAG" --generate-notes --target "$GITHUB_SHA"
+            NOTES=".github/release-notes/$TAG.md"
+            if [ -f "$NOTES" ]; then
+              gh release create "$TAG" --draft --title "LokTube $VERSION" --notes-file "$NOTES" --target "$GITHUB_SHA"
+            else
+              gh release create "$TAG" --draft --title "LokTube $VERSION" --generate-notes --target "$GITHUB_SHA"
+            fi
           fi
 
   package:
