@@ -3,6 +3,8 @@ name: Build fork installers
 on:
   push:
     branches: [youtube-accounts-adblock]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
