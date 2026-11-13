@@ -9,6 +9,8 @@ export type PlayerCommandDetail = { tabId?: string } & (
   | { action: 'sync' }
   | { action: 'pause-others' }
   | { action: 'toggle-play' }
+  | { action: 'play' }
+  | { action: 'pause' }
   | { action: 'toggle-picture-in-picture' }
   | { action: 'seek-relative'; seconds: number }
   | { action: 'seek-to'; seconds: number }

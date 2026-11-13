@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppTabs } from '../tabs/AppTabs'
 import { GlobalPlayerContext, initialState, useGlobalPlayer, type GlobalPlayerContextValue } from './GlobalPlayerContext'
-import { PLAYER_COMMAND_EVENT, PLAYER_STATE_EVENT, type PlayerStateDetail } from './events'
+import { PLAYER_COMMAND_EVENT, PLAYER_STATE_EVENT, type PlayerCommandDetail, type PlayerStateDetail } from './events'
 import { MINI_PLAYER_OPEN_EVENT } from './events'
+import { musicArtworkCandidates } from '../components/MusicArtwork'
 
 interface WorkspaceValue {
   register: (id: string, player: GlobalPlayerContextValue | null) => void
@@ -78,6 +79,80 @@ export function PlayerWorkspaceProvider({ children }: { children: ReactNode }) {
     window.addEventListener(PLAYER_STATE_EVENT, onState)
     return () => window.removeEventListener(PLAYER_STATE_EVENT, onState)
   }, [])
+
+
+  // Only the workspace owner publishes an OS media session. Each tab has its
+  // own persistent <video>; publishing from individual tab players would leave
+  // stale or competing Windows SMTC entries after switching tabs.
+  useEffect(() => {
+    const session = navigator.mediaSession
+    if (!session) return
+    const actions: MediaSessionAction[] = ['play', 'pause', 'stop', 'previoustrack', 'nexttrack', 'seekbackward', 'seekforward', 'seekto']
+    const register = (action: MediaSessionAction, callback: MediaSessionActionHandler | null) => {
+      try { session.setActionHandler(action, callback) } catch { /* Unsupported on this platform. */ }
+    }
+    if (!ownerId || !selected.videoId || selected.status !== 'ready') {
+      session.metadata = null
+      session.playbackState = 'none'
+      for (const action of actions) register(action, null)
+      return
+    }
+
+    const videoId = selected.videoId
+    const track = selected.playbackMode === 'music' ? selected.musicQueue.find((item) => item.videoId === videoId) : null
+    const artwork = musicArtworkCandidates(videoId, track?.thumbnailUrl ?? selected.thumbnailUrl)
+      .slice(0, 4).map((src) => ({ src }))
+    if (typeof MediaMetadata !== 'undefined') {
+      session.metadata = new MediaMetadata({
+        title: selected.title || track?.title || 'LokTube',
+        artist: selected.channelName || track?.channelName || '',
+        album: selected.playbackMode === 'music' ? 'LokTube Music' : 'LokTube',
+        artwork
+      })
+    }
+    session.playbackState = playingIds.includes(ownerId) ? 'playing' : 'paused'
+    const send = (detail: PlayerCommandDetail) => window.dispatchEvent(new CustomEvent<PlayerCommandDetail>(PLAYER_COMMAND_EVENT, { detail: { ...detail, tabId: ownerId } }))
+    const queue = selected.playbackMode === 'music' ? selected.musicQueue : selected.videoQueue
+    const currentIndex = queue.findIndex((item) => item.videoId === videoId)
+    const playAt = (index: number) => {
+      const item = queue[index]
+      if (!item) return
+      requestPlayback(ownerId)
+      if (selected.playbackMode === 'music') void selected.playMusic(item.videoId, selected.musicQueue, selected.musicSourcePath ?? undefined)
+      else void selected.playVideoQueue(item.videoId, selected.videoQueue)
+    }
+    register('play', () => send({ action: 'play' }))
+    register('pause', () => send({ action: 'pause' }))
+    register('stop', () => { send({ action: 'pause' }); selected.closePlayer() })
+    register('previoustrack', currentIndex > 0 ? () => playAt(currentIndex - 1) : null)
+    register('nexttrack', currentIndex >= 0 && currentIndex < queue.length - 1 ? () => playAt(currentIndex + 1) : null)
+    register('seekbackward', (details) => send({ action: 'seek-relative', seconds: -(details.seekOffset ?? 10) }))
+    register('seekforward', (details) => send({ action: 'seek-relative', seconds: details.seekOffset ?? 10 }))
+    register('seekto', (details) => {
+      if (typeof details.seekTime === 'number' && Number.isFinite(details.seekTime)) send({ action: 'seek-to', seconds: details.seekTime })
+    })
+
+    const updatePosition = (event: Event) => {
+      const detail = (event as CustomEvent<PlayerStateDetail>).detail
+      if (detail.tabId !== ownerId || detail.videoId !== videoId) return
+      session.playbackState = detail.paused ? 'paused' : 'playing'
+      if (detail.duration > 0 && Number.isFinite(detail.duration)) {
+        try {
+          session.setPositionState({
+            duration: detail.duration,
+            playbackRate: 1,
+            position: Math.min(detail.duration, Math.max(0, detail.currentTime || 0))
+          })
+        } catch { /* Some platforms do not expose the media timeline. */ }
+      }
+    }
+    window.addEventListener(PLAYER_STATE_EVENT, updatePosition)
+    send({ action: 'sync' })
+    return () => {
+      window.removeEventListener(PLAYER_STATE_EVENT, updatePosition)
+      for (const action of actions) register(action, null)
+    }
+  }, [ownerId, selected, playingIds, requestPlayback])
 
   const value = useMemo(() => ({ register, ownerId, playingIds, requestPlayback, shouldAutoplay, playInMiniPlayer }), [register, ownerId, playingIds, requestPlayback, shouldAutoplay, playInMiniPlayer])
   return <WorkspaceContext.Provider value={value}>

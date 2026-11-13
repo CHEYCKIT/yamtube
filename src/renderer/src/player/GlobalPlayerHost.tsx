@@ -717,6 +717,17 @@ export function GlobalPlayerHost() {
         return
       }
 
+      if (detail.action === 'play') {
+        void videoEl.play().catch((error: unknown) => console.error('System media play failed', error))
+        return
+      }
+
+      if (detail.action === 'pause') {
+        videoEl.pause()
+        emitState()
+        return
+      }
+
       if (detail.action === 'toggle-play') {
         if (videoEl.paused) {
           void videoEl.play().catch((error: unknown) => console.error(`video play command failed: ${JSON.stringify(describeError(error))}`))
