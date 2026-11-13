@@ -29,6 +29,11 @@ AppImage may require FUSE 2; `--appimage-extract-and-run` is an alternative on
 systems without it. Windows packages are initially unsigned; verify the source
 and download location. macOS downloads remain unavailable until signed builds exist.
 
+## 1.1.2
+
+Fix account playlist loading by using YouTube's playlist aggregation browse
+endpoint. A failed playlist request no longer displays an empty-library message.
+
 ## 1.1.1
 
 In theater mode, moving below the visible header and tabs now hides them after

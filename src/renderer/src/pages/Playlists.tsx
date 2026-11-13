@@ -166,7 +166,7 @@ export function Playlists() {
             </button>
           })}
         </div>
-        {!filtered.length && <p className="py-6 text-sm text-neutral-400">{query ? t('No matching playlists') : t("No saved playlists.")}</p>}
+        {!error && !filtered.length && <p className="py-6 text-sm text-neutral-400">{query ? t('No matching playlists') : t("No saved playlists.")}</p>}
       </>}
     </section>
   )

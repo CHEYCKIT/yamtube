@@ -110,7 +110,7 @@ export async function listSavedPlaylists(library: LibraryKind = 'video'): Promis
   const seen = new Set<string>()
   let continuation: string | null = null
   do {
-    const data = await request(owner, '/browse', { ...clientArgs(library), ...(continuation ? { continuation } : { browseId: library === 'music' ? 'FEmusic_library_landing' : 'FEplaylist' }) })
+    const data = await request(owner, '/browse', { ...clientArgs(library), ...(continuation ? { continuation } : { browseId: library === 'music' ? 'FEmusic_library_landing' : 'FEplaylist_aggregation' }) })
     const feed = parseLibraryFeed(data)
     for (const item of feed.collections) {
       if (['WL', 'LL', 'LM'].includes(item.id)) continue
