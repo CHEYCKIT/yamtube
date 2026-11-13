@@ -309,13 +309,15 @@ function TopNav() {
     <>
       <header className="wt-topbar sticky top-0 z-40 grid h-[60px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-2 shadow-lg shadow-black/20 max-[680px]:fixed max-[680px]:inset-x-0 max-[680px]:top-0 max-[680px]:grid-cols-[1fr_auto]">
         <div className="flex min-w-0 items-center gap-1">
-          <div
-            className="wt-window-drag flex h-10 min-w-0 items-center gap-2 rounded px-2 text-lg font-semibold text-neutral-100"
-            title="LokTube"
+          <Link
+            to="/"
+            aria-label={t('Return home')}
+            title={t('Return home')}
+            className="flex h-10 min-w-0 items-center gap-2 rounded px-2 text-lg font-semibold text-neutral-100 hover:bg-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             <BrandMark />
             <span className="truncate max-[680px]:hidden">LokTube</span>
-          </div>
+          </Link>
           <button
             type="button"
             onClick={() => navigate(-1)}
