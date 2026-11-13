@@ -17,8 +17,9 @@ module.exports = async ({app,page}) => {
     ipcMain.removeHandler('youtube:get-home-feed')
     ipcMain.handle('youtube:get-home-feed', () => ({ok:true,data:feed,home:{shorts}}))
   })
-  await page.locator('a[href="#/account"]:visible').first().click()
-  await page.locator('a[href="#/"]:visible').first().click()
+  // TabRoutePages keeps previously visited Home pages mounted. A reload
+  // discards the old feed and ensures Home picks up this deterministic fixture.
+  await page.reload()
   await page.getByRole('heading',{name:'More to explore',exact:true}).waitFor()
 
   const sectionTitles=await page.locator('section[aria-label="Home"] h2').allTextContents()
