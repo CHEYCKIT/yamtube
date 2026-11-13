@@ -17,6 +17,7 @@ interface Credentials {
 
 let credentials: Credentials | null = null
 let client: Promise<Innertube> | null = null
+let playbackClient: Promise<Innertube> | null = null
 let clientLanguage: string | null = null
 let revision = 0
 let state: YoutubeAccountState = { signedIn: false, name: null, avatarUrl: null, persistent: false, error: null, syncError: null }
@@ -39,12 +40,13 @@ function canPersist(): boolean {
     (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text')
 }
 
-function createClient(cookie?: string): Promise<Innertube> {
-  return Innertube.create({ cookie, lang: getAppLanguage(), generate_session_locally: true, retrieve_player: false, retrieve_innertube_config: false, fetch: protectedFetch })
+function createClient(cookie?: string, playback = false): Promise<Innertube> {
+  return Innertube.create({ cookie, lang: getAppLanguage(), generate_session_locally: true,
+    retrieve_player: playback, retrieve_innertube_config: false, fetch: protectedFetch })
 }
 
 export function getAccountClient(): Promise<Innertube> {
-  if (clientLanguage !== getAppLanguage()) { client = null; clientLanguage = getAppLanguage() }
+  if (clientLanguage !== getAppLanguage()) { client = null; playbackClient = null; clientLanguage = getAppLanguage() }
   if (!client) {
     const pending = createClient(credentials?.cookie).catch((error) => {
       if (client === pending) client = null
@@ -53,6 +55,28 @@ export function getAccountClient(): Promise<Innertube> {
     client = pending
   }
   return client
+}
+
+/**
+ * Dedicated authenticated player client. Keep the browsing client separate:
+ * it intentionally skips fetching Player JS and must not be mutated by
+ * video-scoped PO tokens. Cache only for the current signed-in credentials.
+ */
+export function getAccountPlaybackClient(): Promise<Innertube> {
+  if (!credentials) return Promise.reject(new Error('No YouTube account is connected'))
+  if (clientLanguage !== getAppLanguage()) { client = null; playbackClient = null; clientLanguage = getAppLanguage() }
+  if (!playbackClient) {
+    const expectedRevision = revision
+    const pending = createClient(credentials.cookie, true).then((yt) => {
+      if (revision !== expectedRevision) throw new Error('YouTube account changed during playback authorization')
+      return yt
+    }).catch((error) => {
+      if (playbackClient === pending) playbackClient = null
+      throw error
+    })
+    playbackClient = pending
+  }
+  return playbackClient
 }
 
 export async function initializeYoutubeAccount(): Promise<void> {
@@ -115,6 +139,7 @@ export async function connectYoutubeAccount(cookie: string): Promise<YoutubeAcco
   await activateLibraryOwner(next.libraryKey, next.name)
   credentials = next
   client = Promise.resolve(candidate)
+  playbackClient = null
   clientLanguage = getAppLanguage()
   revision++
   publish({ signedIn: true, name: next.name, avatarUrl: next.avatarUrl, persistent, error: null, syncError: null })
@@ -127,6 +152,7 @@ export async function disconnectYoutubeAccount(): Promise<YoutubeAccountState> {
   await activateLibraryOwner('guest', 'Guest')
   credentials = null
   client = null
+  playbackClient = null
   revision++
   publish({ signedIn: false, name: null, avatarUrl: null, persistent: false, error: null, syncError: null })
   return youtubeAccountState()
