@@ -6,7 +6,9 @@ import { youtubeCookieHeader, parseNetscapeCookies, parseYoutubeCookies } from '
 import { inspectAccountResponse } from '../src/main/youtubeIdentity'
 import { browserCandidates, browserFromExecutable, registryBrowserExecutables } from '../src/main/browserDiscovery'
 import { PlaybackHistory } from '../src/main/playbackHistory'
-import { mapRecommendedShorts } from '../src/main/shortsRecommendations'
+import { mapRecommendedShorts, interleaveShorts, selectDiverseShorts, shortsTopicQuery } from '../src/main/shortsRecommendations'
+import { mapMusicPlaylistTracks } from '../src/main/musicPlaylistItems'
+import { ratingFromInfo } from '../src/main/videoRatingState'
 import { assertPlayableVideo, getPlayableResponse } from '../src/main/playbackAvailability'
 
 const policy = new RequestPolicy(['easylist', 'easyprivacy'].map((name) => readFileSync(`resources/filters/${name}.txt`, 'utf8')).join('\n'))
@@ -479,4 +481,42 @@ test('home Shorts mapper accepts ShortsLockupView and ReelItem but rejects ordin
 test('home Shorts mapper skips malformed objects instead of poisoning the home feed', () => {
   assert.deepEqual(mapRecommendedShorts([null,1,{}, {type:'ShortsLockupView',overlay_metadata:{primary_text:'Unlinked'}},
     {type:'ReelItem',id:'00000000000',title:'A short without a thumbnail'}]).map((video)=>video.videoId),['00000000000'])
+})
+
+test('Home Shorts search follows subject rather than a recent channel name, and interleaves results', () => {
+  assert.equal(shortsTopicQuery('How to restore a classic car in 10 minutes!'), 'how restore classic shorts')
+  assert.equal(shortsTopicQuery('shorts'), null)
+  const short = (videoId: string, channelId: string) => ({videoId,title:'Video',channelId,channelName:channelId,thumbnailUrl:null,
+    durationText:null,viewCountText:null,publishedText:null})
+  const batches = [[short('aaaaaaaaaaa','UC1'),short('bbbbbbbbbbb','UC1'),short('ccccccccccc','UC1')],
+    [short('ddddddddddd','UC2'),short('eeeeeeeeeee','UC3')],
+    [short('fffffffffff','UC2'),short('ggggggggggg','UC4')]]
+  const mixed = interleaveShorts(batches)
+  assert.deepEqual(mixed.slice(0,5).map(x=>x.videoId),['aaaaaaaaaaa','ddddddddddd','fffffffffff','bbbbbbbbbbb','eeeeeeeeeee'])
+  const chosen = selectDiverseShorts(mixed,12,2)
+  assert.equal(chosen.filter(x=>x.channelId==='UC1').length,2)
+  assert.ok(new Set(chosen.map(x=>x.channelId)).size>=4)
+  assert.equal(chosen.length,6)
+})
+
+test('Music playlist parser maps typed YouTube Music tracks without treating albums or continuations as songs', () => {
+  const tracks = mapMusicPlaylistTracks([
+    {item_type:'song',id:'aaaaaaaaaaa',title:'Song A',artists:[{name:'Artist',channel_id:'UCartist'}],thumbnails:[{url:'https://example.test/a.jpg'}]},
+    {item_type:'video',id:'bbbbbbbbbbb',title:'Video B',authors:[{name:'Creator'}]},
+    {item_type:'album',id:'ccccccccccc',title:'An album'},
+    {type:'ContinuationItem',token:'next'},
+    {item_type:'song',id:'aaaaaaaaaaa',title:'Duplicate'}
+  ])
+  assert.deepEqual(tracks.map(x=>x.videoId),['aaaaaaaaaaa','bbbbbbbbbbb'])
+  assert.equal(tracks[0].channelName,'Artist')
+  assert.equal(tracks[0].channelId,'UCartist')
+  assert.equal(tracks[0].thumbnailUrl,'https://example.test/a.jpg')
+  assert.equal(tracks[1].channelName,'Creator')
+})
+
+test('YouTube user rating state distinguishes likes, dislikes and neutral without inventing counts', () => {
+  assert.equal(ratingFromInfo({basic_info:{is_liked:true,is_disliked:false}}),'like')
+  assert.equal(ratingFromInfo({basic_info:{is_liked:false,is_disliked:true}}),'dislike')
+  assert.equal(ratingFromInfo({basic_info:{is_liked:false,is_disliked:false}}),'none')
+  assert.equal(ratingFromInfo({}),'none')
 })
