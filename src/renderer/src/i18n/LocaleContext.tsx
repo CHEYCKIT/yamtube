@@ -47,7 +47,9 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       return
     }
     try {
-      const merged = { ...next, autoplayNext: next.autoplayNext ?? preferences.autoplayNext ?? true,
+      // Only serializable preference fields may cross the Electron IPC boundary.
+      const merged: AppPreferences = { language: next.language, checkForUpdatesOnStartup: next.checkForUpdatesOnStartup,
+        autoplayNext: next.autoplayNext ?? preferences.autoplayNext ?? true,
         showVideoComments: next.showVideoComments ?? preferences.showVideoComments ?? false,
         showShortsHistory: next.showShortsHistory ?? preferences.showShortsHistory ?? true,
         subscriptionsExpanded: next.subscriptionsExpanded ?? preferences.subscriptionsExpanded ?? false }
