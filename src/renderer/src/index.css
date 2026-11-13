@@ -626,6 +626,9 @@ input[type='checkbox'] {
   }
   .wt-theater .watch-info-area { padding-inline-end: 0; }
 }
+/* Native window drag regions swallow pointer events, making the reveal retract
+   over the logo and empty header space. Keep the overlay in the client area. */
+.wt-theater :is(.wt-topbar, .wt-window-drag) { -webkit-app-region: no-drag; }
 .wt-theater .wt-topbar,
 .wt-theater .wt-tabbar {
   position: fixed;

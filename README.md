@@ -33,6 +33,7 @@ and download location. macOS downloads remain unavailable until signed builds ex
 
 Fix account playlist loading by using YouTube's playlist aggregation browse
 endpoint. A failed playlist request no longer displays an empty-library message.
+The theater header also stays visible when crossing its logo or empty space.
 
 ## 1.1.1
 
