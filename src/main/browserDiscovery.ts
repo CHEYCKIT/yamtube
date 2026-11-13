@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto'
-import { basename, join, win32 } from 'node:path'
+import { posix, win32 } from 'node:path'
 
 export interface SignInBrowser { id: string; name: string; executable: string }
 const names: Record<string, string> = { zen: 'Zen', 'zen-browser': 'Zen', firefox: 'Firefox', 'firefox-esr': 'Firefox', librewolf: 'LibreWolf', waterfox: 'Waterfox', floorp: 'Floorp' }
 
 export function browserFromExecutable(executable: string, platform: string): SignInBrowser | null {
-  const file = (platform === 'win32' ? win32.basename(executable) : basename(executable)).replace(/\.exe$/i, '').toLowerCase()
+  const file = (platform === 'win32' ? win32.basename(executable) : posix.basename(executable)).replace(/\.exe$/i, '').toLowerCase()
   const name = Object.hasOwn(names, file) ? names[file] : null
   if (!name) return null
   const key = platform === 'win32' ? executable.toLowerCase() : executable
@@ -32,13 +32,13 @@ export function browserCandidates(platform: string, env: Record<string, string |
       ['Mozilla Firefox', 'firefox.exe'], ['Firefox Developer Edition', 'firefox.exe'], ['LibreWolf', 'librewolf.exe'], ['Waterfox', 'waterfox.exe'], ['Floorp', 'floorp.exe']
     ]) paths.push(win32.join(root, folder, file))
   } else if (platform === 'darwin') {
-    for (const root of ['/Applications', join(home, 'Applications')]) for (const [bundle, file] of [
+    for (const root of ['/Applications', posix.join(home, 'Applications')]) for (const [bundle, file] of [
       ['Zen.app', 'zen'], ['Firefox.app', 'firefox'], ['Firefox Developer Edition.app', 'firefox'], ['LibreWolf.app', 'librewolf'], ['Waterfox.app', 'waterfox'], ['Floorp.app', 'floorp']
-    ]) paths.push(join(root, bundle, 'Contents/MacOS', file))
+    ]) paths.push(posix.join(root, bundle, 'Contents/MacOS', file))
   } else {
-    paths.push('/opt/zen/zen', '/opt/zen-browser/zen', join(home, '.local/share/zen/zen'))
-    for (const root of [...(env.PATH ?? '/usr/bin:/usr/local/bin').split(':'), join(home, '.local/bin')]) {
-      for (const file of Object.keys(names)) paths.push(join(root, file))
+    paths.push('/opt/zen/zen', '/opt/zen-browser/zen', posix.join(home, '.local/share/zen/zen'))
+    for (const root of [...(env.PATH ?? '/usr/bin:/usr/local/bin').split(':'), posix.join(home, '.local/bin')]) {
+      for (const file of Object.keys(names)) paths.push(posix.join(root, file))
     }
     paths.push('/opt/firefox/firefox', '/snap/bin/firefox')
   }
