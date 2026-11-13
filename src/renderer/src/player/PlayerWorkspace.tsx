@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useAppTabs } from '../tabs/AppTabs'
 import { GlobalPlayerContext, initialState, useGlobalPlayer, type GlobalPlayerContextValue } from './GlobalPlayerContext'
 import { PLAYER_COMMAND_EVENT, PLAYER_STATE_EVENT, type PlayerStateDetail } from './events'
+import { MINI_PLAYER_OPEN_EVENT } from './events'
 
 interface WorkspaceValue {
   register: (id: string, player: GlobalPlayerContextValue | null) => void
@@ -9,6 +10,7 @@ interface WorkspaceValue {
   playingIds: string[]
   requestPlayback: (id: string) => void
   shouldAutoplay: (id: string) => boolean
+  playInMiniPlayer: (videoId: string) => void
 }
 const WorkspaceContext = createContext<WorkspaceValue | null>(null)
 const emptyPlayer: GlobalPlayerContextValue = {
@@ -23,7 +25,7 @@ export function usePlayerWorkspace() {
 }
 
 export function PlayerWorkspaceProvider({ children }: { children: ReactNode }) {
-  const { activeId, tabs } = useAppTabs()
+  const { activeId, tabs, navigatorFor } = useAppTabs()
   const [players, setPlayers] = useState<Record<string, GlobalPlayerContextValue>>({})
   const [preferredId, setPreferredId] = useState('')
   const [playingIds, setPlayingIds] = useState<string[]>([])
@@ -46,6 +48,19 @@ export function PlayerWorkspaceProvider({ children }: { children: ReactNode }) {
   const ownerId = available(activeId) ? activeId : available(preferredId) ? preferredId
     : [...tabs].reverse().find((tab) => available(tab.id))?.id || ''
   const selected = players[ownerId] || emptyPlayer
+  const playInMiniPlayer = useCallback((videoId: string) => {
+    const player = players[activeId]
+    if (!player) return
+    requestPlayback(activeId)
+    setPreferredId(activeId)
+    player.dismissShorts()
+    const tab = tabs.find((candidate) => candidate.id === activeId)
+    // Browsing pages stay in place. Leave a full-size watch page so its player
+    // can move into the existing mini-player slot without creating another tab.
+    if (tab?.entries[tab.index].startsWith('/watch/')) navigatorFor(activeId).push('/')
+    void player.playVideo(videoId, 'video')
+    window.dispatchEvent(new CustomEvent(MINI_PLAYER_OPEN_EVENT, { detail: { tabId: activeId } }))
+  }, [players, activeId, tabs, navigatorFor, requestPlayback])
 
   useEffect(() => {
     if (players[activeId]?.videoId) setPreferredId(activeId)
@@ -64,7 +79,7 @@ export function PlayerWorkspaceProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(PLAYER_STATE_EVENT, onState)
   }, [])
 
-  const value = useMemo(() => ({ register, ownerId, playingIds, requestPlayback, shouldAutoplay }), [register, ownerId, playingIds, requestPlayback, shouldAutoplay])
+  const value = useMemo(() => ({ register, ownerId, playingIds, requestPlayback, shouldAutoplay, playInMiniPlayer }), [register, ownerId, playingIds, requestPlayback, shouldAutoplay, playInMiniPlayer])
   return <WorkspaceContext.Provider value={value}>
     <GlobalPlayerContext.Provider value={selected}>{children}</GlobalPlayerContext.Provider>
   </WorkspaceContext.Provider>

@@ -9,12 +9,12 @@ import type { HistoryEntry, SearchResultItem } from '../../../shared/ipc'
 function formatWatchedAt(timestampMs: number): string {
   const diffMs = Date.now() - timestampMs
   const diffMinutes = Math.round(diffMs / 60_000)
-  if (diffMinutes < 1) return t("Recién")
-  if (diffMinutes < 60) return t('Hace {count} min', { count: diffMinutes })
+  if (diffMinutes < 1) return t("Just now")
+  if (diffMinutes < 60) return t("{count} min ago", { count: diffMinutes })
   const diffHours = Math.round(diffMinutes / 60)
-  if (diffHours < 24) return t('Hace {count} h', { count: diffHours })
+  if (diffHours < 24) return t("{count} hr ago", { count: diffHours })
   const diffDays = Math.round(diffHours / 24)
-  if (diffDays < 30) return t('Hace {count} d', { count: diffDays })
+  if (diffDays < 30) return t("{count} days ago", { count: diffDays })
   return new Date(timestampMs).toLocaleDateString(locale())
 }
 
@@ -81,19 +81,19 @@ export function History() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{t("Historial")}</h1>
+        <h1 className="text-xl font-semibold">{t("History")}</h1>
         {entries.length > 0 && (
           <button
             type="button"
             onClick={handleClear}
             className="rounded px-3 py-1.5 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-neutral-100"
           >
-            {t("Borrar historial")}</button>
+            {t("Clear history")}</button>
         )}
       </div>
 
       {entries.length === 0 ? (
-        <p className="text-sm text-neutral-400">{t("Todavía no viste ningún video.")}</p>
+        <p className="text-sm text-neutral-400">{t("You have not watched any videos yet.")}</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {entries.map((entry) => (

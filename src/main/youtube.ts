@@ -477,7 +477,10 @@ export async function getHomeFeed(sections: HomeSection[] = []): Promise<SearchR
   console.log('[youtube] getHomeFeed()')
   const yt = await getClient()
   const feed = await yt.getHomeFeed().catch((error) => {
-    if (hasYoutubeAccount()) throw new Error('Your YouTube home feed could not be loaded. Retry, or sign in again if your session expired.')
+    if (hasYoutubeAccount()) {
+      console.warn('[youtube] home request failed:', error instanceof Error ? error.message : 'Unknown request error')
+      throw new Error('Your YouTube home feed could not be loaded. Try again. If other account pages also fail, reconnect your account.')
+    }
     console.warn('[youtube] anonymous home failed, using discovery:', error instanceof Error ? error.message : String(error))
     return null
   })
@@ -873,7 +876,9 @@ async function fetchVideoInfoUncached(videoId: string): Promise<VideoInfoResult>
   }
 
   const tGetInfoStart = performance.now()
-  const info = await yt.getInfo(videoId, { po_token: poToken })
+  // Fetch the player response separately. A broken optional watch-next renderer
+  // must never prevent an otherwise playable video from loading.
+  const info = await yt.getBasicInfo(videoId, { po_token: poToken })
   const tGetInfo = performance.now() - tGetInfoStart
   console.log(`[youtube] getInfo ok, playability=${info.playability_status?.status} in ${tGetInfo.toFixed(0)}ms`)
 
@@ -959,18 +964,16 @@ async function fetchVideoInfoUncached(videoId: string): Promise<VideoInfoResult>
   // Recommendations use the authenticated account; stream extraction remains
   // anonymous so its visitor-bound BotGuard tokens cannot overwrite account state.
   let relatedInfo = info
-  if (accountClient) {
-    try { relatedInfo = await accountClient.getInfo(videoId) }
-    catch { /* A recommendation outage must not prevent direct playback. */ }
-  }
+  try { relatedInfo = await (accountClient ?? yt).getInfo(videoId) }
+  catch { /* A recommendation outage must not prevent direct playback. */ }
   const result: VideoInfoResult = {
     playbackToken: '',
     videoId,
     title: info.basic_info.title ?? translateFor(getAppLanguage(), '(untitled)'),
-    channelId: info.basic_info.channel?.id ?? null,
-    channelName: info.basic_info.channel?.name ?? translateFor(getAppLanguage(), '(unknown)'),
-    channelThumbnailUrl: getChannelThumbnailUrl(info),
-    subscriberCountText: getSubscriberCountText(info),
+    channelId: info.basic_info.channel?.id ?? info.basic_info.channel_id ?? null,
+    channelName: info.basic_info.channel?.name ?? info.basic_info.author ?? translateFor(getAppLanguage(), '(unknown)'),
+    channelThumbnailUrl: getChannelThumbnailUrl(relatedInfo),
+    subscriberCountText: getSubscriberCountText(relatedInfo),
     captions: info.captions ? extractCaptionTracks(info.captions) : [],
     storyboardVtt: isLive ? null : buildStoryboardVtt(info.storyboards, info.basic_info.duration ?? null),
     relatedVideos: relatedInfo.watch_next_feed ? await resolveChannelNames(mapWatchNextFeed(relatedInfo.watch_next_feed)) : [],
@@ -979,9 +982,9 @@ async function fetchVideoInfoUncached(videoId: string): Promise<VideoInfoResult>
     durationText: isLive ? 'LIVE' : formatDurationText(info.basic_info.duration ?? null),
     viewCountText: getViewCountText(info),
     likeCountText: getLikeCountText(info.basic_info.like_count),
-    publishedText: getPublishedText(info),
+    publishedText: getPublishedText(relatedInfo),
     category: info.basic_info.category,
-    description: getDescriptionText(info),
+    description: getDescriptionText(relatedInfo),
     dashManifest: manifest,
     liveManifests,
     sabr

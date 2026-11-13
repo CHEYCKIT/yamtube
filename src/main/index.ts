@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
+import { initializeDiagnostics, getDiagnostics } from './diagnosticLog'
 import { join } from 'node:path'
 import { IPC_CHANNELS } from '../shared/ipc'
 import { translateFor } from '../shared/locale'
@@ -71,7 +72,10 @@ for (const stream of [process.stdout, process.stderr]) {
 }
 
 // Keep the data directory identical in development and packaged installations.
+// Keep the encryption/keyring identity and storage location compatible with beta 1.
+// The window, installer, executable and desktop entry use the YamTube product name.
 app.setName('worldtube')
+app.setPath('userData', join(app.getPath('appData'), 'worldtube'))
 const primaryInstance = app.requestSingleInstanceLock()
 if (!primaryInstance) app.quit()
 app.on('second-instance', () => {
@@ -113,6 +117,16 @@ ipcMain.handle(IPC_CHANNELS.YOUTUBE_HISTORY, () => getYoutubeHistory())
 ipcMain.handle(IPC_CHANNELS.YOUTUBE_HISTORY_MORE, (_event, continuation: string) => getYoutubeHistory(continuation))
 ipcMain.handle(IPC_CHANNELS.PROTECTION_STATE, () => protectionState())
 ipcMain.handle(IPC_CHANNELS.PROTECTION_UPDATE, () => updateProtection())
+ipcMain.handle(IPC_CHANNELS.DIAGNOSTICS_GET, () => getDiagnostics())
+ipcMain.handle(IPC_CHANNELS.DIAGNOSTICS_EXPORT, async (event) => {
+  const owner = BrowserWindow.fromWebContents(event.sender)
+  if (!owner) throw new Error('No app window')
+  const result = await dialog.showSaveDialog(owner, { title: 'Export YamTube logs', defaultPath: 'YamTube-diagnostics.txt', filters: [{ name: 'Diagnostic log', extensions: ['txt'] }] })
+  if (result.canceled || !result.filePath) return null
+  const { contents } = await getDiagnostics(true)
+  await writeFile(result.filePath, `YamTube ${app.getVersion()} · ${process.platform} ${process.arch}\n${contents}`, { mode: 0o600 })
+  return result.filePath
+})
 
 // This dev machine doesn't have the setuid chrome-sandbox helper configured
 // (needs root-owned 4755, which we won't set from here), so Chromium's native
@@ -124,6 +138,7 @@ ipcMain.handle(IPC_CHANNELS.PROTECTION_UPDATE, () => updateProtection())
 function createWindow(): void {
   const icon = app.isPackaged ? join(process.resourcesPath, 'icon.png') : join(app.getAppPath(), 'resources/icon.png')
   const mainWindow = new BrowserWindow({
+    title: 'YamTube',
     icon,
     width: 1280,
     height: 800,
@@ -139,6 +154,10 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+  mainWindow.on('app-command', (_event, command) => {
+    if (command === 'browser-backward' || command === 'browser-back') mainWindow.webContents.send(IPC_CHANNELS.NAVIGATE_HISTORY, 'back')
+    else if (command === 'browser-forward') mainWindow.webContents.send(IPC_CHANNELS.NAVIGATE_HISTORY, 'forward')
   })
 
   // The renderer's `fetch()` calls to YouTube's SABR/ABR endpoint
@@ -206,6 +225,7 @@ ipcMain.handle(
       const data = await fetchVideoInfo(videoId)
       return { ok: true, data }
     } catch (error) {
+      console.error('[playback] Failed to load video', error)
       return { ok: false, error: error instanceof Error ? error.message : String(error) }
     }
   }
@@ -283,9 +303,9 @@ ipcMain.handle(IPC_CHANNELS.DATA_EXPORT, async (event): Promise<string | null> =
   const ownerWindow = BrowserWindow.fromWebContents(event.sender)
   if (!ownerWindow) throw new Error('No app window')
   const result = await dialog.showSaveDialog(ownerWindow, {
-    title: translateFor((await getAppPreferences()).language, 'Exportar datos de WorldTube'),
-    defaultPath: 'worldtube-data.json',
-    filters: [{ name: 'WorldTube data', extensions: ['json'] }]
+    title: translateFor((await getAppPreferences()).language, "Export YamTube data"),
+    defaultPath: 'yamtube-data.json',
+    filters: [{ name: 'YamTube data', extensions: ['json'] }]
   })
   if (result.canceled || !result.filePath) return null
   await exportLocalData(result.filePath)
@@ -296,9 +316,9 @@ ipcMain.handle(IPC_CHANNELS.DATA_IMPORT, async (event): Promise<LocalSessionStat
   const ownerWindow = BrowserWindow.fromWebContents(event.sender)
   if (!ownerWindow) throw new Error('No app window')
   const result = await dialog.showOpenDialog(ownerWindow, {
-    title: translateFor((await getAppPreferences()).language, 'Importar datos de WorldTube'),
+    title: translateFor((await getAppPreferences()).language, "Import YamTube data"),
     properties: ['openFile'],
-    filters: [{ name: 'WorldTube data', extensions: ['json'] }]
+    filters: [{ name: 'YamTube data', extensions: ['json'] }]
   })
   const [filePath] = result.filePaths
   if (result.canceled || !filePath) return null
@@ -341,6 +361,8 @@ ipcMain.handle(IPC_CHANNELS.SUBSCRIPTIONS_REMOVE, (_event, channelId: string) =>
 
 app.whenReady().then(async () => {
   if (!primaryInstance) return
+  await initializeDiagnostics(join(app.getPath('userData'), 'logs'))
+  console.info(`YamTube ${app.getVersion()} starting on ${process.platform} ${process.arch}`)
   await initializeProtection()
   await removeAbandonedLoginProfiles()
   await initializeYoutubeAccount()

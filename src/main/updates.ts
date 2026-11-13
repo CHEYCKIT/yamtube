@@ -56,7 +56,7 @@ export function registerUpdates(): void {
     const owner = BrowserWindow.fromWebContents(event.sender)
     if (!owner) return
     const confirmation = await dialog.showMessageBox(owner, {
-      type: 'question', message: tr('Restart WorldTube now to install the update?'),
+      type: 'question', message: tr('Restart YamTube now to install the update?'),
       buttons: [tr('Install update'), tr('Cancel')], defaultId: 1, cancelId: 1
     })
     if (confirmation.response === 0) autoUpdater.quitAndInstall(false, true)

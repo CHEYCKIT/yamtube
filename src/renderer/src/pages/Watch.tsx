@@ -295,7 +295,7 @@ export function Watch() {
           {isCurrentVideo ? <div id={`${WATCH_SLOT_ID}-${tabId}`} className="aspect-video w-full overflow-hidden bg-black" /> : (
             <div className="relative grid aspect-video w-full place-items-center overflow-hidden bg-black">
               {snapshot.current.videoId === videoId && thumbnailUrl && <img src={thumbnailUrl} alt="" className="absolute inset-0 h-full w-full object-contain opacity-60" />}
-              <button type="button" onClick={() => videoId && void globalPlayer.playVideo(videoId)} className="wt-action relative rounded px-4 py-2 text-sm font-medium">{t("Reproducir video")}</button>
+              <button type="button" onClick={() => videoId && void globalPlayer.playVideo(videoId)} className="wt-action relative rounded px-4 py-2 text-sm font-medium">{t("Play video")}</button>
             </div>
           )}
         </div>
@@ -339,15 +339,15 @@ export function Watch() {
                   <VideoSaveActions
                     className="relative"
                     buttonClassName="inline-flex h-9 items-center gap-2 rounded bg-neutral-800 px-4 text-sm font-medium text-neutral-200 hover:bg-neutral-700"
-                    label={t("Guardar")}
+                    label={t("Save")}
                     video={{ videoId, title, channelId, channelName, thumbnailUrl, playlistId: null }}
                   />
                 )}
                 <button
                   type="button"
                   onClick={copyShareLink}
-                  aria-label={copyState === 'copied' ? t("Enlace copiado") : copyState === 'error' ? t("No se pudo copiar el enlace") : t("Compartir: copiar enlace")}
-                  title={copyState === 'copied' ? t("Enlace copiado") : copyState === 'error' ? t("No se pudo copiar el enlace") : t("Compartir: copiar enlace")}
+                  aria-label={copyState === 'copied' ? t("Link copied") : copyState === 'error' ? t("Could not copy the link") : t("Share: copy link")}
+                  title={copyState === 'copied' ? t("Link copied") : copyState === 'error' ? t("Could not copy the link") : t("Share: copy link")}
                   className={`grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded bg-neutral-800 hover:bg-neutral-700 ${copyState === 'copied' ? 'wt-accent-text' : copyState === 'error' ? 'text-red-400' : 'text-neutral-200'}`}
                 >
                   <Icon name={copyState === 'copied' ? 'check' : 'share'} className="h-4 w-4" />
@@ -365,7 +365,7 @@ export function Watch() {
                   onClick={() => setIsDescriptionExpanded((value) => !value)}
                   className="mt-2 text-sm font-medium text-neutral-100 hover:text-white"
                 >
-                  {isDescriptionExpanded ? t("Mostrar menos") : t("Mostrar más")}
+                  {isDescriptionExpanded ? t("Show less") : t("Show more")}
                 </button>
               </div>
             )}
@@ -378,7 +378,7 @@ export function Watch() {
         {playlist && <section className="mb-5 overflow-hidden rounded border border-neutral-800 bg-neutral-950">
           <header className="border-b border-neutral-800 px-3 py-3">
             <Link to={`/playlists?playlist=${encodeURIComponent(playlist.id)}`} className="block break-words text-base font-semibold text-neutral-100 hover:text-white">{playlist.name}</Link>
-            <p className="mt-1 text-xs text-neutral-400">{playlistVideos.some((item) => item.videoId === videoId) ? `${playlistVideos.findIndex((item) => item.videoId === videoId) + 1} / ` : ''}{playlistVideos.length} {t('Videos')}</p>
+            <p className="mt-1 text-xs text-neutral-400">{playlistVideos.some((item) => item.videoId === videoId) ? `${playlistVideos.findIndex((item) => item.videoId === videoId) + 1} / ` : ''}{playlistVideos.length} {t("Videos")}</p>
           </header>
           <div className="max-h-96 overflow-y-auto">
             {playlistVideos.map((item, index) => <Link key={item.id} to={`/watch/${item.videoId}?playlist=${encodeURIComponent(playlist.id)}`}
@@ -394,7 +394,7 @@ export function Watch() {
         {relatedVideos.length > 0 && (
           <div className="watch-sidebar-card">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-neutral-100">{t("A continuación")}</h2>
+              <h2 className="text-base font-semibold text-neutral-100">{t("Up next")}</h2>
             </div>
             <div className="grid gap-2">
               {relatedVideos.map((video) => (

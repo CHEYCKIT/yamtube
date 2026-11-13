@@ -1,6 +1,6 @@
-# WorldTube
+# YamTube
 
-A YouTube desktop client with Firefox sign-in, account recommendations and
+A fork of WorldTube with Firefox sign-in, account recommendations and
 history, app-wide ad protection, independent tabs and persistent players. Not affiliated with Google or YouTube.
 
 [Spanish development notes](README.es.md)
@@ -11,7 +11,7 @@ Watch the short [WorldTube demo on YouTube](https://youtu.be/ccULEv3KD28).
 
 ## Installation
 
-Download installers from the [WorldTube download page](https://github.com/CHEYCKIT/yamtube/releases)
+Download installers from the [YamTube download page](https://github.com/CHEYCKIT/yamtube/releases)
 or [GitHub Releases](https://github.com/CHEYCKIT/yamtube/releases).
 Downloads become available only after a release is successfully published.
 
@@ -23,11 +23,21 @@ macOS DMG/ZIP ARM64 is opt-in and requires signing credentials. See
 [Packaging and Updates](docs/UPDATES.md) for setup and outstanding work.
 
 Windows: download the x64 `.exe` and follow the installer.
-Linux: download the x64 `.AppImage`, make it executable (`chmod +x WorldTube-*.AppImage`),
+Linux: download the x64 `.AppImage`, make it executable (`chmod +x YamTube-*.AppImage`),
 then run it. Debian/Ubuntu users can instead install the `.deb` from Releases.
 AppImage may require FUSE 2; `--appimage-extract-and-run` is an alternative on
 systems without it. Windows packages are initially unsigned; verify the source
 and download location. macOS downloads remain unavailable until signed builds exist.
+
+## Beta 2
+
+YamTube beta 2 fixes an installer-only parser warning crash that interrupted
+playback and home feeds. Video context menus now offer **Open in new tab**,
+**Open in new tab and switch**, and **Play in mini player**. Player settings
+include a persistent **Autoplay next video** toggle. Mouse Back/Forward buttons
+navigate the active tab. English labels cover search filters, music and
+collections. **Account & privacy → Logs** displays and exports redacted logs.
+Existing account cookies, libraries and settings are retained on upgrade.
 
 ## Features
 
@@ -52,7 +62,7 @@ downloads and confirmed installation from published GitHub releases. The complet
 installation/update cycle is not validated yet.
 
 YouTube is queried directly using the local extraction method. An Invidious
-fallback is not implemented or configured in WorldTube yet. External YouTube
+fallback is not implemented or configured in YamTube yet. External YouTube
 changes can require a compatibility update.
 
 See [YouTube accounts and protection](docs/YOUTUBE_ACCOUNTS.md) for sign-in steps,
@@ -73,7 +83,7 @@ Shortcuts respect text fields and act on the player represented in the interface
 
 `worldtube-data.json` is stored in Electron's user-data directory. Account exposes
 its path, data totals and full-data export/import. Local library contents
-are not uploaded to a WorldTube server or GitHub.
+are not uploaded to a YamTube server or GitHub.
 
 Exports include local users, password hashes, the active session, profile photos,
 subscriptions, playlists, saved videos, history, search history and settings.

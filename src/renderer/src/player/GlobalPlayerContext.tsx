@@ -197,7 +197,7 @@ export function GlobalPlayerProvider({ children, tabId = '', onOpenShort }: { ch
         liveManifests: null,
         sabr: null,
         status: 'error',
-        error: t("No se pudo generar un manifest reproducible para este video (ver logs del proceso principal).")
+        error: t("Could not generate a playable manifest for this video (see main process logs).")
       }))
       return
     }

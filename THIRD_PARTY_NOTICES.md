@@ -83,3 +83,10 @@ The preparation step is offline. It verifies recorded asset hashes and uses
 installed dependency notices plus the reviewed copies in `third-party/`.
 Maintenance download scripts are explicit, not part of application startup or
 packaging. No personal data or developer home-directory paths enter the inventory.
+
+## YouTube.js compatibility patch
+
+YouTube.js 18.0.0 (MIT) is distributed with the small compatibility patch in
+`patches/youtubei.js@18.0.0.patch`. Diagnostic warning links fall back to the
+upstream issue URL when optional `bugs` package metadata is absent in an
+installer. Original upstream license notices are preserved.

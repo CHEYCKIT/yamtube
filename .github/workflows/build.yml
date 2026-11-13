@@ -38,17 +38,17 @@ jobs:
         if: runner.os == 'Linux'
         run: xvfb-run -a pnpm test:desktop
         env:
-          WORLDTUBE_SMOKE_APP: release/linux-unpacked/worldtube
+          WORLDTUBE_SMOKE_APP: release/linux-unpacked/yamtube
       - name: Include source and checksums
         shell: bash
         run: |
-          git archive --format=tar.gz --prefix=WorldTube-source/ HEAD -o release/WorldTube-source.tar.gz
+          git archive --format=tar.gz --prefix=YamTube-source/ HEAD -o release/YamTube-source.tar.gz
           cd release
           shopt -s nullglob
-          sha256sum *.AppImage *.deb *.exe *.blockmap latest*.yml beta*.yml WorldTube-source.tar.gz > SHA256SUMS.txt
+          sha256sum *.AppImage *.deb *.exe *.blockmap latest*.yml beta*.yml YamTube-source.tar.gz > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: worldtube-${{ matrix.os }}
+          name: yamtube-${{ matrix.os }}
           path: |
             release/*.AppImage
             release/*.deb
@@ -82,25 +82,25 @@ jobs:
       - uses: actions/download-artifact@v4
         if: steps.draft.outputs.tag != ''
         with:
-          pattern: worldtube-*
+          pattern: yamtube-*
           path: installers
       - name: Verify and stage matching build artifacts
         if: steps.draft.outputs.tag != ''
         env:
           VERSION: ${{ steps.draft.outputs.version }}
         run: |
-          (cd installers/worldtube-ubuntu-latest && sha256sum -c SHA256SUMS.txt)
-          (cd installers/worldtube-windows-latest && sha256sum -c SHA256SUMS.txt)
+          (cd installers/yamtube-ubuntu-latest && sha256sum -c SHA256SUMS.txt)
+          (cd installers/yamtube-windows-latest && sha256sum -c SHA256SUMS.txt)
           for PLATFORM in ubuntu windows; do
-            gzip -dc "installers/worldtube-$PLATFORM-latest/WorldTube-source.tar.gz" > "source-$PLATFORM.tar"
+            gzip -dc "installers/yamtube-$PLATFORM-latest/YamTube-source.tar.gz" > "source-$PLATFORM.tar"
             SOURCE_COMMIT=$(git get-tar-commit-id < "source-$PLATFORM.tar")
             test "$SOURCE_COMMIT" = "$GITHUB_SHA"
             rm "source-$PLATFORM.tar"
           done
           mkdir staged
-          cp installers/worldtube-ubuntu-latest/*.AppImage installers/worldtube-ubuntu-latest/*.deb installers/worldtube-ubuntu-latest/latest-linux.yml staged/
-          cp installers/worldtube-windows-latest/*.exe installers/worldtube-windows-latest/*.blockmap installers/worldtube-windows-latest/latest.yml staged/
-          cp installers/worldtube-ubuntu-latest/WorldTube-source.tar.gz "staged/WorldTube-$VERSION-source.tar.gz"
+          cp installers/yamtube-ubuntu-latest/*.AppImage installers/yamtube-ubuntu-latest/*.deb installers/yamtube-ubuntu-latest/latest-linux.yml staged/
+          cp installers/yamtube-windows-latest/*.exe installers/yamtube-windows-latest/*.blockmap installers/yamtube-windows-latest/latest.yml staged/
+          cp installers/yamtube-ubuntu-latest/YamTube-source.tar.gz "staged/YamTube-$VERSION-source.tar.gz"
           cp staged/latest.yml staged/beta.yml
           cp staged/latest-linux.yml staged/beta-linux.yml
           printf 'Source commit: %s\nBuild: https://github.com/%s/actions/runs/%s\n' "$GITHUB_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > staged/BUILDINFO.txt

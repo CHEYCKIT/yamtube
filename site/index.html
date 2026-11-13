@@ -4,23 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#000000">
-  <meta name="description" content="Download WorldTube, a local-first desktop video client.">
-  <title>WorldTube</title>
+  <meta name="description" content="Download YamTube, a local-first desktop video client.">
+  <title>YamTube</title>
   <link rel="icon" href="logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css?v=20260914-2">
   <script src="downloads.js?v=20260914-2" defer></script>
 </head>
 <body>
   <main>
-    <h1 class="sr-only">WorldTube</h1>
-    <img class="logo" src="logo.svg" alt="WorldTube" width="660" height="220">
-    <nav class="downloads" aria-label="Download WorldTube">
+    <h1 class="sr-only">YamTube</h1>
+    <img class="logo" src="logo.svg" alt="YamTube" width="660" height="220">
+    <nav class="downloads" aria-label="Download YamTube">
       <a class="download" data-platform="windows" aria-disabled="true" title="Checking installer availability"><span aria-hidden="true">↓</span> Windows</a>
-      <a class="download" data-platform="linux" href="https://github.com/riberojuanca/worldtube/releases/download/v0.0.4/WorldTube-0.0.4-linux-amd64.deb" title="Ubuntu / Debian x64 · DEB"><span aria-hidden="true">↓</span> Linux · DEB</a>
+      <a class="download" data-platform="linux" href="https://github.com/CHEYCKIT/yamtube/releases/download/v0.1.0-beta.2/YamTube-0.1.0-beta.2-linux-amd64.deb" title="Ubuntu / Debian x64 · DEB"><span aria-hidden="true">↓</span> Linux · DEB</a>
       <a class="download" data-platform="mac" aria-disabled="true" title="Checking installer availability"><span aria-hidden="true">↓</span> macOS</a>
     </nav>
     <p id="release-status" role="status" aria-live="polite">Checking downloads…</p>
-    <p class="demo-link"><a href="https://youtu.be/ccULEv3KD28">Watch the WorldTube demo</a></p>
+    <p class="demo-link"><a href="https://youtu.be/ccULEv3KD28">Watch the YamTube demo</a></p>
     <section class="installation-guide" aria-label="Linux installation">
       <h2>Linux installation</h2>
       <section>
@@ -28,14 +28,14 @@
         <ol>
           <li>Choose Linux · DEB above to download the Ubuntu / Debian x64 installer.</li>
           <li>Open the downloaded file with your software installer, if available, and confirm installation.</li>
-          <li>Open WorldTube from your applications menu.</li>
+          <li>Open YamTube from your applications menu.</li>
         </ol>
         <h3>Install with commands</h3>
-        <p>Press Ctrl + Alt + T in Ubuntu to open a terminal. Click Copy commands below, paste with Ctrl + Shift + V, then press Enter. These commands download and install WorldTube with APT.</p>
+        <p>Press Ctrl + Alt + T in Ubuntu to open a terminal. Click Copy commands below, paste with Ctrl + Shift + V, then press Enter. These commands download and install YamTube with APT.</p>
         <pre><code id="install-command">mkdir -p "$HOME/Downloads" &amp;&amp;
 cd "$HOME/Downloads" &amp;&amp;
-wget -O WorldTube.deb 'https://github.com/riberojuanca/worldtube/releases/download/v0.0.4/WorldTube-0.0.4-linux-amd64.deb' &amp;&amp;
-sudo apt install ./WorldTube.deb</code></pre>
+wget -O YamTube.deb 'https://github.com/CHEYCKIT/yamtube/releases/download/v0.1.0-beta.2/YamTube-0.1.0-beta.2-linux-amd64.deb' &amp;&amp;
+sudo apt install ./YamTube.deb</code></pre>
         <button id="copy-command" type="button" title="Copy installation commands" aria-label="Copy installation commands">⧉ Copy commands</button>
         <p id="copy-status" role="status" aria-live="polite"></p>
         <p>Installation asks for your password; typing it does not display characters. Confirm the installation when prompted.</p>
@@ -44,18 +44,18 @@ sudo apt install ./WorldTube.deb</code></pre>
       </section>
       <section>
         <h2>Portable · AppImage</h2>
-        <a data-platform="linux-appimage" href="https://github.com/riberojuanca/worldtube/releases/download/v0.0.4/WorldTube-0.0.4-linux-x86_64.AppImage">Download AppImage · Linux x64</a>
+        <a data-platform="linux-appimage" href="https://github.com/CHEYCKIT/yamtube/releases/download/v0.1.0-beta.2/YamTube-0.1.0-beta.2-linux-x86_64.AppImage">Download AppImage · Linux x64</a>
         <ol>
           <li>Download the AppImage to a folder you want to keep.</li>
           <li>Right-click the file, open Properties → Permissions, and allow executing it as a program. Labels may differ between file managers.</li>
-          <li>Open the file to run WorldTube. This portable format does not install a DEB package.</li>
+          <li>Open the file to run YamTube. This portable format does not install a DEB package.</li>
         </ol>
-        <p>If it fails with a FUSE error, use the DEB on Ubuntu or follow the <a href="https://docs.appimage.org/user-guide/troubleshooting/fuse.html">AppImage FUSE guide</a>. Do not run WorldTube as root or disable system security settings to launch it.</p>
+        <p>If it fails with a FUSE error, use the DEB on Ubuntu or follow the <a href="https://docs.appimage.org/user-guide/troubleshooting/fuse.html">AppImage FUSE guide</a>. Do not run YamTube as root or disable system security settings to launch it.</p>
       </section>
       <p>Current Linux downloads are x64 only, not ARM. Flatpak and Snap packages are not provided.</p>
     </section>
-    <noscript><a class="fallback" href="https://github.com/riberojuanca/worldtube/releases">Download from GitHub Releases</a></noscript>
+    <noscript><a class="fallback" href="https://github.com/CHEYCKIT/yamtube/releases">Download from GitHub Releases</a></noscript>
   </main>
-  <footer><a href="https://github.com/riberojuanca/worldtube">GitHub</a><a href="notices.txt">Notices</a></footer>
+  <footer><a href="https://github.com/CHEYCKIT/yamtube">GitHub</a><a href="notices.txt">Notices</a></footer>
 </body>
 </html>

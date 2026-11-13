@@ -87,7 +87,7 @@ export function MusicPlayerPanel({ compact = false, showQueue = false }: { compa
   const loading = status === 'loading' || playerState.videoId !== videoId || !playerState.started
   const progressStyle = { '--wt-range-progress': `${duration > 0 ? currentTime / duration * 100 : 0}%` } as CSSProperties
 
-  if (!videoId || playbackMode !== 'music') return <div className="grid min-h-40 place-items-center rounded-xl border border-neutral-800 bg-gradient-to-br from-neutral-900 to-neutral-950 p-6 text-center text-sm text-neutral-400">{t('Elige una canción para comenzar')}</div>
+  if (!videoId || playbackMode !== 'music') return <div className="grid min-h-40 place-items-center rounded-xl border border-neutral-800 bg-gradient-to-br from-neutral-900 to-neutral-950 p-6 text-center text-sm text-neutral-400">{t("Choose a song to start")}</div>
 
   return <section className={`relative overflow-hidden border border-neutral-800 ${compact ? 'wt-player-bar border-x-0 border-b-0 bg-neutral-900 shadow-2xl shadow-black/40' : 'rounded-xl bg-gradient-to-r from-neutral-900 via-neutral-950 to-neutral-900 shadow-xl shadow-black/20'}`}>
     <div className={`grid ${compact ? 'min-h-[58px] grid-cols-[80px_minmax(120px,1fr)_minmax(220px,520px)_auto] items-center gap-4 px-4 max-[840px]:grid-cols-[64px_minmax(0,1fr)_auto] max-[840px]:gap-2' : 'grid-cols-[minmax(140px,24%)_minmax(0,1fr)] items-stretch gap-0 sm:grid-cols-[minmax(180px,22%)_minmax(0,1fr)]'}`}>
@@ -98,42 +98,42 @@ export function MusicPlayerPanel({ compact = false, showQueue = false }: { compa
         <p className={`${compact ? 'text-sm' : 'text-lg'} truncate font-semibold`}>{title || current?.title}</p>
         <p className="truncate text-xs text-neutral-400">{channelName || current?.channelName}</p>
         <div className={`${compact ? 'hidden' : 'mt-1 h-4'} overflow-hidden`}>
-          {status === 'error' && <p role="alert" className="h-4 truncate text-xs text-red-400">{error || t('No se pudo reproducir')}</p>}
+          {status === 'error' && <p role="alert" className="h-4 truncate text-xs text-red-400">{error || t("Could not play")}</p>}
         </div>
         {!compact && <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          <CompactButton label={t('Anterior')} disabled={currentIndex <= 0} onClick={() => playAt(currentIndex - 1)}><MusicControlIcon name="previous" /></CompactButton>
-          <CompactButton label={t('Retroceder 10 segundos')} onClick={() => send({ action: 'seek-relative', seconds: -10 })}><MusicControlIcon name="replay10" /></CompactButton>
-          <CompactButton accent={!loading} disabled={loading} label={loading ? t('Cargando…') : playerState.paused ? t('Reproducir') : t('Pausar')} onClick={() => send({ action: 'toggle-play' })}>{loading ? <PlaybackLoadingIcon compact /> : <PlaybackStatusIcon paused={playerState.paused} className="h-5 w-5" />}</CompactButton>
-          <CompactButton label={t('Avanzar 10 segundos')} onClick={() => send({ action: 'seek-relative', seconds: 10 })}><MusicControlIcon name="forward10" /></CompactButton>
-          <CompactButton label={t('Siguiente')} disabled={currentIndex < 0 || currentIndex >= musicQueue.length - 1} onClick={() => playAt(currentIndex + 1)}><MusicControlIcon name="next" /></CompactButton>
+          <CompactButton label={t("Previous")} disabled={currentIndex <= 0} onClick={() => playAt(currentIndex - 1)}><MusicControlIcon name="previous" /></CompactButton>
+          <CompactButton label={t("Rewind 10 seconds")} onClick={() => send({ action: 'seek-relative', seconds: -10 })}><MusicControlIcon name="replay10" /></CompactButton>
+          <CompactButton accent={!loading} disabled={loading} label={loading ? t("Loading...") : playerState.paused ? t("Play") : t("Pause")} onClick={() => send({ action: 'toggle-play' })}>{loading ? <PlaybackLoadingIcon compact /> : <PlaybackStatusIcon paused={playerState.paused} className="h-5 w-5" />}</CompactButton>
+          <CompactButton label={t("Forward 10 seconds")} onClick={() => send({ action: 'seek-relative', seconds: 10 })}><MusicControlIcon name="forward10" /></CompactButton>
+          <CompactButton label={t("Next")} disabled={currentIndex < 0 || currentIndex >= musicQueue.length - 1} onClick={() => playAt(currentIndex + 1)}><MusicControlIcon name="next" /></CompactButton>
         </div>}
         {!compact && <div className="mt-3 flex flex-wrap items-center gap-3 text-xs tabular-nums text-neutral-500">
-          <span>{formatTime(currentTime)}</span><input type="range" min={0} max={duration} step={0.1} value={currentTime} disabled={!duration} onChange={(event) => send({ action: 'seek-to', seconds: Number(event.currentTarget.value) })} aria-label={t('Buscar en reproducción')} className="wt-media-range min-w-32 flex-1" style={progressStyle} /><span>{formatTime(duration)}</span>
+          <span>{formatTime(currentTime)}</span><input type="range" min={0} max={duration} step={0.1} value={currentTime} disabled={!duration} onChange={(event) => send({ action: 'seek-to', seconds: Number(event.currentTarget.value) })} aria-label={t("Seek")} className="wt-media-range min-w-32 flex-1" style={progressStyle} /><span>{formatTime(duration)}</span>
           <div className="ml-2 flex w-32 items-center gap-2 border-l border-neutral-800 pl-3 max-[640px]:ml-0 max-[640px]:w-full max-[640px]:border-l-0 max-[640px]:pl-0">
             <MusicControlIcon name="volume" />
-            <input type="range" min={0} max={1} step={0.01} value={playerState.volume} onChange={(event) => send({ action: 'set-volume', volume: Number(event.currentTarget.value) })} aria-label={t('Volumen')} className="wt-media-range min-w-0 flex-1 cursor-pointer" style={{ '--wt-range-progress': `${playerState.volume * 100}%` } as CSSProperties} />
+            <input type="range" min={0} max={1} step={0.01} value={playerState.volume} onChange={(event) => send({ action: 'set-volume', volume: Number(event.currentTarget.value) })} aria-label={t("Volume")} className="wt-media-range min-w-0 flex-1 cursor-pointer" style={{ '--wt-range-progress': `${playerState.volume * 100}%` } as CSSProperties} />
           </div>
         </div>}
       </div>
       {compact && <div className="flex min-w-0 items-center gap-2 max-[840px]:hidden">
         <span className="w-10 text-right text-xs tabular-nums text-neutral-500">{formatTime(currentTime)}</span>
-        <input type="range" min={0} max={duration} step={0.1} value={currentTime} disabled={!duration} onChange={(event) => send({ action: 'seek-to', seconds: Number(event.currentTarget.value) })} aria-label={t('Buscar en reproducción')} className="wt-media-range min-w-0 flex-1 cursor-pointer disabled:opacity-50" style={progressStyle} />
+        <input type="range" min={0} max={duration} step={0.1} value={currentTime} disabled={!duration} onChange={(event) => send({ action: 'seek-to', seconds: Number(event.currentTarget.value) })} aria-label={t("Seek")} className="wt-media-range min-w-0 flex-1 cursor-pointer disabled:opacity-50" style={progressStyle} />
         <span className="w-10 text-xs tabular-nums text-neutral-500">{formatTime(duration)}</span>
       </div>}
       {compact && <div className="flex shrink-0 items-center justify-end gap-1">
-        <CompactButton label={t('Anterior')} disabled={currentIndex <= 0} onClick={() => playAt(currentIndex - 1)}><MusicControlIcon name="previous" /></CompactButton>
-        <CompactButton accent={!loading} disabled={loading} label={loading ? t('Cargando…') : playerState.paused ? t('Reproducir') : t('Pausar')} onClick={() => send({ action: 'toggle-play' })}>{loading ? <PlaybackLoadingIcon compact /> : <PlaybackStatusIcon paused={playerState.paused} className="h-5 w-5" />}</CompactButton>
-        <CompactButton label={t('Siguiente')} disabled={currentIndex < 0 || currentIndex >= musicQueue.length - 1} onClick={() => playAt(currentIndex + 1)}><MusicControlIcon name="next" /></CompactButton>
+        <CompactButton label={t("Previous")} disabled={currentIndex <= 0} onClick={() => playAt(currentIndex - 1)}><MusicControlIcon name="previous" /></CompactButton>
+        <CompactButton accent={!loading} disabled={loading} label={loading ? t("Loading...") : playerState.paused ? t("Play") : t("Pause")} onClick={() => send({ action: 'toggle-play' })}>{loading ? <PlaybackLoadingIcon compact /> : <PlaybackStatusIcon paused={playerState.paused} className="h-5 w-5" />}</CompactButton>
+        <CompactButton label={t("Next")} disabled={currentIndex < 0 || currentIndex >= musicQueue.length - 1} onClick={() => playAt(currentIndex + 1)}><MusicControlIcon name="next" /></CompactButton>
         <div className="ml-2 flex w-28 items-center gap-2 max-[980px]:hidden">
           <MusicControlIcon name="volume" />
-          <input type="range" min={0} max={1} step={0.01} value={playerState.volume} onChange={(event) => send({ action: 'set-volume', volume: Number(event.currentTarget.value) })} aria-label={t('Volumen')} className="wt-media-range min-w-0 flex-1 cursor-pointer" style={{ '--wt-range-progress': `${playerState.volume * 100}%` } as CSSProperties} />
+          <input type="range" min={0} max={1} step={0.01} value={playerState.volume} onChange={(event) => send({ action: 'set-volume', volume: Number(event.currentTarget.value) })} aria-label={t("Volume")} className="wt-media-range min-w-0 flex-1 cursor-pointer" style={{ '--wt-range-progress': `${playerState.volume * 100}%` } as CSSProperties} />
         </div>
-        <CompactButton label={t('Cerrar reproductor')} onClick={closePlayer}><MusicControlIcon name="close" /></CompactButton>
+        <CompactButton label={t("Close player")} onClick={closePlayer}><MusicControlIcon name="close" /></CompactButton>
       </div>}
     </div>
-    {compact && <input type="range" min={0} max={duration} step={0.1} value={currentTime} disabled={!duration} onChange={(event) => send({ action: 'seek-to', seconds: Number(event.currentTarget.value) })} aria-label={t('Buscar en reproducción')} className="wt-media-range absolute inset-x-0 bottom-0 h-1 w-full cursor-pointer min-[841px]:hidden" style={progressStyle} />}
+    {compact && <input type="range" min={0} max={duration} step={0.1} value={currentTime} disabled={!duration} onChange={(event) => send({ action: 'seek-to', seconds: Number(event.currentTarget.value) })} aria-label={t("Seek")} className="wt-media-range absolute inset-x-0 bottom-0 h-1 w-full cursor-pointer min-[841px]:hidden" style={progressStyle} />}
     {showQueue && <div className="max-h-[45vh] overflow-y-auto border-t border-neutral-800 p-2">
-      <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">{t('Cola de reproducción')}</p>
+      <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">{t("Playback queue")}</p>
       {musicQueue.map((track, index) => <button key={track.id} type="button" onClick={() => playAt(index)} className={`grid w-full cursor-pointer grid-cols-[28px_minmax(0,1fr)] items-center gap-2 rounded px-3 py-2 text-left hover:bg-white/5 ${track.videoId === videoId ? 'wt-selected' : ''}`}><span className="text-center text-xs text-neutral-500">{track.videoId === videoId ? '▶' : index + 1}</span><span className="min-w-0"><span className="block truncate text-sm">{track.title}</span><span className="block truncate text-xs text-neutral-500">{track.channelName}</span></span></button>)}
     </div>}
   </section>
@@ -157,6 +157,6 @@ export function MusicMiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
     if (ownerPath !== targetPath) navigatorFor(ownerTabId).push(targetPath)
   }
   return <div className={`fixed bottom-0 right-0 z-[55] max-[680px]:bottom-[60px] max-[680px]:left-0 ${isSideNavOpen ? 'min-[681px]:left-[200px]' : 'min-[681px]:left-20'}`}>
-    <div role="button" tabIndex={0} onClick={(event) => { if (!(event.target as Element).closest('button, input')) openSource() }} onKeyDown={(event) => { if (event.currentTarget === event.target && (event.key === 'Enter' || event.key === ' ')) openSource() }} className="cursor-pointer" aria-label={t('Abrir origen de la reproducción')}><MusicPlayerPanel compact /></div>
+    <div role="button" tabIndex={0} onClick={(event) => { if (!(event.target as Element).closest('button, input')) openSource() }} onKeyDown={(event) => { if (event.currentTarget === event.target && (event.key === 'Enter' || event.key === ' ')) openSource() }} className="cursor-pointer" aria-label={t("Open playback source")}><MusicPlayerPanel compact /></div>
   </div>
 }

@@ -152,3 +152,42 @@ test('guest watches remain local and invalid progress cannot produce history', a
   await context.tracking.progress({token,position:2,ended:false})
   assert.deepEqual(context.events,[['local','jNQXAC9IVRw']])
 })
+
+test('English controls cover search filters, music and collection UI; Spanish stays selectable', async () => {
+  const {translateFor}=await import('../src/shared/locale')
+  assert.equal(translateFor('en','Fecha de subida'),'Upload date')
+  assert.equal(translateFor('en','Guardar en Music'),'Save to Music')
+  assert.equal(translateFor('en','Esta colección está vacía.'),'This collection is empty.')
+  assert.equal(translateFor('en','Resultados para “{query}”',{query:'music'}),'Results for “music”')
+  assert.equal(translateFor('es','Play'),'Reproducir')
+  assert.equal(translateFor('es','Upload date'),'Fecha de subida')
+})
+
+test('Windows native and DOM side-button events navigate once while repeated clicks work', async () => {
+  const {MouseHistoryNavigation}=await import('../src/renderer/src/tabs/mouseNavigation')
+  const events:string[]=[]
+  let now=0
+  const navigation=new MouseHistoryNavigation(direction=>events.push(direction),()=>now)
+  navigation.handle('back','native')
+  now+=5
+  navigation.handle('back','mouse')
+  now+=40
+  navigation.handle('back','native')
+  now+=5
+  navigation.handle('back','mouse')
+  navigation.handle('forward','mouse')
+  now+=5
+  navigation.handle('forward','native')
+  now+=200
+  navigation.handle('forward','native')
+  assert.deepEqual(events,['back','back','forward','forward'])
+})
+
+test('diagnostic logs redact cookies, authorization, tokens and signed media URLs', async () => {
+  const {redactDiagnostics}=await import('../src/main/diagnosticLog')
+  const message=`Request failed: Cookie: SID=cookie-secret; SAPISID=sapisid-secret\nAuthorization: Bearer bearer-secret\n{"poToken":"potoken-secret","visitorData":"visitor-secret"}\nhttps://rr1.googlevideo.com/videoplayback?pot=query-secret&sig=signed-secret\nhttps://www.youtube.com/api/manifest/hls_playlist/sig/path-secret/playlist.m3u8`
+  const redacted=redactDiagnostics(message)
+  for(const secret of ['cookie-secret','sapisid-secret','bearer-secret','potoken-secret','visitor-secret','query-secret','signed-secret','path-secret']) assert.equal(redacted.includes(secret),false,secret)
+  assert.equal(redacted.includes('Request failed'),true)
+  assert.equal(redacted.includes('https://rr1.googlevideo.com/videoplayback'),true)
+})

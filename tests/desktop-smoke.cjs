@@ -5,10 +5,10 @@ const { join, resolve } = require('node:path')
 const { tmpdir } = require('node:os')
 
 ;(async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'worldtube-smoke-'))
+  const directory = await mkdtemp(join(tmpdir(), 'yamtube-smoke-'))
   const cookies = join(directory, 'cookies.txt')
   await writeFile(cookies, '# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t9999999999\tSAPISID\tsynthetic-test-only\n.youtube.com\tTRUE\t/\tTRUE\t9999999999\tSID\tsynthetic-test-only\n')
-  const executablePath=process.env.WORLDTUBE_SMOKE_APP
+  const executablePath=process.env.YAMTUBE_SMOKE_APP || process.env.WORLDTUBE_SMOKE_APP
   const app = await electron.launch({executablePath,args:['--no-sandbox','--disable-gpu',...(!executablePath?['.']:[])], cwd:process.cwd(),
     env:{...process.env, DISPLAY:process.env.DISPLAY || ':99', XDG_CONFIG_HOME:directory}, timeout:30_000})
   const errors=[]
@@ -49,7 +49,7 @@ const { tmpdir } = require('node:os')
         }
         if(url.pathname==='/youtubei/v1/browse') {
           const body=JSON.parse(await request.text())
-          const contents=body.browseId==='FEhistory' ? [video] : body.browseId==='FEchannels' ? [{channelRenderer:{channelId:'UCfixture',title:{simpleText:'Fixture subscription'},thumbnail:{thumbnails:[]}}}] : []
+          const contents=['FEhistory','FEwhat_to_watch'].includes(body.browseId) ? [video,{videoRenderer:{videoId:'invalid0000',thumbnail:{thumbnails:[null]}}}] : body.browseId==='FEchannels' ? [{channelRenderer:{channelId:'UCfixture',title:{simpleText:'Fixture subscription'},thumbnail:{thumbnails:[]}}}] : []
           return json({contents:{sectionListRenderer:{contents:[{itemSectionRenderer:{contents}}]}}})
         }
         if(url.pathname==='/youtubei/v1/subscription/subscribe' || url.pathname==='/youtubei/v1/subscription/unsubscribe') return json({})
@@ -78,6 +78,7 @@ const { tmpdir } = require('node:os')
     assert.equal((await page.evaluate(()=>window.api.getHomeFeed())).ok,true)
     await page.screenshot({path:'.cache/account-connected.png',fullPage:true})
     console.log('PASS: cookie import, authenticated headers, account identity, remote history/subscriptions and secret-free library')
+    await require('./desktop-features.cjs')({app,page,profile})
 
     // A second account must receive its own local library.
     const firstProfile=profile.activeProfileId

@@ -15,6 +15,7 @@ import { usePlayerWorkspace } from './PlayerWorkspace'
 import shaka from 'shaka-player/dist/shaka-player.ui.js'
 import './styles/shaka-controls.css'
 import './styles/shaka-overrides.css'
+import './AutoplaySetting'
 import { useGlobalPlayer } from './GlobalPlayerContext'
 import { PLAYER_COMMAND_EVENT, PLAYER_SEEK_EVENT, PLAYER_STATE_EVENT, type PlayerCommandDetail, type PlayerStateDetail } from './events'
 import { startSabrSession, type SabrSession } from './sabr'
@@ -88,7 +89,7 @@ export const SHORTS_SLOT_ID = 'global-player-shorts-slot'
  * the element (and the shaka.Player attached to it) never unmounts.
  */
 export function GlobalPlayerHost() {
-  const { language } = useLocale()
+  const { language, autoplayNext } = useLocale()
   const { videoId, playbackToken, dashManifest, liveManifests, sabr, title, captions, storyboardVtt, playVideo, playVideoQueue, extendVideoQueue, playbackMode, videoQueue, shorts, openShort, status, relatedVideos } = useGlobalPlayer()
   const location = useLocation()
   const navigate = useNavigate()
@@ -266,7 +267,7 @@ export function GlobalPlayerHost() {
         return
       }
       console.error(`shaka player error [tab=${tabId}]: ${JSON.stringify(description)}`)
-      setLoadError(`${t('Error de reproducción')}: ${JSON.stringify(description)}`)
+      setLoadError(`${t("Playback error")}: ${JSON.stringify(description)}`)
     }
     const handleVideoError = () => console.error(`video element error: ${JSON.stringify(rawVideoEl.error)}`)
 
@@ -313,6 +314,7 @@ export function GlobalPlayerHost() {
       seekBarColors: { base: 'var(--wt-track)', buffered: 'var(--wt-buffered)', played: 'var(--wt-accent)', adBreaks: 'var(--wt-important)', chapters: 'var(--wt-important)' },
       volumeBarColors: { base: 'var(--wt-track)', level: 'var(--wt-accent)' },
       playbackRateBarColors: { base: 'var(--wt-track)', level: 'var(--wt-accent)' },
+      overflowMenuButtons: [...ui.getConfiguration().overflowMenuButtons.filter((name) => name !== 'yamtube_autoplay'), 'yamtube_autoplay'],
       // Electron exposes Document PiP, but that API creates a new renderer
       // window. Our external-window policy correctly rejects that window and
       // previously left the system browser on about:blank. Native video PiP
@@ -330,7 +332,7 @@ export function GlobalPlayerHost() {
     if (!videoEl || typeof window.api.setPlayerAudioPreferences !== 'function') return
     const saveAudio = () => {
       void window.api.setPlayerAudioPreferences({ volume: videoEl.volume, muted: videoEl.muted })
-        .catch((error) => console.warn(t("No se pudo guardar el volumen"), error))
+        .catch((error) => console.warn(t("Could not save the volume"), error))
     }
     videoEl.addEventListener('volumechange', saveAudio)
     return () => videoEl.removeEventListener('volumechange', saveAudio)
@@ -494,7 +496,7 @@ export function GlobalPlayerHost() {
             if (cancelled || isLoadInterrupted(error)) return
             console.warn(`Live manifest failed [video=${videoId}, type=${source.mimeType}]: ${JSON.stringify(describeError(error))}`)
             if (index === liveManifests.length - 1) {
-              setLoadError(`${t('No se pudo reproducir')}: ${JSON.stringify(describeError(error))}`)
+              setLoadError(`${t("Could not play")}: ${JSON.stringify(describeError(error))}`)
             }
           }
         }
@@ -546,7 +548,7 @@ export function GlobalPlayerHost() {
             return
           }
           console.error(`shaka load (sabr) failed [tab=${tabId}, video=${videoId}]: ${JSON.stringify(description)}`)
-          setLoadError(`${t('No se pudo reproducir')}: ${JSON.stringify(description)}`)
+          setLoadError(`${t("Could not play")}: ${JSON.stringify(description)}`)
         })
       return () => {
         cancelled = true
@@ -581,7 +583,7 @@ export function GlobalPlayerHost() {
           return
         }
         console.error(`shaka load failed: ${JSON.stringify(description)}`)
-        setLoadError(`${t('No se pudo reproducir')}: ${JSON.stringify(description)}`)
+        setLoadError(`${t("Could not play")}: ${JSON.stringify(description)}`)
       })
 
     return () => {
@@ -599,14 +601,14 @@ export function GlobalPlayerHost() {
   useEffect(() => {
     if (!videoEl || shorts.length === 0 || status !== 'ready') return
     const onEnded = () => {
-      if (!videoEl.ended) return
+      if (!videoEl.ended || !autoplayNext) return
       const index = shorts.findIndex((short) => short.videoId === videoId)
       const next = index >= 0 ? shorts[index + 1] : undefined
       if (next) openShort(next.videoId, shorts)
     }
     videoEl.addEventListener('ended', onEnded)
     return () => videoEl.removeEventListener('ended', onEnded)
-  }, [videoEl, shorts, videoId, status, openShort])
+  }, [videoEl, shorts, videoId, status, openShort, autoplayNext])
 
   useEffect(() => {
     if (playbackMode !== 'video' || shorts.length > 0 || status !== 'ready' || !videoRecommendations.length) return
@@ -617,7 +619,7 @@ export function GlobalPlayerHost() {
   useEffect(() => {
     if (!videoEl || playbackMode !== 'video' || shorts.length > 0 || status !== 'ready') return
     const onEnded = () => {
-      if (!videoEl.ended) return
+      if (!videoEl.ended || !autoplayNext) return
       const index = videoQueue.findIndex((video) => video.videoId === videoId)
       const next = index >= 0 ? videoQueue[index + 1] : undefined
       if (next) {
@@ -636,7 +638,7 @@ export function GlobalPlayerHost() {
     }
     videoEl.addEventListener('ended', onEnded)
     return () => videoEl.removeEventListener('ended', onEnded)
-  }, [videoEl, playbackMode, shorts.length, videoQueue, videoId, status, videoRecommendations, playVideoQueue, isWatchRoute, navigate])
+  }, [videoEl, playbackMode, shorts.length, videoQueue, videoId, status, videoRecommendations, playVideoQueue, isWatchRoute, navigate, autoplayNext])
 
   useEffect(() => {
     if (!videoEl) return
@@ -767,7 +769,7 @@ export function GlobalPlayerHost() {
               />
             ))}
           </video>
-          {isInitialLoading && <div className="wt-initial-loader" role="status" aria-label={t('Cargando…')}><GradientLoader label={t('Cargando…')} size={42} /></div>}
+          {isInitialLoading && <div className="wt-initial-loader" role="status" aria-label={t("Loading...")}><GradientLoader label={t("Loading...")} size={42} /></div>}
           {loadError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 p-4 text-center text-white">
               <p className="text-sm">{loadError}</p>
@@ -776,7 +778,7 @@ export function GlobalPlayerHost() {
                 onClick={() => videoId && (playbackMode === 'video' && videoQueue.length ? playVideoQueue(videoId, videoQueue) : playVideo(videoId, playbackMode))}
                 className="wt-action rounded px-3 py-1.5 text-sm font-medium"
               >
-                {t("Reintentar")}</button>
+                {t("Retry")}</button>
             </div>
           )}
         </div>,

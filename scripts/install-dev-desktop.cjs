@@ -21,14 +21,14 @@ async function install() {
     if (error.code !== 'ENOENT') throw error
     return null
   })
-  if (existing && !existing.includes('X-WorldTube-Development=true')) throw new Error(`Refusing to overwrite an existing launcher: ${target}`)
+  if (existing && !existing.includes('X-YamTube-Development=true')) throw new Error(`Refusing to overwrite an existing launcher: ${target}`)
   const entry = [
-    '[Desktop Entry]', 'Version=1.0', 'Type=Application', 'Name=WorldTube (Development)',
+    '[Desktop Entry]', 'Version=1.0', 'Type=Application', 'Name=YamTube (Development)',
     'Comment=Local-first YouTube desktop client',
     `Exec=${desktopValue(`${execArgument(process.execPath)} ${execArgument(path.join(root, 'scripts/start-dev.cjs'))}`)}`,
     `Path=${desktopValue(root)}`, `Icon=${desktopValue(icon)}`,
     'Terminal=false', 'StartupNotify=false', 'StartupWMClass=com.riberojuanca.worldtube.dev',
-    'Categories=AudioVideo;Video;', 'X-WorldTube-Development=true', ''
+    'Categories=AudioVideo;Video;', 'X-YamTube-Development=true', ''
   ].join('\n')
   await mkdir(directory, { recursive: true })
   await writeFile(target, entry, { mode: 0o644 })

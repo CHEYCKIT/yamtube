@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { Innertube, YTNodes } from 'youtubei.js'
 import { protectedFetch } from './adBlock'
 import { IPC_CHANNELS, type YoutubeAccountState } from '../shared/ipc'
-import { activateLibraryOwner } from './localDb'
+import { activateLibraryOwner, getAppLanguage } from './localDb'
 
 interface Credentials {
   cookie: string
@@ -16,6 +16,7 @@ interface Credentials {
 
 let credentials: Credentials | null = null
 let client: Promise<Innertube> | null = null
+let clientLanguage: string | null = null
 let revision = 0
 let state: YoutubeAccountState = { signedIn: false, name: null, avatarUrl: null, persistent: false, error: null, syncError: null }
 const credentialPath = () => join(app.getPath('userData'), 'youtube-session.enc')
@@ -38,10 +39,11 @@ function canPersist(): boolean {
 }
 
 function createClient(cookie?: string): Promise<Innertube> {
-  return Innertube.create({ cookie, generate_session_locally: true, retrieve_player: false, retrieve_innertube_config: false, fetch: protectedFetch })
+  return Innertube.create({ cookie, lang: getAppLanguage(), generate_session_locally: true, retrieve_player: false, retrieve_innertube_config: false, fetch: protectedFetch })
 }
 
 export function getAccountClient(): Promise<Innertube> {
+  if (clientLanguage !== getAppLanguage()) { client = null; clientLanguage = getAppLanguage() }
   if (!client) {
     const pending = createClient(credentials?.cookie).catch((error) => {
       if (client === pending) client = null
@@ -98,6 +100,7 @@ export async function connectYoutubeAccount(cookie: string): Promise<YoutubeAcco
   await activateLibraryOwner(next.libraryKey, next.name)
   credentials = next
   client = Promise.resolve(candidate)
+  clientLanguage = getAppLanguage()
   revision++
   publish({ signedIn: true, name: next.name, avatarUrl: next.avatarUrl, persistent, error: null, syncError: null })
   return youtubeAccountState()

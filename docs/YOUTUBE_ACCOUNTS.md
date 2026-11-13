@@ -14,7 +14,7 @@ You can also browse as a guest without creating anything.
 
 The app opens a separate, ordinary temporary Firefox profile. It does not
 use WebDriver, a remote debugging port, an embedded Google login, or your
-existing browser profile. No Google password is entered into WorldTube.
+existing browser profile. No Google password is entered into YamTube.
 If Firefox is installed at a custom path, choose its executable when asked.
 Snap/Flatpak installations may restrict access to the temporary profile;
 use a native Firefox installation or the cookie-file option in that case.
@@ -95,3 +95,35 @@ The build environment's outbound proxy denies youtube.com. Live Google login,
 remote history persistence, recommendation changes and real video playback
 could not be verified here. These require manual validation on a machine
 with YouTube access; the release is marked beta for this reason.
+
+## Beta 2 playback and controls
+
+Electron-builder removes optional dependency `bugs` metadata. YouTube.js 18
+used that metadata while reporting recoverable parser errors, turning a
+malformed optional renderer into `Cannot read properties of undefined
+(reading 'url')`. The reproducible packaged failure is fixed by the locked
+compatibility patch in `patches/youtubei.js@18.0.0.patch`; it also protects the
+streaming-format warning path. The desktop suite deliberately parses a bad
+thumbnail beside a valid video inside the packaged app. Stream information
+is fetched separately from optional watch-next metadata.
+
+Right-click a video to open a background/foreground tab or play it in the
+existing mini player. Playing from a browsing page keeps that page open. From
+a full watch page the app returns to Home to make room for the mini player.
+**Player settings → Autoplay next video** is saved across restarts and applies
+to automatic video/Short advancement. Explicit play actions still start the
+selected video.
+
+Windows browser-backward/browser-forward application commands and mouse
+buttons 3/4 are routed through the active tab history. Duplicate native/DOM
+events from one press are suppressed.
+
+**Account & privacy → Logs** shows recent application, playback and network
+messages and exports the retained logs. Three files are bounded to roughly
+512 KiB each. The viewer shows the latest 128 KiB; export includes all retained
+entries. Cookies, authentication tokens and signed stream URLs are redacted.
+Nothing is automatically uploaded.
+
+The public product/window/installer/executable name is YamTube. The legacy
+internal application ID, storage directory and keyring identity are retained
+so beta 1 sessions and libraries remain usable.

@@ -34,10 +34,10 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div className="mx-auto max-w-xl rounded-lg border border-red-900 bg-red-950/40 p-4">
-          <p className="font-medium text-red-300">{t("Esta página tuvo un error y no se pudo mostrar.")}</p>
+          <p className="font-medium text-red-300">{t("This page could not be displayed.")}</p>
           <p className="mt-1 text-sm text-neutral-400">{t(this.state.error.message)}</p>
           <a href="#/" className="wt-action mt-3 inline-block rounded px-3 py-1.5 text-sm font-medium">
-            {t("Volver al inicio")}</a>
+            {t("Return home")}</a>
         </div>
       )
     }

@@ -9,7 +9,7 @@ import { NavigationIcon } from '../components/NavigationIcon'
 import { PageLoader } from '../components/PageLoader'
 
 function formatUpdatedAt(timestampMs: number): string {
-  if (!timestampMs) return t("Sin fecha")
+  if (!timestampMs) return t("No date")
   return new Date(timestampMs).toLocaleDateString(locale())
 }
 
@@ -107,7 +107,7 @@ export function Playlists() {
   return (
     <section>
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-neutral-800 pb-4">
-        <h1 className="text-xl font-semibold">{t('Playlists')}</h1>
+        <h1 className="text-xl font-semibold">{t("Playlists")}</h1>
         <button type="button" onClick={() => setCreating((value) => !value)} className="wt-action flex cursor-pointer items-center gap-2 rounded px-3 py-2 text-sm font-medium">
           <NavigationIcon name="playlists" />{t('New playlist')}
         </button>
@@ -128,7 +128,7 @@ export function Playlists() {
           </div>
           <div className="min-w-0"><h2 className="break-words text-xl font-semibold">{selected.name}</h2>
             {selected.description && <p className="mt-2 whitespace-pre-wrap break-words text-sm text-neutral-400">{selected.description}</p>}
-            <p className="mt-3 text-xs text-neutral-500">{selectedVideos.length} {t('Videos')} · {formatUpdatedAt(selected.updatedAt)}</p>
+            <p className="mt-3 text-xs text-neutral-500">{selectedVideos.length} {t("Videos")} · {formatUpdatedAt(selected.updatedAt)}</p>
           </div>
         </div>
         <div className="divide-y divide-neutral-800 border-y border-neutral-800">
@@ -164,7 +164,7 @@ export function Playlists() {
             </button>
           })}
         </div>
-        {!filtered.length && <p className="py-6 text-sm text-neutral-400">{query ? t('No matching playlists') : t('No hay playlists guardadas.')}</p>}
+        {!filtered.length && <p className="py-6 text-sm text-neutral-400">{query ? t('No matching playlists') : t("No saved playlists.")}</p>}
       </>}
     </section>
   )

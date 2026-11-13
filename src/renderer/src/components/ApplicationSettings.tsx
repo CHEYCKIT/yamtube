@@ -46,7 +46,7 @@ function UpdateControls({ state: provided }: { state?: UpdateState }) {
     setRequestError(null)
     try { await action() } catch (failure) { setRequestError(String(failure)) }
   }
-  if (!state) return <p className="text-sm text-neutral-400">{t('Restart WorldTube to enable updates')}</p>
+  if (!state) return <p className="text-sm text-neutral-400">{t('Restart YamTube to enable updates')}</p>
   const buttonClass = 'wt-action inline-flex min-h-9 items-center gap-2 rounded px-3 text-sm'
   return <div className="grid gap-3 border-t border-neutral-800 pt-3">
     <p className="text-sm text-neutral-400">{t('Installed version: {version}', { version: state.currentVersion })}</p>
@@ -57,7 +57,7 @@ function UpdateControls({ state: provided }: { state?: UpdateState }) {
       {state.status === 'downloading' && <><p role="status" className="text-sm">{t('Downloading: {percent}%', { percent: Math.round(state.percent ?? 0) })}</p>
         <progress value={state.percent ?? 0} max={100} className="h-1 w-full accent-[var(--wt-accent)]" /></>}
       {state.status === 'downloaded' && <p className="text-sm">{t('Update ready to install')}</p>}
-      {state.version && <a href="https://github.com/riberojuanca/worldtube/releases" target="_blank" rel="noreferrer" className="wt-link text-sm">{t('Release notes')}</a>}
+      {state.version && <a href="https://github.com/CHEYCKIT/yamtube/releases" target="_blank" rel="noreferrer" className="wt-link text-sm">{t('Release notes')}</a>}
       {(state.error || requestError) && <p role="alert" className="break-words text-sm text-red-400">{requestError ?? state.error}</p>}
       <div className="flex flex-wrap gap-2">
         {['idle', 'current', 'error'].includes(state.status) && <button type="button" className={buttonClass} onClick={() => void request(window.api.checkForUpdates)}>{t('Check for updates')}</button>}
@@ -76,7 +76,7 @@ export function UpdateNotice() {
   return <aside aria-label={t('Updates')} className="fixed right-4 top-[70px] z-[80] w-[min(360px,calc(100vw-32px))] rounded border border-neutral-700 bg-neutral-900 p-3 shadow-xl">
     <div className="flex items-center justify-between gap-3">
       <h2 className="text-sm font-medium">{t('Updates')}</h2>
-      <button type="button" title={t('Cerrar')} aria-label={t('Cerrar')} onClick={() => setDismissedVersion(state.version)} className="grid h-8 w-8 cursor-pointer place-items-center rounded hover:bg-neutral-800">
+      <button type="button" title={t("Close")} aria-label={t("Close")} onClick={() => setDismissedVersion(state.version)} className="grid h-8 w-8 cursor-pointer place-items-center rounded hover:bg-neutral-800">
         <X aria-hidden="true" className="h-4 w-4" strokeWidth={1.8} />
       </button>
     </div>

@@ -2,6 +2,8 @@ import { t, useLocale } from '../i18n/LocaleContext'
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { NavigationType, Router, createPath, parsePath, UNSAFE_LocationContext, UNSAFE_NavigationContext, type Navigator, type To } from 'react-router-dom'
 import { Play, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { MouseHistoryNavigation } from './mouseNavigation'
 
 interface Tab {
   id: string
@@ -14,7 +16,7 @@ interface Tab {
 interface TabsValue {
   tabs: Tab[]
   activeId: string
-  open: (path?: string, background?: boolean) => void
+  open: (path?: string, background?: boolean, title?: string) => void
   select: (id: string) => void
   close: (id: string) => void
   rename: (id: string, title: string) => void
@@ -24,7 +26,7 @@ interface TabsValue {
 }
 const TabsContext = createContext<TabsValue | null>(null)
 const PageTabContext = createContext({ id: '', active: true, revision: 0 })
-const makeTab = (path = '/'): Tab => ({ id: crypto.randomUUID(), entries: [path], index: 0, title: t("Inicio"), scroll: 0, revision: 0 })
+const makeTab = (path = '/', title = ''): Tab => ({ id: crypto.randomUUID(), entries: [path], index: 0, title, scroll: 0, revision: 0 })
 const pathFor = (to: To) => typeof to === 'string' ? to : createPath(to)
 
 export function useAppTabs() {
@@ -63,8 +65,8 @@ export function AppTabsProvider({ children }: { children: ReactNode }) {
       tabs, activeId,
       navigatorFor,
       refresh: () => setTabs((items) => items.map((tab) => tab.id === activeId ? { ...tab, revision: tab.revision + 1 } : tab)),
-      open: (nextPath = '/', background = false) => {
-        const tab = makeTab(nextPath)
+      open: (nextPath = '/', background = false, title = '') => {
+        const tab = makeTab(nextPath, title)
         setTabs((items) => [...items, tab])
         if (!background) {
           scrolls.current.set(activeId, window.scrollY)
@@ -115,6 +117,31 @@ export function AppTabsProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('hashchange', hashChange)
   }, [activeId, path, value])
 
+  const currentNavigation = useRef({ activeId, navigatorFor: value.navigatorFor })
+  currentNavigation.current = { activeId, navigatorFor: value.navigatorFor }
+  useEffect(() => {
+    const navigation = new MouseHistoryNavigation((direction) => {
+      const { activeId, navigatorFor } = currentNavigation.current
+      navigatorFor(activeId).go(direction === 'back' ? -1 : 1)
+    })
+    const unsubscribe = window.api.onHistoryNavigation((direction) => navigation.handle(direction, 'native'))
+    const mouseUp = (event: globalThis.MouseEvent) => {
+      if (event.button !== 3 && event.button !== 4) return
+      event.preventDefault()
+      navigation.handle(event.button === 3 ? 'back' : 'forward', 'mouse')
+    }
+    const preventDefaultNavigation = (event: globalThis.MouseEvent) => {
+      if (event.button === 3 || event.button === 4) event.preventDefault()
+    }
+    window.addEventListener('mouseup', mouseUp, true)
+    window.addEventListener('auxclick', preventDefaultNavigation, true)
+    return () => {
+      unsubscribe()
+      window.removeEventListener('mouseup', mouseUp, true)
+      window.removeEventListener('auxclick', preventDefaultNavigation, true)
+    }
+  }, [])
+
   return <TabsContext.Provider value={value}>
     <Router location={path} navigator={value.navigatorFor(activeId)}>{children}</Router>
   </TabsContext.Provider>
@@ -140,35 +167,81 @@ export function TabPages({ children }: { children: ReactNode }) {
 }
 
 function routeTitle(path: string) {
-  if (path.startsWith('/search')) return new URLSearchParams(parsePath(path).search).get('q') || t("Buscar")
-  const labels: Record<string, string> = { '/': t("Inicio"), '/saved': t("Guardados"), '/playlists': t("Playlists"), '/music': t("Music"), '/account': t("Cuenta"), '/history': t("Historial"), '/subscriptions': t("Suscripciones") }
-  return labels[path] || (path.startsWith('/channel') ? t("Canal") : path.startsWith('/collection') ? t("Colección") : 'Video')
+  if (path.startsWith('/search')) return new URLSearchParams(parsePath(path).search).get('q') || t("Search")
+  const labels: Record<string, string> = { '/': t("Home"), '/saved': t("Saved"), '/playlists': t("Playlists"), '/music': t("Music"), '/account': t("Account"), '/history': t("History"), '/subscriptions': t("Subscriptions") }
+  return labels[path] || (path.startsWith('/channel') ? t("Channel") : path.startsWith('/collection') ? t("Collection") : 'Video')
 }
 
 export function TabBar({ playingIds = [] }: { playingIds?: string[] }) {
   useLocale()
   const { tabs, activeId, open, select, close, reorder } = useAppTabs()
   return <div className="sticky top-[60px] z-30 flex h-10 min-w-0 items-center border-b border-neutral-800 bg-neutral-950 px-2">
-    <div role="tablist" aria-label={t("Pestañas")} className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+    <div role="tablist" aria-label={t("Tabs")} className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
       {tabs.map((tab) => {
         const path = tab.entries[tab.index]
-        const label = path.startsWith('/watch/') && tab.title !== 'Inicio' ? tab.title : routeTitle(path)
+        const label = path.startsWith('/watch/') && tab.title ? tab.title : routeTitle(path)
         return <div key={tab.id} draggable onDragStart={(event) => event.dataTransfer.setData('application/worldtube-tab', tab.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); reorder(event.dataTransfer.getData('application/worldtube-tab'), tab.id) }} className={`flex h-8 w-48 min-w-28 max-w-48 shrink-0 items-center border-b-2 ${tab.id === activeId ? 'wt-tab-selected bg-white/5' : 'border-transparent text-neutral-400 hover:bg-neutral-900'}`}>
           <button type="button" role="tab" aria-selected={tab.id === activeId} onClick={() => select(tab.id)} title={label} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-3 text-left text-xs">
-            {playingIds.includes(tab.id) && <Play aria-label={t("Reproduciendo")} className="wt-accent-text h-3 w-3 shrink-0" fill="currentColor" strokeWidth={1.8} />}
+            {playingIds.includes(tab.id) && <Play aria-label={t("Playing")} className="wt-accent-text h-3 w-3 shrink-0" fill="currentColor" strokeWidth={1.8} />}
             <span className="truncate">{label}</span>
           </button>
-          <button type="button" onClick={() => close(tab.id)} title={t("Cerrar pestaña")} aria-label={t('Cerrar {title}', { title: label })} className="grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded hover:bg-neutral-700"><X aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={1.8} /></button>
+          <button type="button" onClick={() => close(tab.id)} title={t("Close tab")} aria-label={t("Close {title}", { title: label })} className="grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded hover:bg-neutral-700"><X aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={1.8} /></button>
         </div>
       })}
     </div>
-    <button type="button" onClick={() => open()} title={t("Nueva pestaña")} aria-label={t("Nueva pestaña")} className="ml-1 grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded text-xl text-neutral-400 hover:bg-neutral-800">+</button>
+    <button type="button" onClick={() => open()} title={t("New tab")} aria-label={t("New tab")} className="ml-1 grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded text-xl text-neutral-400 hover:bg-neutral-800">+</button>
   </div>
 }
 
-export function TabLinkHandler({ children }: { children: ReactNode }) {
+export function TabLinkHandler({ children, onPlayInMiniPlayer }: { children: ReactNode; onPlayInMiniPlayer: (videoId: string) => void }) {
   useLocale()
   const { open } = useAppTabs()
+  const [menu, setMenu] = useState<{ x: number; y: number; path: string; title: string; videoId: string | null } | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    if (!menu) return
+    menuRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    const dismiss = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenu(null)
+    }
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); setMenu(null); triggerRef.current?.focus() }
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault()
+        const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('button') ?? [])
+        const index = items.indexOf(document.activeElement as HTMLButtonElement)
+        items[(index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus()
+      }
+    }
+    const close = () => setMenu(null)
+    document.addEventListener('pointerdown', dismiss, true)
+    document.addEventListener('keydown', keyboard, true)
+    window.addEventListener('blur', close)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('pointerdown', dismiss, true)
+      document.removeEventListener('keydown', keyboard, true)
+      window.removeEventListener('blur', close)
+      window.removeEventListener('resize', close)
+    }
+  }, [menu])
+  function contextMenu(event: MouseEvent) {
+    if (!(event.target instanceof Element)) return
+    const link = event.target.closest<HTMLAnchorElement>('a[href^="#/"]')
+    const card = event.target.closest<HTMLElement>('[data-video-id]')
+    const path = link?.getAttribute('href')?.slice(1) ?? (card ? `/watch/${card.dataset.videoId}` : null)
+    if (!path) return
+    event.preventDefault()
+    event.stopPropagation()
+    const videoId = path.match(/^\/watch\/([\w-]{11})(?:[/?#]|$)/)?.[1] ?? null
+    triggerRef.current = link ?? card
+    const rect = (link ?? card)?.getBoundingClientRect()
+    const x = event.clientX || rect?.left || 0
+    const y = event.clientY || rect?.top || 0
+    setMenu({ path, videoId, title: card?.dataset.videoTitle ?? link?.textContent?.trim() ?? '',
+      x: Math.max(8, Math.min(x, window.innerWidth - 264)), y: Math.max(8, Math.min(y, window.innerHeight - (videoId ? 144 : 104))) })
+  }
   function intercept(event: MouseEvent, middle = false) {
     if (middle ? event.button !== 1 : !event.ctrlKey && !event.metaKey) return
     const link = (event.target as Element).closest('a')
@@ -178,5 +251,13 @@ export function TabLinkHandler({ children }: { children: ReactNode }) {
     event.stopPropagation()
     open(href.slice(1), !event.shiftKey)
   }
-  return <div onClickCapture={intercept} onAuxClickCapture={(event) => intercept(event, true)}>{children}</div>
+  const itemClass = 'block w-full cursor-pointer rounded px-3 py-2 text-left text-sm text-neutral-100 hover:bg-neutral-800 focus:bg-neutral-800 focus:outline-none'
+  return <div onClickCapture={intercept} onAuxClickCapture={(event) => intercept(event, true)} onContextMenu={contextMenu}>
+    {children}
+    {menu && createPortal(<div ref={menuRef} role="menu" aria-label={t('Video options')} className="fixed z-[200] w-64 rounded border border-neutral-700 bg-neutral-900 p-1 shadow-xl" style={{ left: menu.x, top: menu.y }}>
+      <button role="menuitem" className={itemClass} onClick={() => { open(menu.path, true, menu.title); setMenu(null) }}>{t('Open in new tab')}</button>
+      <button role="menuitem" className={itemClass} onClick={() => { open(menu.path, false, menu.title); setMenu(null) }}>{t('Open in new tab and switch')}</button>
+      {menu.videoId && <button role="menuitem" className={itemClass} onClick={() => { onPlayInMiniPlayer(menu.videoId!); setMenu(null) }}>{t('Play in mini player')}</button>}
+    </div>, document.body)}
+  </div>
 }

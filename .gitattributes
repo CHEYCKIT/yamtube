@@ -3,3 +3,5 @@ third-party/** -text
 src/renderer/src/assets/fonts/** -text
 src/renderer/src/assets/icons/*.svg -text
 src/renderer/src/assets/icons/LICENSE-* -text
+patches/** text eol=lf
+tests/fixtures/*.webm -text

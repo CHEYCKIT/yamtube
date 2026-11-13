@@ -83,7 +83,7 @@ export function ShortsModal() {
       </div>}
       {status === 'error' && <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/85 p-3 text-center text-sm">
         <p className="line-clamp-3 break-words">{error}</p>
-        <button type="button" onClick={() => videoId && void playVideo(videoId)} className="rounded bg-neutral-800 px-3 py-2">{t("Reintentar")}</button>
+        <button type="button" onClick={() => videoId && void playVideo(videoId)} className="rounded bg-neutral-800 px-3 py-2">{t("Retry")}</button>
       </div>}
       </div>
       {slide && <div aria-hidden="true" className={`pointer-events-none absolute inset-0 bg-black ${slide.direction > 0 ? 'wt-short-leave-next' : 'wt-short-leave-previous'}`}>
@@ -98,14 +98,14 @@ export function ShortsModal() {
     </div>
     <div className="absolute bottom-16 left-[calc(100%+12px)] top-0 flex w-9 flex-col justify-between">
       <div className="flex flex-col items-center gap-2">
-        <button type="button" onClick={closePlayer} aria-label={t("Cerrar Short")} title={t("Cerrar")}
+        <button type="button" onClick={closePlayer} aria-label={t("Close Short")} title={t("Close")}
           className="grid h-9 w-9 place-items-center rounded bg-neutral-800 text-xl hover:bg-neutral-700">{'\u00d7'}</button>
         {index >= 0 && <span className="w-full text-center text-[10px] leading-4 text-neutral-300">{index + 1}<span className="text-neutral-500"> / </span>{shorts.length}</span>}
       </div>
       <div className="absolute top-1/2 flex -translate-y-1/2 flex-col gap-3">
-      <button type="button" onClick={() => move(-1)} disabled={index <= 0 || Boolean(slide)} aria-label={t("Short anterior")} title={t("Anterior")}
+      <button type="button" onClick={() => move(-1)} disabled={index <= 0 || Boolean(slide)} aria-label={t("Previous Short")} title={t("Previous")}
         className="grid h-9 w-9 place-items-center rounded bg-neutral-800 text-lg hover:bg-neutral-700 disabled:cursor-default disabled:opacity-30">{'\u2191'}</button>
-      <button type="button" onClick={() => move(1)} disabled={index < 0 || index >= shorts.length - 1 || Boolean(slide)} aria-label={t("Siguiente Short")} title={t("Siguiente")}
+      <button type="button" onClick={() => move(1)} disabled={index < 0 || index >= shorts.length - 1 || Boolean(slide)} aria-label={t("Next Short")} title={t("Next")}
         className="grid h-9 w-9 place-items-center rounded bg-neutral-800 text-lg hover:bg-neutral-700 disabled:cursor-default disabled:opacity-30">{'\u2193'}</button>
       </div>
       {short && <VideoSaveActions key={`save-${short.videoId}`} buttonClassName="grid h-9 w-9 place-items-center rounded bg-neutral-800 text-sm hover:bg-neutral-700 disabled:opacity-40" video={{ ...short, playlistId: null }} />}

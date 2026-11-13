@@ -29,7 +29,7 @@ export function Collection() {
   const [playerPaused, setPlayerPaused] = useState(true)
   const [playerStarted, setPlayerStarted] = useState(false)
   const kind: SearchCollectionItem['kind'] = rawKind === 'album' || rawKind === 'podcast' ? rawKind : 'playlist'
-  const title = params.get('title') || (kind === 'album' ? t('Álbum') : kind === 'podcast' ? t('Podcast') : t('Playlist'))
+  const title = params.get('title') || (kind === 'album' ? t("Album") : kind === 'podcast' ? t("Podcast") : t("Playlist"))
   const library: LibraryKind = kind === 'playlist' ? 'video' : 'music'
 
   useEffect(() => {
@@ -114,11 +114,11 @@ export function Collection() {
 
   if (videos === null) return <PageLoader />
   const playerStarting = playbackMode === 'music' && !!activeVideoId && (status === 'loading' || !playerStarted)
-  const kindLabel = kind === 'album' ? t('Álbum') : kind === 'podcast' ? t('Podcast') : t('Playlist')
+  const kindLabel = kind === 'album' ? t("Album") : kind === 'podcast' ? t("Podcast") : t("Playlist")
   return <section className="w-full">
     <header className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-neutral-800 pb-5">
-      <div className="min-w-0"><p className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">{kindLabel}</p><h1 className="break-words text-2xl font-semibold">{title}</h1><p className="mt-2 text-sm text-neutral-400">{t('{count} elementos', { count: videos.length })}</p></div>
-      {videos.length > 0 && <div className="flex flex-wrap gap-2"><button type="button" disabled={playerStarting} onClick={() => playAt(0)} className={`${playerStarting ? 'bg-transparent' : 'wt-action'} grid min-h-9 min-w-24 cursor-pointer place-items-center rounded-full px-5 py-2 text-sm font-semibold disabled:cursor-wait`}>{playerStarting ? <PlaybackLoadingIcon compact /> : `▶ ${t('Reproducir todo')}`}</button><button type="button" disabled={saving || saved} onClick={() => void saveCollection()} className="cursor-pointer rounded-full bg-neutral-800 px-5 py-2 text-sm font-medium hover:bg-neutral-700 disabled:opacity-60">{saved ? t('Colección guardada') : saving ? t('Guardando…') : library === 'music' ? t('Guardar en Music') : t('Guardar playlist')}</button></div>}
+      <div className="min-w-0"><p className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">{kindLabel}</p><h1 className="break-words text-2xl font-semibold">{title}</h1><p className="mt-2 text-sm text-neutral-400">{t("{count} items", { count: videos.length })}</p></div>
+      {videos.length > 0 && <div className="flex flex-wrap gap-2"><button type="button" disabled={playerStarting} onClick={() => playAt(0)} className={`${playerStarting ? 'bg-transparent' : 'wt-action'} grid min-h-9 min-w-24 cursor-pointer place-items-center rounded-full px-5 py-2 text-sm font-semibold disabled:cursor-wait`}>{playerStarting ? <PlaybackLoadingIcon compact /> : `▶ ${t("Play all")}`}</button><button type="button" disabled={saving || saved} onClick={() => void saveCollection()} className="cursor-pointer rounded-full bg-neutral-800 px-5 py-2 text-sm font-medium hover:bg-neutral-700 disabled:opacity-60">{saved ? t("Collection saved") : saving ? t("Saving…") : library === 'music' ? t("Save to Music") : t("Save playlist")}</button></div>}
     </header>
     {error && <p role="alert" className="mb-4 text-sm text-red-400">{error}</p>}
     {videos.length > 0 && <div className="mb-6"><MusicPlayerPanel /></div>}
@@ -127,9 +127,9 @@ export function Collection() {
       const loading = active && playerStarting
       return <div key={`${video.videoId}:${index}`} className={`grid grid-cols-[28px_72px_minmax(0,1fr)_auto] items-center gap-3 py-2 ${active ? 'bg-white/[0.04]' : ''}`}>
       <span className="text-center text-xs text-neutral-500">{index + 1}</span>
-      <button type="button" disabled={loading} onClick={() => playAt(index)} aria-label={loading ? t('Cargando…') : active && !playerPaused ? t('Pausar') : t('Reproducir')} className="group relative aspect-video cursor-pointer overflow-hidden rounded bg-neutral-900 disabled:cursor-wait"><VideoThumbnail videoId={video.videoId} thumbnailUrl={video.thumbnailUrl} title={video.title} quality="compact" /><span className={`absolute inset-0 grid place-items-center bg-black/55 text-white transition-opacity ${loading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}>{loading ? <PlaybackLoadingIcon /> : <PlaybackStatusIcon paused={!active || playerPaused} />}</span></button>
+      <button type="button" disabled={loading} onClick={() => playAt(index)} aria-label={loading ? t("Loading...") : active && !playerPaused ? t("Pause") : t("Play")} className="group relative aspect-video cursor-pointer overflow-hidden rounded bg-neutral-900 disabled:cursor-wait"><VideoThumbnail videoId={video.videoId} thumbnailUrl={video.thumbnailUrl} title={video.title} quality="compact" /><span className={`absolute inset-0 grid place-items-center bg-black/55 text-white transition-opacity ${loading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}>{loading ? <PlaybackLoadingIcon /> : <PlaybackStatusIcon paused={!active || playerPaused} />}</span></button>
       <button type="button" disabled={loading} onClick={() => playAt(index)} className="min-w-0 cursor-pointer text-left disabled:cursor-wait"><span className={`block line-clamp-2 text-sm font-medium ${active ? 'text-[var(--wt-accent)]' : ''}`}>{video.title}</span><span className="mt-1 block truncate text-xs text-neutral-400">{[video.channelName, video.durationText].filter(Boolean).join(' · ')}</span></button>
-      <div className="flex items-center gap-1"><Link to={`/watch/${video.videoId}`} title={t('Ver video')} aria-label={t('Ver video')} className="grid h-8 w-8 place-items-center rounded bg-black/70 hover:bg-black/85"><SquarePlay aria-hidden="true" className="h-5 w-5" strokeWidth={1.8} /></Link><VideoSaveActions video={{ videoId: video.videoId, title: video.title, channelId: video.channelId, channelName: video.channelName, thumbnailUrl: video.thumbnailUrl, playlistId: null }} menuPosition="above" /></div>
-    </div>})}</div> : !error && <p className="text-sm text-neutral-400">{t('Esta colección está vacía.')}</p>}
+      <div className="flex items-center gap-1"><Link to={`/watch/${video.videoId}`} title={t("Watch video")} aria-label={t("Watch video")} className="grid h-8 w-8 place-items-center rounded bg-black/70 hover:bg-black/85"><SquarePlay aria-hidden="true" className="h-5 w-5" strokeWidth={1.8} /></Link><VideoSaveActions video={{ videoId: video.videoId, title: video.title, channelId: video.channelId, channelName: video.channelName, thumbnailUrl: video.thumbnailUrl, playlistId: null }} menuPosition="above" /></div>
+    </div>})}</div> : !error && <p className="text-sm text-neutral-400">{t("This collection is empty.")}</p>}
   </section>
 }

@@ -162,6 +162,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  youtubei.js@18.0.0: 73bfe00acc86aadcc7d2fbc00d6f056c36e7c999df751c7e527f633385e082c0
+
 importers:
 
   .:
@@ -204,7 +207,7 @@ importers:
         version: 0.17.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       youtubei.js:
         specifier: ^18.0.0
-        version: 18.0.0
+        version: 18.0.0(patch_hash=73bfe00acc86aadcc7d2fbc00d6f056c36e7c999df751c7e527f633385e082c0)
     devDependencies:
       '@types/node':
         specifier: ^22.7.4
@@ -4236,7 +4239,7 @@ snapshots:
 
   yocto-queue@0.1.0: {}
 
-  youtubei.js@18.0.0:
+  youtubei.js@18.0.0(patch_hash=73bfe00acc86aadcc7d2fbc00d6f056c36e7c999df751c7e527f633385e082c0):
     dependencies:
       '@bufbuild/protobuf': 2.15.0
       fflate: 0.8.3

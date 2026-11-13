@@ -1,4 +1,4 @@
-const repository = 'riberojuanca/worldtube'
+const repository = 'CHEYCKIT/yamtube'
 const status = document.getElementById('release-status')
 const buttons = [...document.querySelectorAll('[data-platform]')]
 const command = document.getElementById('install-command')
@@ -54,7 +54,7 @@ async function loadDownloads() {
       button.removeAttribute('aria-disabled')
       button.title = asset.name
       if (button.dataset.platform === 'linux') {
-        command.textContent = `mkdir -p "$HOME/Downloads" &&\ncd "$HOME/Downloads" &&\nwget -O WorldTube.deb '${url.href.replaceAll("'", "%27")}' &&\nsudo apt install ./WorldTube.deb`
+        command.textContent = `mkdir -p "$HOME/Downloads" &&\ncd "$HOME/Downloads" &&\nwget -O YamTube.deb '${url.href.replaceAll("'", "%27")}' &&\nsudo apt install ./YamTube.deb`
         copyButton.disabled = false
       }
       if (button.dataset.platform === 'mac' && /arm64/i.test(asset.name)) {

@@ -108,7 +108,7 @@ export function VideoCard({ videoId, title, channelId, channelName, thumbnailUrl
   const { openShort } = useGlobalPlayer()
   const open = shorts ? (event: MouseEvent) => { event.preventDefault(); openShort(videoId, shorts) } : undefined
   return (
-    <div className={`group flex min-w-0 flex-col gap-2 rounded p-1 hover:bg-neutral-900 ${featured ? 'h-full' : ''}`}>
+    <div data-video-id={videoId} data-video-title={title} className={`group flex min-w-0 flex-col gap-2 rounded p-1 hover:bg-neutral-900 ${featured ? 'h-full' : ''}`}>
       <div className={`relative min-h-0 w-full overflow-hidden rounded bg-neutral-900 ${portrait ? 'aspect-[9/16]' : 'aspect-video'}`}>
         <Link to={`/watch/${videoId}`} onClick={open} className="absolute inset-0 block overflow-hidden rounded" aria-label={title}>
           <VideoThumbnail videoId={videoId} thumbnailUrl={thumbnailUrl} title={title} portrait={portrait} previewUrl={previewUrl} allowPreview={badge !== 'LIVE'} quality={featured ? 'featured' : 'grid'} />

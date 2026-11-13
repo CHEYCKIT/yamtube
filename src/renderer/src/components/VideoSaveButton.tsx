@@ -64,7 +64,7 @@ export function VideoSaveButton({ video, className = '', buttonClassName, label,
         setIsLoaded(true)
       })
       .catch(() => {
-        if (!cancelled) setStatus(t("No se pudo cargar"))
+        if (!cancelled) setStatus(t("Could not load"))
       })
     void load()
     window.addEventListener(PROFILE_DATA_CHANGED_EVENT, load)
@@ -81,7 +81,7 @@ export function VideoSaveButton({ video, className = '', buttonClassName, label,
     const load = () => window.api.listSavedPlaylists(library).then((items) => {
       if (!cancelled) setPlaylists(items)
     }).catch(() => {
-      if (!cancelled) setStatus(t("No se pudo cargar"))
+      if (!cancelled) setStatus(t("Could not load"))
     })
     void load()
     window.addEventListener(PROFILE_DATA_CHANGED_EVENT, load)
@@ -115,11 +115,11 @@ export function VideoSaveButton({ video, className = '', buttonClassName, label,
     try {
       await window.api.saveVideo({ ...video, playlistId, library })
       await refreshSavedState()
-      setStatus(t("Guardado"))
+      setStatus(t("Saved"))
       window.dispatchEvent(new CustomEvent(PROFILE_DATA_CHANGED_EVENT))
       window.setTimeout(() => setStatus(null), 1400)
     } catch {
-      setStatus(t("No se pudo guardar"))
+      setStatus(t("Could not save"))
     }
   }
 
@@ -127,11 +127,11 @@ export function VideoSaveButton({ video, className = '', buttonClassName, label,
     try {
       await window.api.removeSavedVideo(video.videoId, playlistId, library)
       await refreshSavedState()
-      setStatus(t("Quitado"))
+      setStatus(t("Removed"))
       window.dispatchEvent(new CustomEvent(PROFILE_DATA_CHANGED_EVENT))
       window.setTimeout(() => setStatus(null), 1400)
     } catch {
-      setStatus(t("No se pudo quitar"))
+      setStatus(t("Could not remove"))
     }
   }
 
@@ -144,7 +144,7 @@ export function VideoSaveButton({ video, className = '', buttonClassName, label,
       setNewPlaylistName('')
       await saveTo(playlist.id)
     } catch {
-      setStatus(t("No se pudo crear"))
+      setStatus(t("Could not create"))
     }
   }
 
@@ -161,9 +161,9 @@ export function VideoSaveButton({ video, className = '', buttonClassName, label,
     } finally { setIsBusy(false) }
   }
 
-  const actionLabel = mode === 'playlists' ? isInPlaylist ? t("En playlists: gestionar playlists") : t("Agregar a playlist")
-    : mode === 'saved' ? savedPlaylistIds.has(null) ? t("Quitar de Guardados") : t("Guardar en Guardados")
-    : library === 'music' ? t("Guardar en Music") : t("Guardar")
+  const actionLabel = mode === 'playlists' ? isInPlaylist ? t("In playlists: manage playlists") : t("Add to playlist")
+    : mode === 'saved' ? savedPlaylistIds.has(null) ? t("Remove from Saved") : t("Save to Saved")
+    : library === 'music' ? t("Save to Music") : t("Save")
 
   return (
     <div ref={rootRef} className={className} onClick={stopClick}>
@@ -180,7 +180,7 @@ export function VideoSaveButton({ video, className = '', buttonClassName, label,
         aria-pressed={mode === 'saved' ? savedPlaylistIds.has(null) : undefined}
         aria-haspopup={mode !== 'saved' ? 'dialog' : undefined}
         aria-expanded={mode !== 'saved' ? isOpen : undefined}
-        title={canManageSavedVideos ? actionLabel : t("Reinicia la app para activar Guardar")}
+        title={canManageSavedVideos ? actionLabel : t("Restart the app to enable saving")}
       >
         {library === 'music' ? <MusicIcon /> : mode === 'playlists' ? isInPlaylist ? <CheckIcon /> : <span aria-hidden="true" className="text-xl leading-none">+</span> : <SaveIcon filled={mode === 'saved' && savedPlaylistIds.has(null)} />}
         {label && <span>{label}</span>}
@@ -188,13 +188,13 @@ export function VideoSaveButton({ video, className = '', buttonClassName, label,
 
       {mode === 'saved' && status && <span role="status" className="sr-only">{status}</span>}
       {isOpen && mode !== 'saved' && (
-        <div role="dialog" aria-label={library === 'music' ? t("Guardar en Music") : t("Guardar en playlists")} className={`absolute right-0 z-30 w-64 rounded border border-neutral-800 bg-neutral-950 p-2 shadow-2xl shadow-black/40 ${menuPosition === 'above' ? 'bottom-10' : 'top-9'}`}>
+        <div role="dialog" aria-label={library === 'music' ? t("Save to Music") : t("Save to playlists")} className={`absolute right-0 z-30 w-64 rounded border border-neutral-800 bg-neutral-950 p-2 shadow-2xl shadow-black/40 ${menuPosition === 'above' ? 'bottom-10' : 'top-9'}`}>
           {mode === 'combined' && <><button
             type="button"
             className={optionClass(savedPlaylistIds.has(null))}
             onClick={() => (savedPlaylistIds.has(null) ? removeFrom(null) : saveTo(null))}
           >
-            <span className="truncate">{library === 'music' ? t("Canciones guardadas") : t("Guardados")}</span>
+            <span className="truncate">{library === 'music' ? t("Saved songs") : t("Saved")}</span>
             {savedPlaylistIds.has(null) && <CheckIcon className="wt-accent-text h-4 w-4 shrink-0" />}
           </button>
 
@@ -202,7 +202,7 @@ export function VideoSaveButton({ video, className = '', buttonClassName, label,
 
           <div className="grid max-h-44 gap-1 overflow-auto pr-1">
             {playlists.length === 0 ? (
-              <p className="px-2 py-1 text-xs text-neutral-500">{t("Sin playlists")}</p>
+              <p className="px-2 py-1 text-xs text-neutral-500">{t("No playlists")}</p>
             ) : (
               playlists.map((playlist) => {
                 const isSaved = savedPlaylistIds.has(playlist.id)
@@ -225,11 +225,11 @@ export function VideoSaveButton({ video, className = '', buttonClassName, label,
             <input
               value={newPlaylistName}
               onChange={(event) => setNewPlaylistName(event.target.value)}
-              placeholder={t("Nueva playlist")}
+              placeholder={t("New playlist")}
               className="min-w-0 flex-1 rounded border border-neutral-800 bg-neutral-900 px-2 text-sm outline-none focus:border-neutral-600"
             />
             <button type="submit" className="wt-action rounded px-2 text-sm font-medium">
-              {t("Crear")}</button>
+              {t("Create")}</button>
           </form>
 
           {status && <p className="mt-2 px-2 text-xs text-neutral-400">{status}</p>}
@@ -266,7 +266,7 @@ function UnifiedSaveButton({ video, className = '', buttonClassName }: Omit<Vide
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    void load().catch(() => { if (!cancelled) setStatus(t('No se pudo cargar')) })
+    void load().catch(() => { if (!cancelled) setStatus(t("Could not load")) })
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
     window.addEventListener('keydown', closeOnEscape)
     return () => { cancelled = true; window.removeEventListener('keydown', closeOnEscape) }
@@ -288,7 +288,7 @@ function UnifiedSaveButton({ video, className = '', buttonClassName }: Omit<Vide
       await load()
       window.dispatchEvent(new CustomEvent(PROFILE_DATA_CHANGED_EVENT))
     } catch {
-      setStatus(saved ? t('No se pudo quitar') : t('No se pudo guardar'))
+      setStatus(saved ? t("Could not remove") : t("Could not save"))
     } finally { setBusy(false) }
   }
 
@@ -305,29 +305,29 @@ function UnifiedSaveButton({ video, className = '', buttonClassName }: Omit<Vide
       else setVideoPlaylistName('')
       await load()
       window.dispatchEvent(new CustomEvent(PROFILE_DATA_CHANGED_EVENT))
-    } catch { setStatus(t('No se pudo crear')) }
+    } catch { setStatus(t("Could not create")) }
     finally { setBusy(false) }
   }
 
   const section = (library: LibraryKind, title: string, playlists: SavedPlaylist[], ids: Set<string | null>, name: string, setName: (value: string) => void) => <section className="min-w-0">
     <h3 className="mb-2 text-sm font-semibold">{title}</h3>
     <div className="grid max-h-52 gap-1 overflow-y-auto pr-1">
-      <button type="button" disabled={busy} onClick={() => void toggle(library, null)} className={optionClass(ids.has(null))}><span>{library === 'music' ? t('Canciones guardadas') : t('Guardados')}</span>{ids.has(null) && <CheckIcon className="wt-accent-text h-4 w-4" />}</button>
+      <button type="button" disabled={busy} onClick={() => void toggle(library, null)} className={optionClass(ids.has(null))}><span>{library === 'music' ? t("Saved songs") : t("Saved")}</span>{ids.has(null) && <CheckIcon className="wt-accent-text h-4 w-4" />}</button>
       {playlists.map((playlist) => <button key={playlist.id} type="button" disabled={busy} onClick={() => void toggle(library, playlist.id)} className={optionClass(ids.has(playlist.id))}><span className="truncate">{playlist.name}</span>{ids.has(playlist.id) && <CheckIcon className="wt-accent-text h-4 w-4" />}</button>)}
-      {!playlists.length && <p className="px-2 py-1 text-xs text-neutral-500">{t('Sin playlists')}</p>}
+      {!playlists.length && <p className="px-2 py-1 text-xs text-neutral-500">{t("No playlists")}</p>}
     </div>
     <form onSubmit={(event) => void createAndSave(event, library)} className="mt-3 flex gap-2 border-t border-neutral-800 pt-3">
-      <input value={name} onChange={(event) => setName(event.target.value)} placeholder={t('Nueva playlist')} className="min-w-0 flex-1 rounded border border-neutral-700 bg-neutral-900 px-2 py-2 text-sm" />
-      <button disabled={busy || !name.trim()} className="wt-action cursor-pointer rounded px-3 text-sm disabled:opacity-50">{t('Crear')}</button>
+      <input value={name} onChange={(event) => setName(event.target.value)} placeholder={t("New playlist")} className="min-w-0 flex-1 rounded border border-neutral-700 bg-neutral-900 px-2 py-2 text-sm" />
+      <button disabled={busy || !name.trim()} className="wt-action cursor-pointer rounded px-3 text-sm disabled:opacity-50">{t("Create")}</button>
     </form>
   </section>
 
   return <div className={className} onClick={(event) => event.stopPropagation()}>
-    <button type="button" onClick={() => setOpen(true)} className={buttonClassName ?? 'grid h-8 w-8 place-items-center rounded bg-black/70 text-neutral-100 shadow-lg shadow-black/25 hover:bg-black/85'} aria-label={t('Guardar o agregar')} title={t('Guardar o agregar')}><span aria-hidden="true" className="text-xl leading-none">+</span></button>
+    <button type="button" onClick={() => setOpen(true)} className={buttonClassName ?? 'grid h-8 w-8 place-items-center rounded bg-black/70 text-neutral-100 shadow-lg shadow-black/25 hover:bg-black/85'} aria-label={t("Save or add")} title={t("Save or add")}><span aria-hidden="true" className="text-xl leading-none">+</span></button>
     {open && createPortal(<div className="fixed inset-0 z-[100] grid place-items-center bg-black/65 p-4" onClick={() => setOpen(false)}>
-      <div role="dialog" aria-modal="true" aria-label={t('Guardar o agregar')} onClick={(event) => event.stopPropagation()} className="w-full max-w-2xl rounded-xl border border-neutral-800 bg-neutral-950 shadow-2xl">
-        <header className="flex items-center justify-between border-b border-neutral-800 px-5 py-4"><div className="min-w-0"><h2 className="text-lg font-semibold">{t('Guardar o agregar')}</h2><p className="mt-1 truncate text-xs text-neutral-400">{video.title}</p></div><button type="button" onClick={() => setOpen(false)} aria-label={t('Cerrar')} className="grid h-9 w-9 cursor-pointer place-items-center rounded-full text-xl hover:bg-neutral-800">×</button></header>
-        <div className="grid gap-6 p-5 sm:grid-cols-2">{section('video', t('Videos'), videoPlaylists, videoIds, videoPlaylistName, setVideoPlaylistName)}{section('music', t('Music'), musicPlaylists, musicIds, musicPlaylistName, setMusicPlaylistName)}</div>
+      <div role="dialog" aria-modal="true" aria-label={t("Save or add")} onClick={(event) => event.stopPropagation()} className="w-full max-w-2xl rounded-xl border border-neutral-800 bg-neutral-950 shadow-2xl">
+        <header className="flex items-center justify-between border-b border-neutral-800 px-5 py-4"><div className="min-w-0"><h2 className="text-lg font-semibold">{t("Save or add")}</h2><p className="mt-1 truncate text-xs text-neutral-400">{video.title}</p></div><button type="button" onClick={() => setOpen(false)} aria-label={t("Close")} className="grid h-9 w-9 cursor-pointer place-items-center rounded-full text-xl hover:bg-neutral-800">×</button></header>
+        <div className="grid gap-6 p-5 sm:grid-cols-2">{section('video', t("Videos"), videoPlaylists, videoIds, videoPlaylistName, setVideoPlaylistName)}{section('music', t('Music'), musicPlaylists, musicIds, musicPlaylistName, setMusicPlaylistName)}</div>
         {status && <p role="status" className="border-t border-neutral-800 px-5 py-3 text-xs text-red-400">{status}</p>}
       </div>
     </div>, document.body)}

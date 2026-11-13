@@ -7,8 +7,8 @@ import { PROFILE_DATA_CHANGED_EVENT } from '../profiles/events'
 import type { SavedVideo } from '../../../shared/ipc'
 
 function formatSavedAt(timestampMs: number): string {
-  if (!timestampMs) return t("Guardado")
-  return t('Guardado {date}', { date: new Date(timestampMs).toLocaleDateString(locale()) })
+  if (!timestampMs) return t("Saved")
+  return t("Saved {date}", { date: new Date(timestampMs).toLocaleDateString(locale()) })
 }
 
 export function Saved() {
@@ -38,9 +38,9 @@ export function Saved() {
 
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold">{t("Guardados")}</h1>
+      <h1 className="mb-4 text-xl font-semibold">{t("Saved")}</h1>
       {videos.length === 0 ? (
-        <p className="text-sm text-neutral-400">{t("No hay videos guardados.")}</p>
+        <p className="text-sm text-neutral-400">{t("No saved videos.")}</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {videos.map((video) => (

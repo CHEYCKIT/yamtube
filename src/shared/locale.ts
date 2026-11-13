@@ -3,10 +3,65 @@ export type AppLanguage = 'en' | 'es'
 export interface AppPreferences {
   language: AppLanguage
   checkForUpdatesOnStartup: boolean
+  autoplayNext?: boolean
 }
 
 // Source phrases are kept as stable keys while migrating the existing UI.
 export const english: Record<string, string> = {
+  "Guardar en Music": "Save to Music",
+  "Canciones guardadas": "Saved songs",
+  "Guardar o agregar": "Save or add",
+  "Álbum": "Album",
+  "Podcast": "Podcast",
+  "Playlist": "Playlist",
+  "{count} elementos": "{count} items",
+  "Reproducir todo": "Play all",
+  "Colección guardada": "Collection saved",
+  "Guardando…": "Saving…",
+  "Guardar playlist": "Save playlist",
+  "Ver video": "Watch video",
+  "Esta colección está vacía.": "This collection is empty.",
+  "YamTube Music": "YamTube Music",
+  "Tu música y tus playlists, sin salir de la app.": "Your music and playlists, all in one app.",
+  "Nombre de la playlist": "Playlist name",
+  "Biblioteca": "Library",
+  "Todas las canciones": "All songs",
+  "Aún no tienes playlists de música.": "You have no music playlists yet.",
+  "Esta playlist está vacía.": "This playlist is empty.",
+  "Guarda canciones desde el botón Music de cualquier video.": "Save songs using the Music button on any video.",
+  "Resultados para “{query}”": "Results for “{query}”",
+  "Filtros": "Filters",
+  "Todo": "All",
+  "En directo": "Live",
+  "Canales": "Channels",
+  "Álbumes": "Albums",
+  "Podcasts": "Podcasts",
+  "Fecha de subida": "Upload date",
+  "Cualquier fecha": "Any time",
+  "Hoy": "Today",
+  "Esta semana": "This week",
+  "Este mes": "This month",
+  "Este año": "This year",
+  "Duración": "Duration",
+  "Cualquier duración": "Any duration",
+  "Menos de 3 minutos": "Under 3 minutes",
+  "De 3 a 20 minutos": "3 to 20 minutes",
+  "Más de 20 minutos": "Over 20 minutes",
+  "Ordenar por": "Sort by",
+  "Relevancia": "Relevance",
+  "Visualizaciones": "View count",
+  "Restablecer": "Reset",
+  "Aplicar": "Apply",
+  "Sin resultados para “{query}”.": "No results for “{query}”.",
+  "Playlists, álbumes y podcasts": "Playlists, albums and podcasts",
+  "Elige una canción para comenzar": "Choose a song to start",
+  "Cola de reproducción": "Playback queue",
+  "Abrir origen de la reproducción": "Open playback source",
+  "Colección": "Collection",
+  "La lista vencio. Vuelve a abrir esta seccion.": "This list expired. Open this section again.",
+  "No se encontro la playlist de subidas de este canal.": "This channel’s uploads playlist could not be found.",
+  "Seccion desconocida": "Unknown section",
+  "Destacado": "Featured",
   'Inicio': 'Home', 'Buscar': 'Search', 'Cuenta': 'Account', 'Historial': 'History',
   'Suscripciones': 'Subscriptions', 'Guardados': 'Saved', 'Guardar': 'Save',
   'Perfiles': 'Profiles', 'Usuarios': 'Users', 'Videos': 'Videos', 'Playlists': 'Playlists',
@@ -45,7 +100,7 @@ export const english: Record<string, string> = {
   'Exportar todo': 'Export all data', 'Importar paquete': 'Import data package',
   'Directos': 'Live', 'Lanzamientos': 'Releases', 'Cursos': 'Courses', 'Comunidad': 'Community', 'Informacion': 'About',
   'Mas recientes': 'Latest', 'Populares': 'Popular', 'Mas antiguos': 'Oldest',
-  'Reinicia WorldTube para cargar las secciones del canal.': 'Restart WorldTube to load channel sections.',
+  'Reinicia YamTube para cargar las secciones del canal.': 'Restart YamTube to load channel sections.',
   'Cargando canal...': 'Loading channel...', 'Volver': 'Back', 'Buscar en este canal': 'Search this channel',
   'Descripcion': 'Description', 'Sin descripcion': 'No description', 'Datos del canal': 'Channel details', 'Enlaces': 'Links',
   'Sin resultados en este canal.': 'No results in this channel.', 'No hay contenido publico en esta seccion.': 'No public content in this section.',
@@ -68,7 +123,7 @@ export const english: Record<string, string> = {
   'Anterior': 'Previous', 'Siguiente Short': 'Next Short', 'Short anterior': 'Previous Short', 'Siguiente': 'Next',
   'Crear usuario local': 'Create local user', 'Tus datos quedan en esta computadora y se pueden exportar completos.': 'Your data stays on this computer and can be exported.',
   'Nombre': 'Name', 'Empezar': 'Get started', 'Iniciar sesión local': 'Local sign in', 'Contraseña': 'Password', 'Entrar': 'Sign in',
-  'Reiniciá WorldTube para cargar la sesión local nueva.': 'Restart WorldTube to load the new local session.',
+  'Reiniciá YamTube para cargar la sesión local nueva.': 'Restart YamTube to load the new local session.',
   'Sesión local': 'Local session', 'Cargando sesión…': 'Loading session...', 'Pestañas': 'Tabs', 'Cerrar pestaña': 'Close tab', 'Nueva pestaña': 'New tab',
   'No hay una sesion local activa.': 'No local session is active.', 'No hay un perfil activo.': 'No profile is active.',
   'Volumen invalido': 'Invalid volume', 'El nombre de usuario no puede estar vacio.': 'Username cannot be empty.',
@@ -77,7 +132,7 @@ export const english: Record<string, string> = {
   'No se puede borrar el ultimo perfil del usuario.': 'Cannot delete the user\'s last profile.',
   'El nombre de la playlist no puede estar vacio.': 'Playlist name cannot be empty.',
   'No se puede guardar un video sin titulo.': 'Cannot save a video without a title.', 'Playlist no encontrada.': 'Playlist not found.',
-  'Exportar datos de WorldTube': 'Export WorldTube data', 'Importar datos de WorldTube': 'Import WorldTube data',
+  'Exportar datos de YamTube': 'Export YamTube data', 'Importar datos de YamTube': 'Import YamTube data',
   'Exportado: {path}': 'Exported: {path}', 'Hace {count} min': '{count} min ago',
   'Hace {count} h': '{count} hr ago', 'Hace {count} días': '{count} days ago',
   'Reproducción fallida': 'Playback failed', 'Error de reproducción': 'Playback error',
@@ -90,6 +145,9 @@ export const english: Record<string, string> = {
 }
 
 const spanish: Record<string, string> = {
+  'Video options': 'Opciones de video', 'Open in new tab': 'Abrir en una pestaña nueva',
+  'Open in new tab and switch': 'Abrir en una pestaña nueva y activar', 'Play in mini player': 'Reproducir en el minirreproductor',
+  'Autoplay next video': 'Reproducir el siguiente video automáticamente', 'On': 'Activado', 'Off': 'Desactivado',
   'Previous channels': 'Canales anteriores', 'Next channels': 'Siguientes canales',
   'New playlist': 'Nueva playlist', 'Name': 'Nombre', 'Description': 'Descripción', 'Create': 'Crear',
   'All playlists': 'Todas las playlists', 'Remove from playlist': 'Quitar de la playlist', 'Remove': 'Quitar',
@@ -115,13 +173,16 @@ const spanish: Record<string, string> = {
   'Available version: {version}': 'Versión disponible: {version}', 'Installed version: {version}': 'Versión instalada: {version}',
   'Downloading: {percent}%': 'Descargando: {percent}%', 'Update ready to install': 'Actualización lista para instalar',
   'Updates are available in installed builds': 'Las actualizaciones están disponibles en versiones instaladas',
-  'Restart WorldTube to enable updates': 'Reinicia WorldTube para activar las actualizaciones',
-  'Restart WorldTube to save application settings.': 'Reinicia WorldTube para guardar los ajustes de la aplicación.',
-  'Restart WorldTube now to install the update?': '¿Reiniciar WorldTube ahora para instalar la actualización?',
+  'Restart YamTube to enable updates': 'Reinicia YamTube para activar las actualizaciones',
+  'Restart YamTube to save application settings.': 'Reinicia YamTube para guardar los ajustes de la aplicación.',
+  'Restart YamTube now to install the update?': '¿Reiniciar YamTube ahora para instalar la actualización?',
   'Install update': 'Instalar actualización', 'Cancel': 'Cancelar',
 }
 
+// English is the canonical UI source language; retain old keys for saved errors/data.
+const legacySpanish = Object.fromEntries(Object.entries(english).map(([source, translated]) => [translated, source]))
+
 export function translateFor(language: AppLanguage, source: string, values: Record<string, string | number> = {}): string {
-  const phrase = language === 'en' ? english[source] ?? source : spanish[source] ?? source
+  const phrase = language === 'en' ? english[source] ?? source : spanish[source] ?? legacySpanish[source] ?? source
   return phrase.replace(/\{(\w+)\}/g, (token, key: string) => String(values[key] ?? token))
 }

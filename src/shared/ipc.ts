@@ -1,6 +1,9 @@
 // Shared between main and renderer so both sides agree on channel names and payload shapes.
 
 export const IPC_CHANNELS = {
+  DIAGNOSTICS_GET: 'diagnostics:get',
+  DIAGNOSTICS_EXPORT: 'diagnostics:export',
+  NAVIGATE_HISTORY: 'navigation:history',
   YOUTUBE_ACCOUNT_STATE: 'youtube:account-state',
   YOUTUBE_SIGN_IN: 'youtube:sign-in',
   YOUTUBE_SIGN_IN_CANCEL: 'youtube:sign-in-cancel',

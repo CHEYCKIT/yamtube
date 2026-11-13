@@ -124,23 +124,23 @@ export function Music() {
 
   return <section className="w-full">
     <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <div><h1 className="text-2xl font-semibold">{t('WorldTube Music')}</h1><p className="mt-1 text-sm text-neutral-400">{t('Tu música y tus playlists, sin salir de la app.')}</p></div>
-      <button type="button" onClick={() => setCreating((value) => !value)} className="wt-action flex cursor-pointer items-center gap-2 rounded px-3 py-2 text-sm font-medium"><NavigationIcon name="music" />{t('Nueva playlist')}</button>
+      <div><h1 className="text-2xl font-semibold">{t("YamTube Music")}</h1><p className="mt-1 text-sm text-neutral-400">{t("Your music and playlists, all in one app.")}</p></div>
+      <button type="button" onClick={() => setCreating((value) => !value)} className="wt-action flex cursor-pointer items-center gap-2 rounded px-3 py-2 text-sm font-medium"><NavigationIcon name="music" />{t("New playlist")}</button>
     </header>
     {error && <p role="alert" className="mb-4 text-sm text-red-400">{error}</p>}
-    {creating && <form onSubmit={createPlaylist} className="mb-5 flex gap-2"><input autoFocus required maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder={t('Nombre de la playlist')} className="min-w-0 flex-1 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" /><button disabled={busy || !name.trim()} className="wt-action cursor-pointer rounded px-4 py-2 text-sm disabled:opacity-50">{t('Crear')}</button></form>}
+    {creating && <form onSubmit={createPlaylist} className="mb-5 flex gap-2"><input autoFocus required maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder={t("Playlist name")} className="min-w-0 flex-1 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" /><button disabled={busy || !name.trim()} className="wt-action cursor-pointer rounded px-4 py-2 text-sm disabled:opacity-50">{t("Create")}</button></form>}
 
     <MusicPlayerPanel />
 
     <div className="mt-7 grid gap-6 lg:grid-cols-[230px_minmax(0,1fr)]">
       <aside>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">{t('Biblioteca')}</h2>
-        <button type="button" onClick={() => setParams({})} className={`mb-1 flex w-full cursor-pointer items-center gap-3 rounded px-3 py-2 text-left text-sm hover:bg-neutral-900 ${!selected ? 'wt-selected' : ''}`}><NavigationIcon name="music" />{t('Todas las canciones')}</button>
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">{t("Library")}</h2>
+        <button type="button" onClick={() => setParams({})} className={`mb-1 flex w-full cursor-pointer items-center gap-3 rounded px-3 py-2 text-left text-sm hover:bg-neutral-900 ${!selected ? 'wt-selected' : ''}`}><NavigationIcon name="music" />{t("All songs")}</button>
         {playlists.map((playlist) => <button key={playlist.id} type="button" onClick={() => setParams({ playlist: playlist.id })} className={`mb-1 flex w-full cursor-pointer items-center gap-3 rounded px-3 py-2 text-left text-sm hover:bg-neutral-900 ${selected?.id === playlist.id ? 'wt-selected' : ''}`}><NavigationIcon name="playlists" /><span className="truncate">{playlist.name}</span></button>)}
-        {!playlists.length && <p className="px-3 py-2 text-xs text-neutral-500">{t('Aún no tienes playlists de música.')}</p>}
+        {!playlists.length && <p className="px-3 py-2 text-xs text-neutral-500">{t("You have no music playlists yet.")}</p>}
       </aside>
       <div className="min-w-0">
-        <div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">{selected?.name ?? t('Todas las canciones')}</h2>{visibleSongs.length > 0 && <button type="button" disabled={playerStarting} onClick={() => startMusic(visibleSongs[0], visibleSongs)} className={`${playerStarting ? 'bg-transparent' : 'wt-action'} grid min-h-9 min-w-20 cursor-pointer place-items-center rounded-full px-4 py-2 text-sm font-medium disabled:cursor-wait`}>{playerStarting ? <PlaybackLoadingIcon compact /> : `▶ ${t('Reproducir')}`}</button>}</div>
+        <div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">{selected?.name ?? t("All songs")}</h2>{visibleSongs.length > 0 && <button type="button" disabled={playerStarting} onClick={() => startMusic(visibleSongs[0], visibleSongs)} className={`${playerStarting ? 'bg-transparent' : 'wt-action'} grid min-h-9 min-w-20 cursor-pointer place-items-center rounded-full px-4 py-2 text-sm font-medium disabled:cursor-wait`}>{playerStarting ? <PlaybackLoadingIcon compact /> : `▶ ${t("Play")}`}</button>}</div>
         <div className="divide-y divide-neutral-800 border-y border-neutral-800">
           {visibleSongs.map((song, index) => {
             const active = playbackMode === 'music' && song.videoId === videoId
@@ -148,15 +148,15 @@ export function Music() {
             return <div key={song.id} className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2 ${active ? 'bg-white/[0.04]' : ''}`}>
             <div className="grid min-w-0 grid-cols-[28px_64px_minmax(0,1fr)] items-center gap-3">
               <span className="text-center text-xs text-neutral-500">{index + 1}</span>
-              <button type="button" disabled={loading} onClick={() => startMusic(song, visibleSongs)} aria-label={loading ? t('Cargando…') : active && !playerPaused ? t('Pausar') : t('Reproducir')} className="group relative aspect-square cursor-pointer overflow-hidden rounded bg-neutral-900 disabled:cursor-wait">
+              <button type="button" disabled={loading} onClick={() => startMusic(song, visibleSongs)} aria-label={loading ? t("Loading...") : active && !playerPaused ? t("Pause") : t("Play")} className="group relative aspect-square cursor-pointer overflow-hidden rounded bg-neutral-900 disabled:cursor-wait">
                 <VideoThumbnail videoId={song.videoId} thumbnailUrl={song.thumbnailUrl} title={song.title} quality="compact" />
                 <span className={`absolute inset-0 grid place-items-center bg-black/55 text-white transition-opacity ${loading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}>{loading ? <PlaybackLoadingIcon /> : <PlaybackStatusIcon paused={!active || playerPaused} />}</span>
               </button>
               <button type="button" disabled={loading} onClick={() => startMusic(song, visibleSongs)} className="min-w-0 cursor-pointer text-left disabled:cursor-wait"><span className={`block truncate text-sm font-medium ${active ? 'text-[var(--wt-accent)]' : ''}`}>{song.title}</span><span className="block truncate text-xs text-neutral-400">{song.channelName}</span></button>
             </div>
-            <button type="button" disabled={busy} onClick={() => void removeSong(song)} className="cursor-pointer rounded px-2 py-2 text-xs text-neutral-400 hover:bg-neutral-800 hover:text-white disabled:opacity-50">{t('Quitar')}</button>
+            <button type="button" disabled={busy} onClick={() => void removeSong(song)} className="cursor-pointer rounded px-2 py-2 text-xs text-neutral-400 hover:bg-neutral-800 hover:text-white disabled:opacity-50">{t("Remove")}</button>
           </div>})}
-          {!visibleSongs.length && <p className="py-8 text-center text-sm text-neutral-400">{selected ? t('Esta playlist está vacía.') : t('Guarda canciones desde el botón Music de cualquier video.')}</p>}
+          {!visibleSongs.length && <p className="py-8 text-center text-sm text-neutral-400">{selected ? t("This playlist is empty.") : t("Save songs using the Music button on any video.")}</p>}
         </div>
       </div>
     </div>

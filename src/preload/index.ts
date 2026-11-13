@@ -33,6 +33,13 @@ import type {
 } from '../shared/ipc'
 
 const api = {
+  getDiagnostics: (): Promise<{ path: string; contents: string }> => ipcRenderer.invoke(IPC_CHANNELS.DIAGNOSTICS_GET),
+  exportDiagnostics: (): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.DIAGNOSTICS_EXPORT),
+  onHistoryNavigation: (listener: (direction: 'back' | 'forward') => void): (() => void) => {
+    const receive = (_event: Electron.IpcRendererEvent, direction: 'back' | 'forward') => listener(direction)
+    ipcRenderer.on(IPC_CHANNELS.NAVIGATE_HISTORY, receive)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.NAVIGATE_HISTORY, receive)
+  },
   getYoutubeAccount: (): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_ACCOUNT_STATE),
   signInYoutube: (): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_IN),
   cancelYoutubeSignIn: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_IN_CANCEL),
@@ -102,7 +109,7 @@ const api = {
   unsubscribe: (channelId: string): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.SUBSCRIPTIONS_REMOVE, channelId)
 }
 
-export type WorldTubeApi = typeof api
+export type YamTubeApi = typeof api
 
 if (process.contextIsolated) {
   try {

@@ -112,7 +112,7 @@ export function Channel() {
     const cached = cache.current.get(pageKey)
     if (cached) { setPage(cached); return }
     if (typeof window.api.getChannelPage !== 'function') {
-      setError(t("Reinicia WorldTube para cargar las secciones del canal."))
+      setError(t("Restart YamTube to load channel sections."))
       return
     }
     busy.current = true
@@ -211,7 +211,7 @@ export function Channel() {
       </div>
       <SubscribeButton subscribed={isSubscribed} busy={subscriptionBusy} onClick={toggleSubscription} />
     </header>
-    <div role="tablist" aria-label={t('Secciones del canal')} className="mb-5 flex gap-5 overflow-x-auto border-b border-neutral-800">
+    <div role="tablist" aria-label={t("Channel sections")} className="mb-5 flex gap-5 overflow-x-auto border-b border-neutral-800">
       {tabs.map((item) => <button key={item} type="button" role="tab" id={`channel-tab-${item}`} aria-controls="channel-content" aria-selected={tab === item}
         tabIndex={tab === item ? 0 : -1}
         onKeyDown={(event) => {
@@ -230,26 +230,26 @@ export function Channel() {
     <div id="channel-content" role="tabpanel" aria-labelledby={`channel-tab-${tab}`} aria-busy={loading}>
       {loading && !page && <PageLoader />}
       {playlistId && <div className="mb-5 flex flex-wrap items-center gap-3">
-        <button type="button" onClick={() => changeTab(tab)} className="rounded bg-neutral-800 px-3 py-2 text-sm hover:bg-neutral-700">{t("Volver")}</button>
+        <button type="button" onClick={() => changeTab(tab)} className="rounded bg-neutral-800 px-3 py-2 text-sm hover:bg-neutral-700">{t("Back")}</button>
         <h2 className="min-w-0 break-words text-lg font-semibold">{params.get('title') || 'Playlist'}</h2>
       </div>}
       {tab === 'search' && !playlistId && <form onSubmit={searchChannel} className="mb-5 flex max-w-xl gap-2">
-        <input type="search" aria-label={t("Buscar en este canal")} placeholder={t("Buscar en este canal")} value={searchInput} onChange={(event) => setSearchInput(event.target.value)}
+        <input type="search" aria-label={t("Search this channel")} placeholder={t("Search this channel")} value={searchInput} onChange={(event) => setSearchInput(event.target.value)}
           className="min-w-0 flex-1 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-neutral-400" />
-        <button type="submit" className="rounded bg-neutral-800 px-4 text-sm hover:bg-neutral-700">{t("Buscar")}</button>
+        <button type="submit" className="rounded bg-neutral-800 px-4 text-sm hover:bg-neutral-700">{t("Search")}</button>
       </form>}
       {!playlistId && page && [page.filters, page.sorts, page.secondaryFilters, page.contentTypes].some((options) => options.length > 1) && <div className="mb-5 flex flex-wrap items-center gap-3">
-        <ChannelOption label={t('Ordenar')} values={page.filters} value={filter} onChange={(value) => changeOption('filter', value)} />
-        <ChannelOption label={t('Ordenar listas')} values={page.sorts} value={sort} onChange={(value) => changeOption('sort', value)} />
-        <ChannelOption label={t('Mostrar')} values={page.secondaryFilters} value={secondaryFilter} onChange={(value) => changeOption('secondary', value)} />
-        <ChannelOption label={t('Categoria')} values={page.contentTypes} value={contentType} onChange={(value) => changeOption('type', value)} />
+        <ChannelOption label={t("Sort")} values={page.filters} value={filter} onChange={(value) => changeOption('filter', value)} />
+        <ChannelOption label={t("Sort playlists")} values={page.sorts} value={sort} onChange={(value) => changeOption('sort', value)} />
+        <ChannelOption label={t("Show")} values={page.secondaryFilters} value={secondaryFilter} onChange={(value) => changeOption('secondary', value)} />
+        <ChannelOption label={t("Category")} values={page.contentTypes} value={contentType} onChange={(value) => changeOption('type', value)} />
       </div>}
       {page?.about && <div className="max-w-3xl space-y-6">
-        <section><h2 className="mb-3 text-lg font-semibold">{t("Descripcion")}</h2><p className="whitespace-pre-wrap break-words text-sm leading-6 text-neutral-300">{page.about.description || t("Sin descripcion")}</p></section>
-        {page.about.details.length > 0 && <section className="border-t border-neutral-800 pt-5"><h2 className="mb-3 text-lg font-semibold">{t("Datos del canal")}</h2>
+        <section><h2 className="mb-3 text-lg font-semibold">{t("Description")}</h2><p className="whitespace-pre-wrap break-words text-sm leading-6 text-neutral-300">{page.about.description || t("No description")}</p></section>
+        {page.about.details.length > 0 && <section className="border-t border-neutral-800 pt-5"><h2 className="mb-3 text-lg font-semibold">{t("Channel details")}</h2>
           {page.about.details.map((detail, index) => <p key={index} className="mb-2 text-sm text-neutral-400">{detail}</p>)}
         </section>}
-        {page.about.links.length > 0 && <section className="border-t border-neutral-800 pt-5"><h2 className="mb-3 text-lg font-semibold">{t("Enlaces")}</h2>
+        {page.about.links.length > 0 && <section className="border-t border-neutral-800 pt-5"><h2 className="mb-3 text-lg font-semibold">{t("Links")}</h2>
           {page.about.links.map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer" className="wt-link mb-2 block break-words text-sm hover:underline">{link.title}</a>)}
         </section>}
       </div>}
@@ -273,13 +273,13 @@ export function Channel() {
           {post.playlists.length > 0 && <div className="mt-4">{renderPlaylists(post.playlists)}</div>}
         </article>)}
       </div>}
-      {empty && !loading && !error && <p className="py-8 text-sm text-neutral-400">{tab === 'search' ? query ? t("Sin resultados en este canal.") : t("Buscar en este canal") : t("No hay contenido publico en esta seccion.")}</p>}
+      {empty && !loading && !error && <p className="py-8 text-sm text-neutral-400">{tab === 'search' ? query ? t("No results in this channel.") : t("Search this channel") : t("No public content in this section.")}</p>}
       {error && <div role="alert" className="mt-5 flex flex-wrap items-center gap-3 text-sm text-red-400">
-        <p>{error}</p><button type="button" onClick={() => { if (page?.continuation) void loadMore(); else { cache.current.delete(pageKey); setRetry((value) => value + 1) } }} className="rounded bg-neutral-800 px-3 py-2 text-neutral-200">{t("Reintentar")}</button>
-        {page?.continuation && <button type="button" onClick={() => { cache.current.delete(pageKey); setRetry((value) => value + 1) }} className="rounded bg-neutral-800 px-3 py-2 text-neutral-200">{t("Recargar seccion")}</button>}
+        <p>{error}</p><button type="button" onClick={() => { if (page?.continuation) void loadMore(); else { cache.current.delete(pageKey); setRetry((value) => value + 1) } }} className="rounded bg-neutral-800 px-3 py-2 text-neutral-200">{t("Retry")}</button>
+        {page?.continuation && <button type="button" onClick={() => { cache.current.delete(pageKey); setRetry((value) => value + 1) }} className="rounded bg-neutral-800 px-3 py-2 text-neutral-200">{t("Reload section")}</button>}
       </div>}
       <div ref={sentinel} className="mt-6 flex min-h-12 justify-center">
-        {loading ? page && <PageLoader compact /> : page?.continuation && automaticLoads >= 3 && <button type="button" onClick={() => void loadMore()} className="rounded bg-neutral-800 px-4 py-2 text-sm hover:bg-neutral-700">{t("Cargar mas")}</button>}
+        {loading ? page && <PageLoader compact /> : page?.continuation && automaticLoads >= 3 && <button type="button" onClick={() => void loadMore()} className="rounded bg-neutral-800 px-4 py-2 text-sm hover:bg-neutral-700">{t("Load more")}</button>}
       </div>
     </div>
   </div>

@@ -347,7 +347,7 @@ function getActiveProfile(db: LocalDb, userId: string | null): UserProfile | nul
 function requireActiveProfile(db: LocalDb): UserProfile {
   const user = getActiveUser(db)
   const profile = getActiveProfile(db, user?.id ?? null)
-  if (!user || !profile) throw new Error('No hay una sesion local activa.')
+  if (!user || !profile) throw new Error("No local session is active.")
   return profile
 }
 
@@ -398,7 +398,7 @@ function toSessionState(db: LocalDb): LocalSessionState {
 
 function toProfilesState(db: LocalDb): ProfilesState {
   const state = toSessionState(db)
-  if (!state.activeProfile || !state.activeProfileId) throw new Error('No hay un perfil activo.')
+  if (!state.activeProfile || !state.activeProfileId) throw new Error("No profile is active.")
   return {
     profiles: state.profiles,
     activeProfileId: state.activeProfileId,
@@ -421,21 +421,25 @@ export async function getAppPreferences(): Promise<import('../shared/locale').Ap
   const preferences = db.settings.appPreferences as Partial<import('../shared/locale').AppPreferences> | undefined
   appLanguage = preferences?.language === 'es' ? 'es' : 'en'
   return { language: appLanguage,
-    checkForUpdatesOnStartup: preferences?.checkForUpdatesOnStartup !== false }
+    checkForUpdatesOnStartup: preferences?.checkForUpdatesOnStartup !== false,
+    autoplayNext: preferences?.autoplayNext !== false }
 }
 
 export async function setAppPreferences(preferences: import('../shared/locale').AppPreferences): Promise<void> {
-  if (!preferences || !['en', 'es'].includes(preferences.language) || typeof preferences.checkForUpdatesOnStartup !== 'boolean') {
+  if (!preferences || !['en', 'es'].includes(preferences.language) || typeof preferences.checkForUpdatesOnStartup !== 'boolean' ||
+    (preferences.autoplayNext !== undefined && typeof preferences.autoplayNext !== 'boolean')) {
     throw new Error('Invalid application preferences')
   }
   const db = await loadDb()
-  db.settings.appPreferences = { language: preferences.language, checkForUpdatesOnStartup: preferences.checkForUpdatesOnStartup }
+  const previous = db.settings.appPreferences as Partial<import('../shared/locale').AppPreferences> | undefined
+  db.settings.appPreferences = { language: preferences.language, checkForUpdatesOnStartup: preferences.checkForUpdatesOnStartup,
+    autoplayNext: preferences.autoplayNext ?? previous?.autoplayNext ?? true }
   await persistDb(db)
   appLanguage = preferences.language
 }
 
 export async function setPlayerAudioPreferences(audio: import('../shared/ipc').PlayerAudioPreferences): Promise<void> {
-  if (!Number.isFinite(audio.volume) || typeof audio.muted !== 'boolean') throw new Error('Volumen invalido')
+  if (!Number.isFinite(audio.volume) || typeof audio.muted !== 'boolean') throw new Error("Invalid volume")
   const db = await loadDb()
   db.settings.playerAudio = { volume: Math.min(1, Math.max(0, audio.volume)), muted: audio.muted }
   await persistDb(db)
@@ -468,7 +472,7 @@ export async function activateLibraryOwner(key: string, name: string): Promise<v
 export async function createLocalUser(request: CreateLocalUserRequest): Promise<LocalSessionState> {
   const db = await loadDb()
   const name = normalizeName(request.name)
-  if (!name) throw new Error('El nombre de usuario no puede estar vacio.')
+  if (!name) throw new Error("Username cannot be empty.")
 
   const user = createStoredUser(name, request.password?.trim() ? request.password : undefined)
   const profile = createProfile(user.id, 'Personal', PROFILE_COLORS[db.users.length % PROFILE_COLORS.length])
@@ -483,8 +487,8 @@ export async function createLocalUser(request: CreateLocalUserRequest): Promise<
 export async function loginLocalUser(request: LoginLocalUserRequest): Promise<LocalSessionState> {
   const db = await loadDb()
   const user = db.users.find((entry) => entry.id === request.userId)
-  if (!user) throw new Error('Usuario no encontrado.')
-  if (!verifyPassword(user, request.password)) throw new Error('Contrasena incorrecta.')
+  if (!user) throw new Error("User not found.")
+  if (!verifyPassword(user, request.password)) throw new Error("Incorrect password.")
 
   db.session.activeUserId = user.id
   const profile = getActiveProfile(db, user.id)
@@ -503,7 +507,7 @@ export async function logoutLocalUser(): Promise<LocalSessionState> {
 export async function deleteLocalUser(request: DeleteLocalUserRequest): Promise<LocalSessionState> {
   const db = await loadDb()
   const user = db.users.find((entry) => entry.id === request.userId)
-  if (!user) throw new Error('Usuario no encontrado.')
+  if (!user) throw new Error("User not found.")
 
   const profileIds = db.profiles.filter((profile) => profile.userId === user.id).map((profile) => profile.id)
   db.users = db.users.filter((entry) => entry.id !== user.id)
@@ -536,9 +540,9 @@ export async function getActiveProfileId(): Promise<string> {
 export async function createUserProfile(request: CreateProfileRequest): Promise<ProfilesState> {
   const db = await loadDb()
   const user = getActiveUser(db)
-  if (!user) throw new Error('No hay una sesion local activa.')
+  if (!user) throw new Error("No local session is active.")
   const name = normalizeName(request.name)
-  if (!name) throw new Error('El nombre del perfil no puede estar vacio.')
+  if (!name) throw new Error("Profile name cannot be empty.")
 
   const profile = createProfile(user.id, name, normalizeColor(request.color, PROFILE_COLORS[db.profiles.length % PROFILE_COLORS.length]))
   db.profiles.push(profile)
@@ -551,10 +555,10 @@ export async function updateUserProfile(request: UpdateProfileRequest): Promise<
   const db = await loadDb()
   const user = getActiveUser(db)
   const profile = db.profiles.find((entry) => entry.id === request.id && entry.userId === user?.id)
-  if (!user || !profile) throw new Error('Perfil no encontrado.')
+  if (!user || !profile) throw new Error("Profile not found.")
 
   const name = request.name === undefined ? profile.name : normalizeName(request.name)
-  if (!name) throw new Error('El nombre del perfil no puede estar vacio.')
+  if (!name) throw new Error("Profile name cannot be empty.")
   const color = normalizeColor(request.color, profile.color)
   Object.assign(profile, {
     name,
@@ -571,7 +575,7 @@ export async function setActiveUserProfile(profileId: string): Promise<ProfilesS
   const db = await loadDb()
   const user = getActiveUser(db)
   if (!user || !db.profiles.some((profile) => profile.id === profileId && profile.userId === user.id)) {
-    throw new Error('Perfil no encontrado.')
+    throw new Error("Profile not found.")
   }
   db.session.activeProfileIdByUser[user.id] = profileId
   await persistDb(db)
@@ -581,11 +585,11 @@ export async function setActiveUserProfile(profileId: string): Promise<ProfilesS
 export async function removeUserProfile(profileId: string): Promise<ProfilesState> {
   const db = await loadDb()
   const user = getActiveUser(db)
-  if (!user) throw new Error('No hay una sesion local activa.')
+  if (!user) throw new Error("No local session is active.")
   const profiles = getProfilesForUser(db, user.id)
-  if (profiles.length <= 1) throw new Error('No se puede borrar el ultimo perfil del usuario.')
+  if (profiles.length <= 1) throw new Error("Cannot delete the user's last profile.")
   const profile = profiles.find((entry) => entry.id === profileId)
-  if (!profile) throw new Error('Perfil no encontrado.')
+  if (!profile) throw new Error("Profile not found.")
 
   db.profiles = db.profiles.filter((entry) => entry.id !== profileId)
   delete db.histories[profileId]
@@ -642,7 +646,7 @@ export async function createActiveSavedPlaylist(request: CreateSavedPlaylistRequ
   const profile = requireActiveProfile(db)
   const name = normalizeName(request.name)
   const library = request.library ?? 'video'
-  if (!name) throw new Error('El nombre de la playlist no puede estar vacio.')
+  if (!name) throw new Error("Playlist name cannot be empty.")
 
   const entries = db.savedPlaylists[profile.id] ?? []
   const existing = entries.find((playlist) => playlist.library === library && playlist.name.localeCompare(name, undefined, { sensitivity: 'accent' }) === 0)
@@ -677,11 +681,11 @@ export async function saveActiveVideo(request: SaveVideoRequest): Promise<SavedV
   const profile = requireActiveProfile(db)
   const title = normalizeName(request.title)
   const library = request.library ?? 'video'
-  if (!request.videoId || !title) throw new Error('No se puede guardar un video sin titulo.')
+  if (!request.videoId || !title) throw new Error("Cannot save a video without a title.")
 
   const playlistId = request.playlistId ?? null
   if (playlistId && !(db.savedPlaylists[profile.id] ?? []).some((playlist) => playlist.id === playlistId && playlist.library === library)) {
-    throw new Error('Playlist no encontrada.')
+    throw new Error("Playlist not found.")
   }
 
   const entries = db.savedVideos[profile.id] ?? []

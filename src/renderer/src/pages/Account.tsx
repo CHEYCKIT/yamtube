@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ShieldCheck, TvMinimal } from 'lucide-react'
 import { ApplicationSettings } from '../components/ApplicationSettings'
+import { DiagnosticLogs } from '../components/DiagnosticLogs'
 import { useProfiles } from '../profiles/ProfileContext'
 import type { ProtectionState } from '../../../shared/ipc'
 
@@ -69,6 +70,7 @@ export function Account() {
       <p className="text-sm text-neutral-500">Videos play through the direct-stream player. Watch-history sync is allowed when you sign in. The desktop shell still uses Electron; protection does not require a Chrome extension.</p>
     </section>
     <ApplicationSettings />
+    <DiagnosticLogs />
     <details className="border-t border-neutral-800 pt-4 text-sm text-neutral-400"><summary className="cursor-pointer font-medium">Local library & backups</summary>
       <div className="mt-3 grid gap-3">
         <p className="break-all">{dataPath}</p>

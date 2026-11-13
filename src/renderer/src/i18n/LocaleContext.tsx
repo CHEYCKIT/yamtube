@@ -8,6 +8,7 @@ export const locale = () => currentLanguage === 'es' ? 'es-UY' : 'en-US'
 export const LocaleContext = createContext({
   language: 'en' as AppLanguage,
   checkForUpdatesOnStartup: true,
+  autoplayNext: true,
   savePreferences: async (_preferences: AppPreferences): Promise<void> => {},
   error: null as string | null
 })
@@ -15,7 +16,7 @@ export const LocaleContext = createContext({
 export const useLocale = () => useContext(LocaleContext)
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [preferences, setPreferences] = useState<AppPreferences>({ language: 'en', checkForUpdatesOnStartup: true })
+  const [preferences, setPreferences] = useState<AppPreferences>({ language: 'en', checkForUpdatesOnStartup: true, autoplayNext: true })
   const [error, setError] = useState<string | null>(null)
   currentLanguage = preferences.language
 
@@ -27,7 +28,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     if (typeof window.api.getAppPreferences !== 'function') return
     let cancelled = false
     const load = () => window.api.getAppPreferences().then((saved) => {
-      if (!cancelled) setPreferences(saved)
+      if (!cancelled) setPreferences({ ...saved, autoplayNext: saved.autoplayNext !== false })
     }).catch((failure) => {
       if (!cancelled) setError(String(failure))
     })
@@ -38,15 +39,17 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   async function savePreferences(next: AppPreferences) {
     if (typeof window.api.setAppPreferences !== 'function') {
-      setError(t('Restart WorldTube to save application settings.'))
+      setError(t('Restart YamTube to save application settings.'))
       return
     }
     try {
-      await window.api.setAppPreferences(next)
-      setPreferences(next)
+      const merged = { ...next, autoplayNext: next.autoplayNext ?? preferences.autoplayNext ?? true }
+      await window.api.setAppPreferences(merged)
+      setPreferences(merged)
+      window.dispatchEvent(new Event('worldtube:preferences-changed'))
       setError(null)
     } catch (failure) { setError(String(failure)) }
   }
 
-  return <LocaleContext.Provider value={{ ...preferences, savePreferences, error }}>{children}</LocaleContext.Provider>
+  return <LocaleContext.Provider value={{ ...preferences, autoplayNext: preferences.autoplayNext !== false, savePreferences, error }}>{children}</LocaleContext.Provider>
 }

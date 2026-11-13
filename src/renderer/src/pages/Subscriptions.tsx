@@ -50,9 +50,9 @@ export function Subscriptions() {
   if (subs.length === 0 && feedStatus === 'ready' && feed.length === 0) {
     return (
       <div>
-        <h1 className="mb-4 text-xl font-semibold">{t("Suscripciones")}</h1>
+        <h1 className="mb-4 text-xl font-semibold">{t("Subscriptions")}</h1>
         <p className="text-sm text-neutral-400">
-          {t("No estás suscripto a ningún canal. Entrá a un canal desde un video y tocá \"Suscribirse\".")}</p>
+          {t("You are not subscribed to any channels.")}</p>
       </div>
     )
   }
@@ -75,7 +75,7 @@ export function Subscriptions() {
       {feedStatus === 'loading' && <PageLoader />}
       {feedStatus === 'error' && <p className="text-sm text-red-400">{feedError}</p>}
       {feedStatus === 'ready' && feed.length === 0 && (
-        <p className="text-sm text-neutral-400">{t("Ninguno de tus canales suscriptos tiene videos disponibles.")}</p>
+        <p className="text-sm text-neutral-400">{t("No videos are available from your subscribed channels.")}</p>
       )}
       {feedStatus === 'ready' && feed.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
