@@ -31,16 +31,16 @@ module.exports=async({app,page,profile})=>{
 
   // Send the actual Windows BrowserWindow event through main/preload IPC.
   await page.locator('a[href="#/music"]:visible').first().click()
-  await page.getByRole('heading',{name:'LokTube Music',exact:true}).waitFor()
+  await page.getByRole('heading',{name:'YouTube Music',exact:true}).waitFor()
   assert.equal(await page.getByText('All songs',{exact:true}).count()>0,true)
   await page.locator('a[href="#/account"]:visible').first().click()
   await page.getByRole('heading',{name:'Account & privacy'}).waitFor()
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].emit('app-command',{},'browser-backward'))
-  await page.getByRole('heading',{name:'LokTube Music',exact:true}).waitFor()
+  await page.getByRole('heading',{name:'YouTube Music',exact:true}).waitFor()
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].emit('app-command',{},'browser-forward'))
   await page.getByRole('heading',{name:'Account & privacy'}).waitFor()
   await page.evaluate(()=>window.dispatchEvent(new MouseEvent('mouseup',{button:3,bubbles:true,cancelable:true})))
-  await page.getByRole('heading',{name:'LokTube Music',exact:true}).waitFor()
+  await page.getByRole('heading',{name:'YouTube Music',exact:true}).waitFor()
   console.log('PASS: Windows Back/Forward commands and mouse side-button navigation use active-tab history')
 
   await app.evaluate(({ipcMain})=>{
