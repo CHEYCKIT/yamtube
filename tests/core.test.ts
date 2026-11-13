@@ -6,6 +6,7 @@ import { youtubeCookieHeader, parseNetscapeCookies, parseYoutubeCookies } from '
 import { inspectAccountResponse } from '../src/main/youtubeIdentity'
 import { browserCandidates, browserFromExecutable, registryBrowserExecutables } from '../src/main/browserDiscovery'
 import { PlaybackHistory } from '../src/main/playbackHistory'
+import { mapRecommendedShorts } from '../src/main/shortsRecommendations'
 import { assertPlayableVideo, getPlayableResponse } from '../src/main/playbackAvailability'
 
 const policy = new RequestPolicy(['easylist', 'easyprivacy'].map((name) => readFileSync(`resources/filters/${name}.txt`, 'utf8')).join('\n'))
@@ -454,3 +455,28 @@ test('failed signed-in playback request surfaces YouTube denial and reports no c
   assert.equal(reported.length,1)
 })
 
+
+
+test('home Shorts mapper accepts ShortsLockupView and ReelItem but rejects ordinary videos', () => {
+  const title = { toString: () => 'Short from lockup' }
+  const results = mapRecommendedShorts([
+    {type:'Video',video_id:'ordinary001',title:'Not a Short'},
+    {type:'ShortsLockupView',entity_id:'not-a-video-id',on_tap_endpoint:{payload:{reelWatchEndpoint:{videoId:'abcdefghijk'}}},
+      overlay_metadata:{primary_text:title,secondary_text:{toString:()=> '12K views'}},thumbnail:[{url:'https://img.test/short1.jpg'}]},
+    {type:'ReelItem',id:'123456789ab',title:{toString:()=> 'Short from reel'},thumbnails:[{url:'https://img.test/reel.jpg'}]},
+    {type:'ShortsLockupView',on_tap_endpoint:{payload:{reelWatchEndpoint:{videoId:'abcdefghijk'}}},
+      overlay_metadata:{primary_text:title},thumbnail:[]},
+    {type:'ReelItem',id:'bad',title:'Invalid identifier',thumbnails:[]}
+  ])
+  assert.deepEqual(results.map((video)=>video.videoId),['abcdefghijk','123456789ab'])
+  assert.equal(results[0].title,'Short from lockup')
+  assert.equal(results[0].thumbnailUrl,'https://img.test/short1.jpg')
+  assert.equal(results[0].viewCountText,'12K views')
+  assert.equal(results[1].title,'Short from reel')
+  assert.equal(results[1].thumbnailUrl,'https://img.test/reel.jpg')
+})
+
+test('home Shorts mapper skips malformed objects instead of poisoning the home feed', () => {
+  assert.deepEqual(mapRecommendedShorts([null,1,{}, {type:'ShortsLockupView',overlay_metadata:{primary_text:'Unlinked'}},
+    {type:'ReelItem',id:'00000000000',title:'A short without a thumbnail'}]).map((video)=>video.videoId),['00000000000'])
+})

@@ -211,6 +211,7 @@ const historyFixture = require('./fixtures/history.cjs')
       assert.deepEqual(await readdir(profileDirectory),[])
       console.log(`PASS: portable browser remembered after reload, real ${signInBrowserName} launch without a picker, cancellation and profile cleanup`)
     }
+    await require('./desktop-home.cjs')({app,page})
     assert.deepEqual(errors,[])
     console.log('Desktop smoke tests passed.')
   } finally {

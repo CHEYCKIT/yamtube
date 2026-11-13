@@ -2,6 +2,7 @@ import { Innertube, Platform, YTNodes } from 'youtubei.js'
 import { randomUUID } from 'node:crypto'
 import { generatePoToken } from './poToken'
 import { buildSabrPayload } from './sabrManifest'
+import { mapRecommendedShorts } from './shortsRecommendations'
 import { evaluatePlayerScript } from './jsEvaluator'
 import { getHistory } from './historyStore'
 import { getAppLanguage, getSessionState, listActiveSubscriptions, recordProfileHistoryEntry } from './localDb'
@@ -552,44 +553,33 @@ export async function getHomeFeed(sections: HomeSection[] = []): Promise<SearchR
 }
 
 export async function getHomeDiscovery(): Promise<{ videos: SearchResultItem[]; home: HomeDiscovery }> {
-  const sections: HomeSection[] = []
+  const videos = await resolveChannelNames(await getHomeFeed())
+  // Keep Home focused on regular recommendations, with a small Shorts strip.
+  // Unlike the old live/channel discovery, this only performs Shorts searches.
   const history = await getHistory()
-  const subscriptions = await listActiveSubscriptions()
-  const videos = await resolveChannelNames(await getHomeFeed(sections))
-  const resolvedVideos = new Map(videos.map((video) => [video.videoId, video]))
-  for (const section of sections) section.videos = section.videos.map((video) => resolvedVideos.get(video.videoId) ?? video)
-  const excluded = new Set([...subscriptions.map((channel) => channel.channelId), ...history.map((entry) => entry.channelId)])
-  const counts = new Map<string, number>()
-  for (const video of videos) {
-    if (video.channelId && !excluded.has(video.channelId)) counts.set(video.channelId, (counts.get(video.channelId) ?? 0) + 1)
-  }
-  const ids = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([id]) => id)
-  const channelsPromise = Promise.all(ids.map(async (id): Promise<RecommendedChannel | null> => {
-    try {
-      const info = await getChannelInfo(id, false)
-      return { channelId: id, name: info.name, thumbnailUrl: info.thumbnailUrl,
-        subscriberCountText: info.subscriberCountText, description: null }
-    } catch { return null }
-  }))
-  const livePromise = (async () => {
-    const yt = await getClient()
-    const queries = [...new Set(sections.length ? sections.slice(0, 2).map((section) => section.liveQuery || section.title)
-      : history.slice(0, 2).map((entry) => entry.channelName || entry.title))]
-    if (!queries.length && subscriptions[0]) queries.push(subscriptions[0].channelName)
-    const batches = await Promise.all(queries.map(async (query) => {
-      try {
-        const results = await yt.search(query, { type: 'video', features: ['live'] })
-        return mapSearchResultNodes(results.videos.filterType(YTNodes.Video).filter((video) => video.is_live))
-          .map((video) => ({ ...video, durationText: 'LIVE' }))
-      } catch { return [] }
-    }))
-    return [...new Map(batches.flat().map((video) => [video.videoId, video])).values()]
-  })()
-  const [channels, liveVideos] = await Promise.all([channelsPromise, livePromise])
-  console.log(`[youtube] home discovery: ${sections.length} sections, ${liveVideos.length} live videos, ${channels.filter(Boolean).length} channels`)
-  return { videos, home: { sections, liveVideos, channels: channels.filter((channel): channel is RecommendedChannel => channel !== null) } }
-}
+  const seeds = [...history.slice(0, 2).map((entry) => entry.channelName),
+    ...videos.slice(0, 2).map((video) => video.channelName)]
+    .map((name) => name.trim())
+    .filter((name) => name && name !== '(unknown)')
+  const queries = [...new Set(seeds)].slice(0, 2)
+  if (!queries.length) queries.push('shorts')
 
+  const yt = await getClient()
+  const searchShorts = async (query: string): Promise<SearchResultItem[]> => {
+    try {
+      const results = await yt.search(query, { type: 'shorts' })
+      return mapRecommendedShorts(results.videos)
+    } catch (error) {
+      console.warn('[youtube] Shorts recommendations unavailable:', error instanceof Error ? error.message : String(error))
+      return []
+    }
+  }
+  const batches = await Promise.all(queries.map(searchShorts))
+  let shorts = [...new Map(batches.flat().map((video) => [video.videoId, video])).values()]
+  if (!shorts.length && !queries.includes('shorts')) shorts = await searchShorts('shorts')
+  console.log(`[youtube] home: ${videos.length} regular recommendations, ${shorts.length} Shorts`)
+  return { videos, home: { shorts: shorts.slice(0, 12) } }
+}
 export async function getChannelInfo(channelId: string, includeVideos = true): Promise<ChannelInfoResult> {
   console.log(`[youtube] getChannelInfo(${channelId})`)
   const channel = await getBrowseChannel(channelId)
