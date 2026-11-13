@@ -2,11 +2,13 @@ import { randomUUID } from 'node:crypto'
 import type { Innertube } from 'youtubei.js'
 import { accountRevision, getAccountClient, hasYoutubeAccount } from './youtubeAccount'
 import * as local from './localDb'
+import { mapMusicPlaylistTracks } from './musicPlaylistItems'
 import { find, label, musicLibraryAction, nodes, parseLibraryFeed, type Data } from './youtubeLibraryFeed'
 import type { CreateSavedPlaylistRequest, LibraryKind, LibrarySaveOptions, LibraryVideosPage, SavedPlaylist, SavedVideo, SaveVideoRequest } from '../shared/ipc'
 
 type Scope = { revision: number; profileId: string; client: Innertube }
-type Page = { revision: number; profileId: string; playlistId: string | null; library: LibraryKind; token: string; editable?: boolean }
+type MusicPlaylistPage = Awaited<ReturnType<Innertube['music']['getPlaylist']>>
+type Page = { revision: number; profileId: string; playlistId: string | null; library: LibraryKind; token: string; editable?: boolean; musicPage?: MusicPlaylistPage }
 const continuations = new Map<string, Page>()
 const validLibrary = (library: LibraryKind): LibraryKind => {
   if (library !== 'video' && library !== 'music') throw new Error('Invalid library')
@@ -47,8 +49,29 @@ function playlist(owner: Scope, id: string, name: string, library: LibraryKind, 
 function video(owner: Scope, value: SaveVideoRequest, library: LibraryKind): SavedVideo {
   return { videoId: value.videoId, title: value.title, channelId: value.channelId, channelName: value.channelName, thumbnailUrl: value.thumbnailUrl, playlistId: value.playlistId, id: `${library}:${value.playlistId ?? 'library'}:${value.videoId}`, profileId: owner.profileId, library, savedAt: 0 }
 }
+async function musicPlaylistPage(owner: Scope, playlistId: string, previous?: Page): Promise<LibraryVideosPage> {
+  // The typed YouTube Music playlist parser extracts MusicResponsiveListItem
+  // entries and their continuation correctly, unlike the generic browse walker.
+  const page = previous?.musicPage ? await previous.musicPage.getContinuation() : await owner.client.music.getPlaylist(playlistId)
+  await check(owner)
+  const editable = !['LM', 'LL'].includes(playlistId) && !playlistId.startsWith('MPR')
+  const videos = mapMusicPlaylistTracks(page.items).map((item) => ({
+    ...video(owner, { ...item, playlistId }, 'music'),
+    canRemove: editable
+  }))
+  let continuation: string | null = null
+  if (page.has_continuation) {
+    continuation = randomUUID()
+    continuations.set(continuation, { revision: owner.revision, profileId: owner.profileId, playlistId,
+      library: 'music', token: continuation, editable, musicPage: page })
+    while (continuations.size > 500) continuations.delete(continuations.keys().next().value!)
+  }
+  return { videos, continuation }
+}
 async function accountPage(owner: Scope, playlistId: string | null, library: LibraryKind, previous?: Page): Promise<LibraryVideosPage> {
   if (playlistId !== null) validId(playlistId)
+  if (library === 'music' && playlistId && !playlistId.startsWith('MPR') && !playlistId.startsWith('FEmusic_'))
+    return musicPlaylistPage(owner, playlistId, previous)
   const browseId = playlistId ? (playlistId.startsWith('MPR') || playlistId.startsWith('FEmusic_') ? playlistId : `VL${playlistId}`)
     : library === 'music' ? 'FEmusic_liked_videos' : 'VLWL'
   const data = await request(owner, '/browse', { ...clientArgs(library), ...(previous ? { continuation: previous.token } : { browseId }) })
