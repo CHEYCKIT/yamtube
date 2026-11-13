@@ -5,7 +5,8 @@ import { buildSabrPayload } from './sabrManifest'
 import { evaluatePlayerScript } from './jsEvaluator'
 import { getHistory } from './historyStore'
 import { getAppLanguage, getSessionState, listActiveSubscriptions, recordProfileHistoryEntry } from './localDb'
-import { getAccountClient, hasYoutubeAccount, accountRevision, reportHistorySyncFailure } from './youtubeAccount'
+import { getAccountClient, getAccountPlaybackClient, hasYoutubeAccount, accountRevision, reportHistorySyncFailure } from './youtubeAccount'
+import { getPlayableResponse, playbackStatus } from './playbackAvailability'
 import { protectedFetch } from './adBlock'
 import { PlaybackHistory } from './playbackHistory'
 import { translateFor } from '../shared/locale'
@@ -904,7 +905,7 @@ async function fetchVideoInfoUncached(videoId: string): Promise<VideoInfoResult>
   const revision = accountRevision()
   const profileId = (await getSessionState()).activeProfileId
   const accountClient = hasYoutubeAccount() ? await getClient() : null
-  const yt = await getPlaybackClient()
+  const anonymousPlayback = await getPlaybackClient()
 
   // The poToken is content-bound to this exact videoId (see script.ts's
   // mintAsWebsafeString call), so it's minted fresh per video — but that
@@ -915,18 +916,36 @@ async function fetchVideoInfoUncached(videoId: string): Promise<VideoInfoResult>
   const tPoToken = performance.now() - tPoTokenStart
   console.log(`[youtube] poToken generated (${poToken.length} chars) in ${tPoToken.toFixed(0)}ms`)
 
-  yt.session.context.client.visitorData = visitorData
-  yt.session.po_token = poToken
-  if (yt.session.player) {
-    yt.session.player.po_token = poToken
+  const loadBasicInfo = async (client: Innertube) => {
+    // A PO token and its visitorData belong to the same visitor. Never
+    // overwrite the separate account browsing client with this per-video state.
+    client.session.context.client.visitorData = visitorData
+    client.session.po_token = poToken
+    if (client.session.player) client.session.player.po_token = poToken
+    const result = await client.getBasicInfo(videoId, { po_token: poToken })
+    console.log(`[youtube] player response [video=${videoId}, client=${client === anonymousPlayback ? 'anonymous' : 'signed-in'}, status=${playbackStatus(result)}, streaming=${Boolean(result.streaming_data)}]`)
+    return result
   }
 
   const tGetInfoStart = performance.now()
-  // Fetch the player response separately. A broken optional watch-next renderer
-  // must never prevent an otherwise playable video from loading.
-  const info = await yt.getBasicInfo(videoId, { po_token: poToken })
+  let authenticatedPlayback: Innertube | null = null
+  // Anonymous playback may suddenly receive LOGIN_REQUIRED after several
+  // successful videos. A connected account already has authorization; retry
+  // the playback request once with a player-capable client using those cookies.
+  // If YouTube also refuses that account, surface the restriction rather than
+  // generating a blank DASH manifest or retrying indefinitely.
+  const { info, fromAccount } = await getPlayableResponse(
+    () => loadBasicInfo(anonymousPlayback),
+    accountClient ? async () => {
+      console.warn(`[youtube] anonymous playback requires sign-in [video=${videoId}]; retrying with connected YouTube account`)
+      authenticatedPlayback = await getAccountPlaybackClient()
+      return loadBasicInfo(authenticatedPlayback)
+    } : undefined,
+    (error) => console.warn('[youtube] signed-in playback request failed:', error instanceof Error ? error.message : String(error))
+  )
+  const yt = fromAccount && authenticatedPlayback ? authenticatedPlayback : anonymousPlayback
   const tGetInfo = performance.now() - tGetInfoStart
-  console.log(`[youtube] getInfo ok, playability=${info.playability_status?.status} in ${tGetInfo.toFixed(0)}ms`)
+  console.log(`[youtube] getInfo playable, source=${fromAccount ? 'signed-in' : 'anonymous'} in ${tGetInfo.toFixed(0)}ms`)
 
   // Same check FreeTube does before ever calling toDash() (see
   // freetube-audio-lab/src/renderer/views/Watch/Watch.js around its
