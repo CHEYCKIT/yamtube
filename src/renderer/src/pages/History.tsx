@@ -144,7 +144,7 @@ export function History() {
           {shorts.map((video) => <div key={video.historyId} className="w-40 shrink-0 snap-start sm:w-44"><HistoryCard video={video} portrait remote canRemove={video.canRemove} busy={deleting.has(video.videoId)} onRemove={() => void remove(video)} /></div>)}
         </div>}
       </div>
-    </section>
+    </section>}
     {youtubeAccount.signedIn && shorts.length > 0 && videos.length > 0 && <h2 className="mb-3 text-lg font-semibold">{t('Videos')}</h2>}
     <div data-history-videos className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {youtubeAccount.signedIn ? videos.map((video) => <HistoryCard key={video.historyId} video={video} remote canRemove={video.canRemove} busy={deleting.has(video.videoId)} onRemove={() => void remove(video)} />)
