@@ -17,9 +17,9 @@ concurrency:
 
 jobs:
   prepare:
-    # A deliberately marked merge commit can publish 1.1.6 without manually
+    # A deliberately marked merge commit can publish 1.2.0 without manually
     # creating a tag. Other main pushes never start a release.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.ref_type == 'tag' || (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release v1.1.6]')) }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref_type == 'tag' || (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release v1.2.0]')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
