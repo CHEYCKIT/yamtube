@@ -1,0 +1,23 @@
+name: Update v1.1.5 release notes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/release-notes/v1.1.5.md'
+      - '.github/workflows/update-v1.1.5-release-notes.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update published stable release description
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh release view v1.1.5 --json isDraft,isPrerelease --jq '.isDraft == false and .isPrerelease == false')" = "true"
+          gh release edit v1.1.5 --title 'LokTube 1.1.5' --notes-file '.github/release-notes/v1.1.5.md'
