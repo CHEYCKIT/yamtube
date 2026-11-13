@@ -175,7 +175,7 @@ function routeTitle(path: string) {
 export function TabBar({ playingIds = [] }: { playingIds?: string[] }) {
   useLocale()
   const { tabs, activeId, open, select, close, reorder } = useAppTabs()
-  return <div className="sticky top-[60px] z-30 flex h-10 min-w-0 items-center border-b border-neutral-800 bg-neutral-950 px-2">
+  return <div className="wt-tabbar sticky top-[60px] z-30 flex h-10 min-w-0 items-center border-b border-neutral-800 bg-neutral-950 px-2">
     <div role="tablist" aria-label={t("Tabs")} className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
       {tabs.map((tab) => {
         const path = tab.entries[tab.index]

@@ -46,7 +46,7 @@ function UpdateControls({ state: provided }: { state?: UpdateState }) {
     setRequestError(null)
     try { await action() } catch (failure) { setRequestError(String(failure)) }
   }
-  if (!state) return <p className="text-sm text-neutral-400">{t('Restart YamTube to enable updates')}</p>
+  if (!state) return <p className="text-sm text-neutral-400">{t('Restart LokTube to enable updates')}</p>
   const buttonClass = 'wt-action inline-flex min-h-9 items-center gap-2 rounded px-3 text-sm'
   return <div className="grid gap-3 border-t border-neutral-800 pt-3">
     <p className="text-sm text-neutral-400">{t('Installed version: {version}', { version: state.currentVersion })}</p>

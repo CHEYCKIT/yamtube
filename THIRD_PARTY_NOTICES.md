@@ -32,10 +32,11 @@ script. The running application serves bundled font files, not cloud fonts.
   upstream ISC/MIT notices in `third-party/Lucide-LICENSE.txt`.
 - `world-solid.svg` uses Pictogrammers/Material Design earth geometry under
   Apache 2.0. Its SVG wrapper is customized for WorldTube.
-- The application mark combines that earth geometry with WorldTube's layout
-  and play shape. PNG, ICO and ICNS files are generated from `resources/icon.svg`.
-  The monochrome buffering artwork also uses this mark. They are not wholly
-  WorldTube-origin geometry and retain the applicable asset notices.
+- The wordmark in `resources/brand.svg` combines that earth geometry with
+  WorldTube's layout and play shape. The monochrome buffering artwork also
+  uses that mark. Both retain the applicable asset notices.
+- The desktop application icon uses only the blue play symbol. PNG, ICO and
+  ICNS files are generated from `resources/icon.svg`.
 - Preserve `third-party/Pictogrammers-LICENSE.txt` and the complete
   `third-party/Apache-2.0.txt`, not only a link to the license.
 

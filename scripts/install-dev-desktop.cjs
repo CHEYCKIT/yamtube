@@ -23,7 +23,7 @@ async function install() {
   })
   if (existing && !existing.includes('X-YamTube-Development=true')) throw new Error(`Refusing to overwrite an existing launcher: ${target}`)
   const entry = [
-    '[Desktop Entry]', 'Version=1.0', 'Type=Application', 'Name=YamTube (Development)',
+    '[Desktop Entry]', 'Version=1.0', 'Type=Application', 'Name=LokTube (Development)',
     'Comment=Local-first YouTube desktop client',
     `Exec=${desktopValue(`${execArgument(process.execPath)} ${execArgument(path.join(root, 'scripts/start-dev.cjs'))}`)}`,
     `Path=${desktopValue(root)}`, `Icon=${desktopValue(icon)}`,

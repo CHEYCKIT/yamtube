@@ -39,7 +39,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   async function savePreferences(next: AppPreferences) {
     if (typeof window.api.setAppPreferences !== 'function') {
-      setError(t('Restart YamTube to save application settings.'))
+      setError(t('Restart LokTube to save application settings.'))
       return
     }
     try {

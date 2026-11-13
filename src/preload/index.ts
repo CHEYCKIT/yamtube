@@ -112,7 +112,7 @@ const api = {
   unsubscribe: (channelId: string): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.SUBSCRIPTIONS_REMOVE, channelId)
 }
 
-export type YamTubeApi = typeof api
+export type LokTubeApi = typeof api
 
 if (process.contextIsolated) {
   try {

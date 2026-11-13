@@ -8,7 +8,7 @@ const { tmpdir } = require('node:os')
   const directory = await mkdtemp(join(tmpdir(), 'yamtube-smoke-'))
   const cookies = join(directory, 'cookies.txt')
   await writeFile(cookies, '# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t9999999999\tSAPISID\tsynthetic-test-only\n.youtube.com\tTRUE\t/\tTRUE\t9999999999\tSID\tsynthetic-test-only\n')
-  const executablePath=process.env.YAMTUBE_SMOKE_APP || process.env.WORLDTUBE_SMOKE_APP
+  const executablePath=process.env.LOKTUBE_SMOKE_APP || process.env.YAMTUBE_SMOKE_APP || process.env.WORLDTUBE_SMOKE_APP
   const app = await electron.launch({executablePath,args:['--no-sandbox','--disable-gpu',...(!executablePath?['.']:[])], cwd:process.cwd(),
     env:{...process.env, DISPLAY:process.env.DISPLAY || ':99', XDG_CONFIG_HOME:directory}, timeout:30_000})
   const errors=[]
@@ -132,8 +132,8 @@ const { tmpdir } = require('node:os')
     assert.equal((await page.evaluate(()=>window.api.getSessionState())).activeUser.name,'Guest')
     console.log('PASS: JSON import through IPC, account library isolation and sign-out')
 
-    const signInBrowser=process.env.YAMTUBE_SMOKE_BROWSER || process.env.WORLDTUBE_SMOKE_FIREFOX
-    const signInBrowserName=process.env.YAMTUBE_SMOKE_BROWSER_NAME || 'Firefox'
+    const signInBrowser=process.env.LOKTUBE_SMOKE_BROWSER || process.env.YAMTUBE_SMOKE_BROWSER || process.env.WORLDTUBE_SMOKE_FIREFOX
+    const signInBrowserName=process.env.LOKTUBE_SMOKE_BROWSER_NAME || process.env.YAMTUBE_SMOKE_BROWSER_NAME || 'Firefox'
     if(signInBrowser) {
       await app.evaluate(({dialog},path)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[path]})},resolve(signInBrowser))
       await page.reload()

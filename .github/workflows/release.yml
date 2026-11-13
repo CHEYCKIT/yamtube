@@ -56,7 +56,7 @@ jobs:
               exit 0
             fi
           else
-            gh release create "$TAG" --draft --title "YamTube $TAG" --generate-notes --target "$GITHUB_SHA"
+            gh release create "$TAG" --draft --title "LokTube $TAG" --generate-notes --target "$GITHUB_SHA"
           fi
 
   package:
@@ -85,7 +85,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@v4
         with:
-          name: yamtube-${{ matrix.os }}
+          name: loktube-${{ matrix.os }}
           path: |
             release/*.AppImage
             release/*.deb
@@ -143,6 +143,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
         run: |
-          git archive --format=tar.gz --prefix="YamTube-$TAG/" HEAD -o "YamTube-$TAG-source.tar.gz"
-          gh release upload "$TAG" "YamTube-$TAG-source.tar.gz" --clobber
+          git archive --format=tar.gz --prefix="LokTube-$TAG/" HEAD -o "LokTube-$TAG-source.tar.gz"
+          gh release upload "$TAG" "LokTube-$TAG-source.tar.gz" --clobber
           gh release edit "$TAG" --draft=false

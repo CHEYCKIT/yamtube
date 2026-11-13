@@ -156,7 +156,7 @@ export function MusicMiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
     select(ownerTabId)
     if (ownerPath !== targetPath) navigatorFor(ownerTabId).push(targetPath)
   }
-  return <div className={`fixed bottom-0 right-0 z-[55] max-[680px]:bottom-[60px] max-[680px]:left-0 ${isSideNavOpen ? 'min-[681px]:left-[200px]' : 'min-[681px]:left-20'}`}>
+  return <div className={`fixed bottom-0 right-0 z-[55] max-[680px]:bottom-[60px] max-[680px]:left-0 ${isSideNavOpen ? 'min-[681px]:left-[200px]' : 'min-[681px]:left-28'}`}>
     <div role="button" tabIndex={0} onClick={(event) => { if (!(event.target as Element).closest('button, input')) openSource() }} onKeyDown={(event) => { if (event.currentTarget === event.target && (event.key === 'Enter' || event.key === ' ')) openSource() }} className="cursor-pointer" aria-label={t("Open playback source")}><MusicPlayerPanel compact /></div>
   </div>
 }

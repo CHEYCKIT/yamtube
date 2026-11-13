@@ -292,7 +292,7 @@ export function Watch() {
     <div className="watch-layout">
       <section className="watch-video-area">
         <div className="watch-video-frame">
-          {isCurrentVideo ? <div id={`${WATCH_SLOT_ID}-${tabId}`} className="aspect-video w-full overflow-hidden bg-black" /> : (
+          {isCurrentVideo ? <div id={`${WATCH_SLOT_ID}-${tabId}`} className="wt-watch-player-slot aspect-video w-full overflow-hidden bg-black" /> : (
             <div className="relative grid aspect-video w-full place-items-center overflow-hidden bg-black">
               {snapshot.current.videoId === videoId && thumbnailUrl && <img src={thumbnailUrl} alt="" className="absolute inset-0 h-full w-full object-contain opacity-60" />}
               <button type="button" onClick={() => videoId && void globalPlayer.playVideo(videoId)} className="wt-action relative rounded px-4 py-2 text-sm font-medium">{t("Play video")}</button>

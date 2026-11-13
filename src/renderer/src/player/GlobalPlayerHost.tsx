@@ -16,6 +16,8 @@ import shaka from 'shaka-player/dist/shaka-player.ui.js'
 import './styles/shaka-controls.css'
 import './styles/shaka-overrides.css'
 import './AutoplaySetting'
+import './TheaterButton'
+import { usePictureInPictureNavigation } from './usePictureInPictureNavigation'
 import { useGlobalPlayer } from './GlobalPlayerContext'
 import { PLAYER_COMMAND_EVENT, PLAYER_SEEK_EVENT, PLAYER_STATE_EVENT, type PlayerCommandDetail, type PlayerStateDetail } from './events'
 import { startSabrSession, type SabrSession } from './sabr'
@@ -67,6 +69,21 @@ function addPictureInPictureControl(elements: string[]): string[] {
   const next = [...elements]
   const fullscreenIndex = next.indexOf('fullscreen')
   next.splice(fullscreenIndex >= 0 ? fullscreenIndex : next.length, 0, 'picture_in_picture')
+  return next
+}
+
+function movePlayerMount(target: HTMLElement, mount: HTMLElement): void {
+  if (mount.parentElement === target) return
+  // A state-preserving DOM move retains playback, focus and native PiP.
+  const destination = target as HTMLElement & { moveBefore?: (node: Node, child: Node | null) => void }
+  if (mount.isConnected && target.isConnected && typeof destination.moveBefore === 'function') destination.moveBefore(mount, null)
+  else target.appendChild(mount)
+}
+
+function watchControls(elements: string[]): string[] {
+  const next = addPictureInPictureControl(elements).filter((name) => name !== 'yamtube_theater')
+  const index = next.indexOf('fullscreen')
+  next.splice(index < 0 ? next.length : index, 0, 'yamtube_theater')
   return next
 }
 
@@ -126,6 +143,9 @@ export function GlobalPlayerHost() {
   // wouldn't trigger the effect that creates it (see below).
   const [rawVideoEl, setRawVideoEl] = useState<HTMLVideoElement | null>(null)
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null)
+  usePictureInPictureNavigation(videoEl, tabId, videoId, isWatchRoute, () => {
+    if (hiddenHomeRef.current) movePlayerMount(hiddenHomeRef.current, portalMount)
+  })
   const [attachedPlayer, setAttachedPlayer] = useState<shaka.Player | null>(null)
   const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null)
   // shaka.Player.load() rejecting was previously only logged to the console —
@@ -195,13 +215,15 @@ export function GlobalPlayerHost() {
     const movePortalMount = (nextTarget: HTMLElement | null) => {
       const target = nextTarget || hiddenHomeRef.current
       if (!target) return
-      if (portalMount.parentElement !== target) {
-        target.appendChild(portalMount)
-      }
+      movePlayerMount(target, portalMount)
     }
 
     if (videoId === null) {
       console.log('[player-slot] no active video, using hidden home slot')
+      movePortalMount(hiddenHomeRef.current)
+      return
+    }
+    if (document.pictureInPictureElement === rawVideoEl) {
       movePortalMount(hiddenHomeRef.current)
       return
     }
@@ -324,7 +346,7 @@ export function GlobalPlayerHost() {
         preferInitialWindowPlacement: false,
         disallowReturnToOpener: false
       },
-      controlPanelElements: isWatchRoute && shorts.length === 0 ? addPictureInPictureControl(fullControlPanelRef.current)
+      controlPanelElements: isWatchRoute && shorts.length === 0 ? watchControls(fullControlPanelRef.current)
       : ['play_pause', 'mute', 'volume', 'time_and_duration', 'spacer', 'queue', 'overflow_menu', 'fullscreen'] })
   }, [isWatchRoute, shorts.length, rawVideoEl, containerEl, language])
 
@@ -337,6 +359,18 @@ export function GlobalPlayerHost() {
     videoEl.addEventListener('volumechange', saveAudio)
     return () => videoEl.removeEventListener('volumechange', saveAudio)
   }, [videoEl])
+
+  useEffect(() => {
+    if (!containerEl) return
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || document.fullscreenElement !== containerEl) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      void document.exitFullscreen().catch((error) => console.warn('[player] Could not exit fullscreen', error))
+    }
+    window.addEventListener('keydown', escape, true)
+    return () => window.removeEventListener('keydown', escape, true)
+  }, [containerEl])
 
   useEffect(() => {
     if (!videoEl || !videoId || ownerId !== tabId) return
@@ -652,7 +686,8 @@ export function GlobalPlayerHost() {
         paused: videoEl.paused,
         currentTime: videoEl.currentTime || 0,
         duration: Number.isFinite(videoEl.duration) ? videoEl.duration : 0,
-        volume: videoEl.muted ? 0 : videoEl.volume
+        volume: videoEl.muted ? 0 : videoEl.volume,
+        pictureInPicture: document.pictureInPictureElement === videoEl
       }
       window.dispatchEvent(new CustomEvent<PlayerStateDetail>(PLAYER_STATE_EVENT, { detail }))
     }
@@ -730,6 +765,8 @@ export function GlobalPlayerHost() {
     videoEl.addEventListener('playing', emitState)
     videoEl.addEventListener('timeupdate', emitState)
     videoEl.addEventListener('volumechange', emitState)
+    videoEl.addEventListener('enterpictureinpicture', emitState)
+    videoEl.addEventListener('leavepictureinpicture', emitState)
     emitState()
     return () => {
       window.removeEventListener(PLAYER_SEEK_EVENT, handleSeek)
@@ -742,6 +779,8 @@ export function GlobalPlayerHost() {
       videoEl.removeEventListener('playing', emitState)
       videoEl.removeEventListener('timeupdate', emitState)
       videoEl.removeEventListener('volumechange', emitState)
+      videoEl.removeEventListener('enterpictureinpicture', emitState)
+      videoEl.removeEventListener('leavepictureinpicture', emitState)
     }
   }, [videoEl, tabId])
 
@@ -753,7 +792,7 @@ export function GlobalPlayerHost() {
         // (it only sets a data-attribute marker on this element) — controls.css scopes
         // every layout/positioning rule for the control bar under this class, so without
         // it shaka's injected buttons/seek bar render completely unstyled.
-        <div ref={setContainerEl} className={`shaka-video-container relative h-full w-full overflow-hidden bg-black ${isInitialLoading ? 'wt-player-loading' : ''}`}>
+        <div ref={setContainerEl} data-player-tab-id={tabId} className={`shaka-video-container relative h-full w-full overflow-hidden bg-black ${isInitialLoading ? 'wt-player-loading' : ''}`}>
           <video ref={setVideoRef} className="h-full w-full" title={title} crossOrigin="anonymous" playsInline preload="auto">
             {captions.map((track) => (
               <track

@@ -2,8 +2,8 @@ const assert=require('node:assert/strict')
 const {readFile}=require('node:fs/promises')
 const {join}=require('node:path')
 module.exports=async({app,page,profile})=>{
-  assert.equal(await page.title(),'YamTube')
-  assert.equal(await page.getByText('YamTube',{exact:true}).count()>0,true)
+  assert.equal(await page.title(),'LokTube')
+  assert.equal(await page.getByText('LokTube',{exact:true}).count()>0,true)
   const parser=await app.evaluate(({app})=>{
     const require=process.getBuiltinModule('node:module').createRequire(app.getAppPath()+'/package.json')
     const {Parser}=require('youtubei.js')
@@ -31,16 +31,16 @@ module.exports=async({app,page,profile})=>{
 
   // Send the actual Windows BrowserWindow event through main/preload IPC.
   await page.locator('a[href="#/music"]').first().click()
-  await page.getByRole('heading',{name:'YamTube Music',exact:true}).waitFor()
+  await page.getByRole('heading',{name:'LokTube Music',exact:true}).waitFor()
   assert.equal(await page.getByText('All songs',{exact:true}).count()>0,true)
   await page.locator('a[href="#/account"]').first().click()
   await page.getByRole('heading',{name:'Account & privacy'}).waitFor()
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].emit('app-command',{},'browser-backward'))
-  await page.getByRole('heading',{name:'YamTube Music',exact:true}).waitFor()
+  await page.getByRole('heading',{name:'LokTube Music',exact:true}).waitFor()
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].emit('app-command',{},'browser-forward'))
   await page.getByRole('heading',{name:'Account & privacy'}).waitFor()
   await page.evaluate(()=>window.dispatchEvent(new MouseEvent('mouseup',{button:3,bubbles:true,cancelable:true})))
-  await page.getByRole('heading',{name:'YamTube Music',exact:true}).waitFor()
+  await page.getByRole('heading',{name:'LokTube Music',exact:true}).waitFor()
   console.log('PASS: Windows Back/Forward commands and mouse side-button navigation use active-tab history')
 
   await app.evaluate(({ipcMain})=>{
@@ -111,6 +111,9 @@ module.exports=async({app,page,profile})=>{
 
 
   await page.screenshot({path:'.cache/yamtube-mini-player.png',fullPage:true})
+  await require('./desktop-theater.cjs')({app,page})
+  await require('./desktop-pip.cjs')({app,page})
+  await require('./desktop-fullscreen.cjs')({app,page})
   await page.locator('a[href="#/account"]').first().click()
   await page.getByRole('heading',{name:'Account & privacy'}).waitFor()
   await app.evaluate(()=>console.warn('Diagnostics fixture', {Cookie:'SID=diagnostics-secret; SAPISID=diagnostics-secret',authorization:'Bearer diagnostics-secret',poToken:'diagnostics-secret'}))

@@ -1,4 +1,4 @@
-# YamTube
+# LokTube
 
 A fork of WorldTube with browser sign-in, account recommendations and
 history, app-wide ad protection, independent tabs and persistent players. Not affiliated with Google or YouTube.
@@ -11,7 +11,7 @@ Watch the short [WorldTube demo on YouTube](https://youtu.be/ccULEv3KD28).
 
 ## Installation
 
-Download installers from the [YamTube download page](https://github.com/CHEYCKIT/yamtube/releases)
+Download installers from the [LokTube download page](https://github.com/CHEYCKIT/yamtube/releases)
 or [GitHub Releases](https://github.com/CHEYCKIT/yamtube/releases).
 Downloads become available only after a release is successfully published.
 
@@ -23,11 +23,26 @@ macOS DMG/ZIP ARM64 is opt-in and requires signing credentials. See
 [Packaging and Updates](docs/UPDATES.md) for setup and outstanding work.
 
 Windows: download the x64 `.exe` and follow the installer.
-Linux: download the x64 `.AppImage`, make it executable (`chmod +x YamTube-*.AppImage`),
+Linux: download the x64 `.AppImage`, make it executable (`chmod +x LokTube-*.AppImage`),
 then run it. Debian/Ubuntu users can instead install the `.deb` from Releases.
 AppImage may require FUSE 2; `--appimage-extract-and-run` is an alternative on
 systems without it. Windows packages are initially unsigned; verify the source
 and download location. macOS downloads remain unavailable until signed builds exist.
+
+## Beta 4 — LokTube
+
+The app is now **LokTube**, with a large blue play icon for the Windows taskbar.
+Existing sessions, libraries and preferences stay in place when upgrading.
+**Theater mode** in the player controls (or **T**) expands the video across the
+window and moves recommendations below it. Hover the top or left edge to reveal
+search/tabs or navigation; keyboard focus reveals them too. Your theater choice
+is remembered for watch pages. Sidebar labels fit laptop screens and higher zoom.
+
+Entering native Picture-in-Picture opens Home with a playback footer. Clicking
+the footer or **Return to video**, or leaving the native PiP window, restores
+the owning video page with PiP off. The inline mini player also has a one-click
+return button. Fullscreen works from its player button or **F**; **Escape** exits
+and restores the previous layout. These changes retain playback position.
 
 ## Beta 3
 
@@ -41,7 +56,7 @@ your existing session and library.
 
 ## Beta 2
 
-YamTube beta 2 fixes an installer-only parser warning crash that interrupted
+Beta 2 fixes an installer-only parser warning crash that interrupted
 playback and home feeds. Video context menus now offer **Open in new tab**,
 **Open in new tab and switch**, and **Play in mini player**. Player settings
 include a persistent **Autoplay next video** toggle. Mouse Back/Forward buttons
@@ -72,7 +87,7 @@ downloads and confirmed installation from published GitHub releases. The complet
 installation/update cycle is not validated yet.
 
 YouTube is queried directly using the local extraction method. An Invidious
-fallback is not implemented or configured in YamTube yet. External YouTube
+fallback is not implemented or configured in LokTube yet. External YouTube
 changes can require a compatibility update.
 
 See [YouTube accounts and protection](docs/YOUTUBE_ACCOUNTS.md) for sign-in steps,
@@ -93,7 +108,7 @@ Shortcuts respect text fields and act on the player represented in the interface
 
 `worldtube-data.json` is stored in Electron's user-data directory. Account exposes
 its path, data totals and full-data export/import. Local library contents
-are not uploaded to a YamTube server or GitHub.
+are not uploaded to a LokTube server or GitHub.
 
 Exports include local users, password hashes, the active session, profile photos,
 subscriptions, playlists, saved videos, history, search history and settings.

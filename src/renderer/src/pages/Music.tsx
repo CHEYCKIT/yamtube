@@ -124,7 +124,7 @@ export function Music() {
 
   return <section className="w-full">
     <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <div><h1 className="text-2xl font-semibold">{t("YamTube Music")}</h1><p className="mt-1 text-sm text-neutral-400">{t("Your music and playlists, all in one app.")}</p></div>
+      <div><h1 className="text-2xl font-semibold">{t("LokTube Music")}</h1><p className="mt-1 text-sm text-neutral-400">{t("Your music and playlists, all in one app.")}</p></div>
       <button type="button" onClick={() => setCreating((value) => !value)} className="wt-action flex cursor-pointer items-center gap-2 rounded px-3 py-2 text-sm font-medium"><NavigationIcon name="music" />{t("New playlist")}</button>
     </header>
     {error && <p role="alert" className="mb-4 text-sm text-red-400">{error}</p>}

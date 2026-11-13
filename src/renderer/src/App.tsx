@@ -55,6 +55,7 @@ import { Watch } from './pages/Watch'
 import { TabBar, TabPages, TabLinkHandler } from './tabs/AppTabs'
 import { useAppTabs, usePageTab } from './tabs/AppTabs'
 import { PlayerWorkspaceProvider, RegisterTabPlayer, usePlayerWorkspace } from './player/PlayerWorkspace'
+import { TheaterModeProvider, useTheaterMode } from './player/TheaterMode'
 import type { SearchHistoryEntry, Subscription, UserProfile } from '../../shared/ipc'
 
 type IconName =
@@ -291,10 +292,10 @@ function TopNav() {
           <Link
             to="/"
             className="flex h-10 min-w-0 items-center gap-2 rounded px-2 text-lg font-semibold text-neutral-100 hover:bg-neutral-800"
-            title="YamTube"
+            title="LokTube"
           >
             <BrandMark />
-            <span className="truncate max-[680px]:hidden">YamTube</span>
+            <span className="truncate max-[680px]:hidden">LokTube</span>
           </Link>
           <button
             type="button"
@@ -344,7 +345,7 @@ function TopNav() {
         </div>
       </header>
       {isMobileSearchOpen && (
-        <div className="wt-topbar fixed inset-x-0 top-[60px] z-40 border-b border-neutral-800 bg-neutral-900 p-2 min-[681px]:hidden">
+        <div className="wt-topbar wt-mobile-search fixed inset-x-0 top-[60px] z-40 border-b border-neutral-800 bg-neutral-900 p-2 min-[681px]:hidden">
           <SearchBar />
         </div>
       )}
@@ -354,8 +355,8 @@ function TopNav() {
 
 function navClass(isOpen: boolean, isActive: boolean): string {
   return [
-    'group flex min-h-[45px] items-center px-3 py-2 text-neutral-300 no-underline transition-colors hover:bg-neutral-800 hover:text-white max-[680px]:min-h-0 max-[680px]:flex-1 max-[680px]:flex-col max-[680px]:justify-center max-[680px]:gap-0 max-[680px]:px-1',
-    isOpen ? 'justify-start gap-3' : 'flex-col justify-center gap-0 text-center',
+    'group flex min-h-[45px] shrink-0 items-center py-2 text-neutral-300 no-underline transition-colors hover:bg-neutral-800 hover:text-white max-[680px]:min-h-0 max-[680px]:flex-1 max-[680px]:flex-col max-[680px]:justify-center max-[680px]:gap-0 max-[680px]:px-1 max-[680px]:py-0',
+    isOpen ? 'justify-start gap-3 px-3' : 'flex-col justify-center gap-0 px-1 text-center',
     isActive ? 'wt-selected' : ''
   ].join(' ')
 }
@@ -387,7 +388,7 @@ function SideNav({ isOpen }: { isOpen: boolean }) {
       aria-label={t("Sections")}
       className={[
         'wt-sidebar sticky top-[60px] z-30 h-[calc(100vh-60px)] shrink-0 overflow-hidden border-r border-neutral-800 bg-neutral-900 transition-[width] duration-150 ease-in-out max-[680px]:fixed max-[680px]:inset-x-0 max-[680px]:bottom-0 max-[680px]:top-auto max-[680px]:h-[60px] max-[680px]:w-full max-[680px]:border-r-0 max-[680px]:border-t',
-        isOpen ? 'w-[200px]' : 'w-20'
+        isOpen ? 'w-[200px]' : 'w-28'
       ].join(' ')}
     >
       <div className="flex h-full flex-col overflow-y-auto overflow-x-hidden py-3 max-[680px]:flex-row max-[680px]:items-stretch max-[680px]:overflow-hidden max-[680px]:py-0">
@@ -395,37 +396,37 @@ function SideNav({ isOpen }: { isOpen: boolean }) {
           <span className="grid h-9 w-9 shrink-0 place-items-center">
             <NavigationIcon name="home" />
           </span>
-          <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("Home")}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("Home")}</span>
         </NavLink>
         <NavLink to="/subscriptions" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Subscriptions")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
             <NavigationIcon name="subscriptions" />
           </span>
-          <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("Subscriptions")}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("Subscriptions")}</span>
         </NavLink>
         <NavLink to="/history" className={({ isActive }) => navClass(isOpen, isActive)} title={t("History")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
             <NavigationIcon name="history" />
           </span>
-          <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("History")}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("History")}</span>
         </NavLink>
         <NavLink to="/saved" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Saved")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
             <NavigationIcon name="saved" />
           </span>
-          <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("Saved")}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("Saved")}</span>
         </NavLink>
         <NavLink to="/playlists" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Playlists")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
             <NavigationIcon name="playlists" />
           </span>
-          <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("Playlists")}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("Playlists")}</span>
         </NavLink>
         <NavLink to="/music" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Music")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
             <NavigationIcon name="music" />
           </span>
-          <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("Music")}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("Music")}</span>
         </NavLink>
 
         {subscriptions.length > 0 && (
@@ -451,7 +452,7 @@ function SideNav({ isOpen }: { isOpen: boolean }) {
             <span className="grid h-9 w-9 shrink-0 place-items-center">
               <NavigationIcon name="account" />
             </span>
-            <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("Account")}</span>
+            <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("Account")}</span>
           </NavLink>
         </div>
       </div>
@@ -485,6 +486,12 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
   const { videoId, title, channelName, closePlayer, playbackMode, shorts, ownerTabId, status } = useGlobalPlayer()
   const { activeId, select, navigatorFor, tabs: tabsForMini } = useAppTabs()
   function returnToWatch() {
+    const pip = document.pictureInPictureElement
+    if (pip?.closest<HTMLElement>('[data-player-tab-id]')?.dataset.playerTabId === ownerTabId) {
+      // The native leave event restores the owning tab and watch page once.
+      void document.exitPictureInPicture().catch((error) => console.warn('[player] Could not return from picture in picture', error))
+      return
+    }
     select(ownerTabId)
     const owner = tabsForMini.find((tab) => tab.id === ownerTabId)
     if (owner?.entries[owner.index] !== `/watch/${videoId}`) navigatorFor(ownerTabId).push(`/watch/${videoId}`)
@@ -729,7 +736,7 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
     // The video is portaled into the mini slot, so listen on the real DOM
     // surface to receive pointer events from the video as well as its header.
     const handleMiniPointerDown = (event: PointerEvent) => handleDragStart(event)
-    const handleMinimizedPointerDown = (event: PointerEvent) => handleRestoreDragStart(event)
+    const handleMinimizedPointerDown = (event: PointerEvent) => { if (!playerState.pictureInPicture) handleRestoreDragStart(event) }
     miniSurface?.addEventListener('pointerdown', handleMiniPointerDown)
     minimizedSurface?.addEventListener('pointerdown', handleMinimizedPointerDown)
 
@@ -737,12 +744,12 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
       miniSurface?.removeEventListener('pointerdown', handleMiniPointerDown)
       minimizedSurface?.removeEventListener('pointerdown', handleMinimizedPointerDown)
     }
-  }, [videoId, isMinimized, isWatchRoute, shorts.length, activeId, ownerTabId])
+  }, [videoId, isMinimized, isWatchRoute, shorts.length, activeId, ownerTabId, playerState.pictureInPicture])
 
   if (videoId === null || playbackMode === 'music' || activeId !== ownerTabId || isWatchRoute || shorts.length > 0) return null
 
-  const showBar = (isMinimized || isMinimizePreview) && !isRestorePreview
-  const hideMini = (isMinimized || isMinimizePreview) && !isRestorePreview
+  const showBar = !!playerState.pictureInPicture || ((isMinimized || isMinimizePreview) && !isRestorePreview)
+  const hideMini = showBar
   const dragCursorClass = isDragPointerActive
     ? 'cursor-grabbing [&_[role=button]]:cursor-grabbing [&_button]:cursor-grabbing'
     : 'cursor-grab [&_[role=button]]:cursor-pointer [&_button]:cursor-pointer'
@@ -759,11 +766,12 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
       <aside
         ref={minimizedBarRef}
         onClickCapture={handleDraggedClickCapture}
+        onClick={(event) => { if (!(event.target as Element).closest('[data-player-control]')) returnToWatch() }}
         className={[
           'wt-player-bar fixed bottom-0 right-0 z-50 touch-none select-none border-t border-neutral-800 bg-neutral-900 shadow-2xl shadow-black/40 transition-opacity max-[680px]:bottom-[60px] max-[680px]:left-0',
           dragCursorClass,
           isMinimizePreview && !isMinimized ? 'pointer-events-none opacity-45' : 'opacity-100',
-          isSideNavOpen ? 'min-[681px]:left-[200px]' : 'min-[681px]:left-20'
+          isSideNavOpen ? 'min-[681px]:left-[200px]' : 'min-[681px]:left-28'
         ].join(' ')}
       >
         <div className="grid min-h-[58px] min-w-0 grid-cols-[minmax(120px,1fr)_minmax(220px,520px)_auto] items-center gap-4 px-4 max-[840px]:grid-cols-[minmax(0,1fr)_auto]">
@@ -841,13 +849,14 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
             <button
               type="button"
               onClick={() => {
+                if (playerState.pictureInPicture) { returnToWatch(); return }
                 setIsMinimized(false)
                 setIsMinimizePreview(false)
                 setIsRestorePreview(false)
                 setMiniPosition(null)
               }}
-              aria-label={t("Restore mini player")}
-              title={t("Restore mini player")}
+              aria-label={t(playerState.pictureInPicture ? 'Return to video' : 'Restore mini player')}
+              title={t(playerState.pictureInPicture ? 'Return to video' : 'Restore mini player')}
               className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
               data-player-control="true"
             >
@@ -899,6 +908,10 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
             <span className="block truncate text-xs text-neutral-400">{channelName}</span>
           </button>
           <div className="flex items-center pr-2">
+            <button type="button" onClick={returnToWatch} aria-label={t('Return to video')} title={t('Return to video')}
+              className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100" data-player-control="true">
+              <Icon name="arrowUpRight" className="h-4 w-4" />
+            </button>
             <button
               type="button"
               onClick={() => sendPlayerCommand({ action: 'toggle-picture-in-picture' })}
@@ -967,19 +980,36 @@ function AppRoutes() {
 }
 
 export default function App() {
-  useLocale()
-  const isSideNavOpen = false
-
   return (
     <ProfileProvider>
       <PlayerWorkspaceProvider>
-        <AppNavigation><div className="wt-app-shell min-h-screen text-neutral-100">
+        <TheaterModeProvider><AppShell /></TheaterModeProvider>
+      </PlayerWorkspaceProvider>
+    </ProfileProvider>
+  )
+}
+
+function AppShell() {
+  useLocale()
+  const { active: theater } = useTheaterMode()
+  const isSideNavOpen = false
+  return <AppNavigation><div className={`wt-app-shell min-h-screen text-neutral-100 ${theater ? 'wt-theater' : ''}`}>
+          {theater && <>
+            <button className="wt-theater-edge wt-theater-top-edge" aria-label={t('Show search and tabs')}
+              onClick={() => {
+                const input = document.querySelector<HTMLInputElement>('.wt-topbar input')
+                if (input?.getClientRects().length) input.focus()
+                else document.querySelector<HTMLButtonElement>('.wt-topbar button[aria-label="' + t('Search') + '"]')?.click()
+              }} />
+            <button className="wt-theater-edge wt-theater-side-edge" aria-label={t('Show sidebar')}
+              onClick={() => document.querySelector<HTMLAnchorElement>('.wt-sidebar a')?.focus()} />
+          </>}
           <TopNav />
-          <div className="flex min-h-[calc(100vh-60px)] max-[680px]:block max-[680px]:pb-[72px] max-[680px]:pt-[60px]">
+          <div className="wt-workspace flex min-h-[calc(100vh-60px)] max-[680px]:block max-[680px]:pb-[72px] max-[680px]:pt-[60px]">
             <SideNav isOpen={isSideNavOpen} />
             <main className="min-w-0 flex-1">
               <PlayerTabBar />
-              <div className="p-4 max-[680px]:p-3"><TabPages><TabPlayer /></TabPages></div>
+              <div className="wt-page-content p-4 max-[680px]:p-3"><TabPages><TabPlayer /></TabPages></div>
             </main>
           </div>
           <MiniPlayer isSideNavOpen={isSideNavOpen} />
@@ -987,9 +1017,6 @@ export default function App() {
           <ShortsModal />
           <UpdateNotice />
         </div></AppNavigation>
-      </PlayerWorkspaceProvider>
-    </ProfileProvider>
-  )
 }
 
 function AppNavigation({ children }: { children: ReactNode }) {

@@ -54,7 +54,7 @@ async function loadDownloads() {
       button.removeAttribute('aria-disabled')
       button.title = asset.name
       if (button.dataset.platform === 'linux') {
-        command.textContent = `mkdir -p "$HOME/Downloads" &&\ncd "$HOME/Downloads" &&\nwget -O YamTube.deb '${url.href.replaceAll("'", "%27")}' &&\nsudo apt install ./YamTube.deb`
+        command.textContent = `mkdir -p "$HOME/Downloads" &&\ncd "$HOME/Downloads" &&\nwget -O LokTube.deb '${url.href.replaceAll("'", "%27")}' &&\nsudo apt install ./LokTube.deb`
         copyButton.disabled = false
       }
       if (button.dataset.platform === 'mac' && /arm64/i.test(asset.name)) {

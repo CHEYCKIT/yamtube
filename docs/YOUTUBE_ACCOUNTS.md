@@ -16,7 +16,7 @@ You can also browse as a guest without creating anything.
 
 The app opens a separate, ordinary temporary browser profile. It does not
 use WebDriver, a remote debugging port, an embedded Google login, or your
-existing browser profile. No Google password is entered into YamTube.
+existing browser profile. No Google password is entered into LokTube.
 Windows detection covers standard/per-user installation directories and registered
 browser commands. macOS application bundles and Linux PATH/common locations
 are also checked. **Refresh browsers** detects newly installed browsers.
@@ -140,6 +140,35 @@ messages and exports the retained logs. Three files are bounded to roughly
 entries. Cookies, authentication tokens and signed stream URLs are redacted.
 Nothing is automatically uploaded.
 
-The public product/window/installer/executable name is YamTube. The legacy
+The public product/window/installer/executable name is LokTube. The legacy
 internal application ID, storage directory and keyring identity are retained
 so beta 1 sessions and libraries remain usable.
+
+## Beta 4 theater, PiP and fullscreen
+
+LokTube retains the legacy application/storage/keyring identity when upgrading
+from WorldTube or YamTube. The window, desktop entry, installers and executable
+use LokTube. Taskbar/application icons use the large blue play symbol; the
+existing globe artwork remains in the wordmark.
+
+**Theater mode** in the player controls, or **T**, gives the video the available
+window width and height. Details and recommendations remain below it. Hover the
+top edge for search and tabs, or the left edge for navigation. The edge controls
+and hidden navigation also reveal themselves on keyboard focus. Theater mode
+is remembered in renderer local storage and only applies to watch pages. It does
+not reload the video or change playback position. Sidebar labels allow wrapping;
+nav items cannot shrink vertically when the sidebar needs to scroll.
+
+Native PiP opens Home. The footer title, **Return to video**, and native PiP exit
+restore the owning tab's video page and end PiP in one action. A playlist query
+is retained when returning to the same video. The persistent player is parked
+before its old watch page is removed; state-preserving DOM moves avoid closing
+native PiP or reloading media. Returning from the inline mini player also takes
+one click.
+
+Fullscreen requests are allowed for the trusted main app frame. Other
+permissions remain denied. The fullscreen exception is scoped to the main app
+frame’s permission requests. The player button and **F**
+toggle fullscreen; **Escape** explicitly exits it. The desktop suite tests these
+real APIs using local media, including exit back into theater mode, in addition
+to PiP, footer return, sidebar geometry at laptop/narrow sizes and 150% zoom.

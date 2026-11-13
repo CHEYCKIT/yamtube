@@ -73,7 +73,7 @@ for (const stream of [process.stdout, process.stderr]) {
 
 // Keep the data directory identical in development and packaged installations.
 // Keep the encryption/keyring identity and storage location compatible with beta 1.
-// The window, installer, executable and desktop entry use the YamTube product name.
+// The window, installer, executable and desktop entry use the LokTube product name.
 app.setName('worldtube')
 app.setPath('userData', join(app.getPath('appData'), 'worldtube'))
 const primaryInstance = app.requestSingleInstanceLock()
@@ -126,10 +126,10 @@ ipcMain.handle(IPC_CHANNELS.DIAGNOSTICS_GET, () => getDiagnostics())
 ipcMain.handle(IPC_CHANNELS.DIAGNOSTICS_EXPORT, async (event) => {
   const owner = BrowserWindow.fromWebContents(event.sender)
   if (!owner) throw new Error('No app window')
-  const result = await dialog.showSaveDialog(owner, { title: 'Export YamTube logs', defaultPath: 'YamTube-diagnostics.txt', filters: [{ name: 'Diagnostic log', extensions: ['txt'] }] })
+  const result = await dialog.showSaveDialog(owner, { title: 'Export LokTube logs', defaultPath: 'LokTube-diagnostics.txt', filters: [{ name: 'Diagnostic log', extensions: ['txt'] }] })
   if (result.canceled || !result.filePath) return null
   const { contents } = await getDiagnostics(true)
-  await writeFile(result.filePath, `YamTube ${app.getVersion()} · ${process.platform} ${process.arch}\n${contents}`, { mode: 0o600 })
+  await writeFile(result.filePath, `LokTube ${app.getVersion()} · ${process.platform} ${process.arch}\n${contents}`, { mode: 0o600 })
   return result.filePath
 })
 
@@ -143,7 +143,7 @@ ipcMain.handle(IPC_CHANNELS.DIAGNOSTICS_EXPORT, async (event) => {
 function createWindow(): void {
   const icon = app.isPackaged ? join(process.resourcesPath, 'icon.png') : join(app.getAppPath(), 'resources/icon.png')
   const mainWindow = new BrowserWindow({
-    title: 'YamTube',
+    title: 'LokTube',
     icon,
     width: 1280,
     height: 800,
@@ -213,8 +213,14 @@ function createWindow(): void {
     event.preventDefault()
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
   })
-  mainWindow.webContents.session.setPermissionRequestHandler((_contents, _permission, respond) => respond(false))
-  mainWindow.webContents.session.setPermissionCheckHandler(() => false)
+  // Fullscreen is part of our trusted player UI. Scope its permission requests
+  // to the main app frame; the attestation renderer keeps its own deny policy.
+  mainWindow.webContents.session.setPermissionRequestHandler((contents, permission, respond, details) => {
+    respond(contents === mainWindow.webContents && permission === 'fullscreen' && details.isMainFrame)
+  })
+  mainWindow.webContents.session.setPermissionCheckHandler((contents, permission, _origin, details) => {
+    return contents === mainWindow.webContents && permission === 'fullscreen' && details.isMainFrame
+  })
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -308,9 +314,9 @@ ipcMain.handle(IPC_CHANNELS.DATA_EXPORT, async (event): Promise<string | null> =
   const ownerWindow = BrowserWindow.fromWebContents(event.sender)
   if (!ownerWindow) throw new Error('No app window')
   const result = await dialog.showSaveDialog(ownerWindow, {
-    title: translateFor((await getAppPreferences()).language, "Export YamTube data"),
-    defaultPath: 'yamtube-data.json',
-    filters: [{ name: 'YamTube data', extensions: ['json'] }]
+    title: translateFor((await getAppPreferences()).language, "Export LokTube data"),
+    defaultPath: 'loktube-data.json',
+    filters: [{ name: 'LokTube data', extensions: ['json'] }]
   })
   if (result.canceled || !result.filePath) return null
   await exportLocalData(result.filePath)
@@ -321,9 +327,9 @@ ipcMain.handle(IPC_CHANNELS.DATA_IMPORT, async (event): Promise<LocalSessionStat
   const ownerWindow = BrowserWindow.fromWebContents(event.sender)
   if (!ownerWindow) throw new Error('No app window')
   const result = await dialog.showOpenDialog(ownerWindow, {
-    title: translateFor((await getAppPreferences()).language, "Import YamTube data"),
+    title: translateFor((await getAppPreferences()).language, "Import LokTube data"),
     properties: ['openFile'],
-    filters: [{ name: 'YamTube data', extensions: ['json'] }]
+    filters: [{ name: 'LokTube data', extensions: ['json'] }]
   })
   const [filePath] = result.filePaths
   if (result.canceled || !filePath) return null
@@ -367,7 +373,7 @@ ipcMain.handle(IPC_CHANNELS.SUBSCRIPTIONS_REMOVE, (_event, channelId: string) =>
 app.whenReady().then(async () => {
   if (!primaryInstance) return
   await initializeDiagnostics(join(app.getPath('userData'), 'logs'))
-  console.info(`YamTube ${app.getVersion()} starting on ${process.platform} ${process.arch}`)
+  console.info(`LokTube ${app.getVersion()} starting on ${process.platform} ${process.arch}`)
   await initializeProtection()
   await removeAbandonedLoginProfiles()
   await initializeYoutubeAccount()

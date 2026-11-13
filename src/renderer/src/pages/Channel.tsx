@@ -112,7 +112,7 @@ export function Channel() {
     const cached = cache.current.get(pageKey)
     if (cached) { setPage(cached); return }
     if (typeof window.api.getChannelPage !== 'function') {
-      setError(t("Restart YamTube to load channel sections."))
+      setError(t("Restart LokTube to load channel sections."))
       return
     }
     busy.current = true

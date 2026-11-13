@@ -1,6 +1,6 @@
 appId: com.riberojuanca.worldtube
-productName: YamTube
-artifactName: YamTube-${version}-${os}-${arch}.${ext}
+productName: LokTube
+artifactName: LokTube-${version}-${os}-${arch}.${ext}
 beforePack: ./scripts/prepare-third-party-notices.cjs
 directories:
   output: release
@@ -33,7 +33,7 @@ publish:
   repo: yamtube
   releaseType: draft
 linux:
-  executableName: yamtube
+  executableName: loktube
   syncDesktopName: true
   icon: resources/icons
   maintainer: riberojuanca
@@ -42,6 +42,7 @@ linux:
     - AppImage
     - deb
 win:
+  icon: resources/icon.ico
   target:
     - nsis
 nsis:
