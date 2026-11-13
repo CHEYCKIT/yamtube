@@ -20,6 +20,9 @@ module.exports = async ({app,page}) => {
   // TabRoutePages keeps previously visited Home pages mounted. A reload
   // discards the old feed and ensures Home picks up this deterministic fixture.
   await page.reload()
+  // A reload preserves the current hash (often /account at the end of smoke).
+  // Navigate to the now-fresh Home route after restoring the renderer.
+  await page.locator('a[href="#/"]:visible').first().click()
   await page.getByRole('heading',{name:'More to explore',exact:true}).waitFor()
 
   const sectionTitles=await page.locator('section[aria-label="Home"] h2').allTextContents()
