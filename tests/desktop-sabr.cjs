@@ -92,7 +92,7 @@ module.exports=async({app,page})=>{
     console.error('SABR fixture delivery trace:',JSON.stringify(delivered))
     throw error
   } finally {
-    await page.locator('a[href="#/"]').first().click()
+    await page.locator('a[href="#/"]:visible').first().click()
     await page.getByRole('button',{name:'Close player',exact:true}).click()
     await page.unroute('https://sabr-fixture.googlevideo.com/**')
   }
