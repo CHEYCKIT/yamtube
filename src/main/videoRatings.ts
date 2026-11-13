@@ -1,9 +1,6 @@
 import { accountRevision, getAccountClient, hasYoutubeAccount } from './youtubeAccount'
+import { ratingFromInfo } from './videoRatingState'
 import type { VideoRating, VideoRatingResult } from '../shared/ipc'
-
-export function ratingFromInfo(info: { basic_info?: { is_liked?: boolean; is_disliked?: boolean } }): VideoRating {
-  return info.basic_info?.is_liked === true ? 'like' : info.basic_info?.is_disliked === true ? 'dislike' : 'none'
-}
 
 export async function setYoutubeVideoRating(videoId: string, target: VideoRating): Promise<VideoRatingResult> {
   if (!/^[A-Za-z0-9_-]{11}$/.test(videoId) || !['like','dislike','none'].includes(target)) throw new Error('Invalid video rating request.')
