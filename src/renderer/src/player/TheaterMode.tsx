@@ -50,34 +50,39 @@ export function TheaterModeProvider({ children }: { children: ReactNode }) {
 
 // An immediate CSS :hover retracts mid-animation when the pointer moves off the
 // edge trigger. Retain the reveal while crossing into the toolbar or its menus.
+// Once open, hit-test the actual header: no invisible hold-open area below it.
 export function useTheaterHeaderReveal(active: boolean): boolean {
   const [visible, setVisible] = useState(false)
   useEffect(() => {
     setVisible(false)
     if (!active) return
     let shown = false
+    let lastX = Number.POSITIVE_INFINITY
     let lastY = Number.POSITIVE_INFINITY
     let timer: ReturnType<typeof setTimeout> | undefined
     const toolbar = '.wt-topbar, .wt-tabbar, .wt-theater-top-edge'
     const cancel = () => { if (timer) { clearTimeout(timer); timer = undefined } }
     const show = () => { cancel(); shown = true; setVisible(true) }
     const focused = () => !!document.activeElement?.closest(toolbar)
+    const hovered = () => Number.isFinite(lastX) && Number.isFinite(lastY) &&
+      !!document.elementFromPoint(lastX, lastY)?.closest(toolbar)
     const hideLater = () => {
       if (timer || focused()) return
       timer = setTimeout(() => {
         timer = undefined
-        if (focused()) return
+        if (focused() || hovered()) return
         shown = false; setVisible(false)
-      }, 850)
+      }, 180)
     }
     const move = (event: PointerEvent) => {
+      lastX = event.clientX
       lastY = event.clientY
       if (document.fullscreenElement) return
       const target = event.target instanceof Element ? event.target : null
-      if (lastY <= 36 || (shown && lastY <= 136) || target?.closest(toolbar)) show()
+      if ((!shown && lastY <= 36) || target?.closest(toolbar)) show()
       else hideLater()
     }
-    const focus = () => { if (focused()) show(); else if (lastY > 136) hideLater() }
+    const focus = () => { if (focused() || hovered()) show(); else hideLater() }
     const leave = () => { lastY = Number.POSITIVE_INFINITY; hideLater() }
     const fullscreen = () => {
       if (document.fullscreenElement) { cancel(); shown = false; setVisible(false) }

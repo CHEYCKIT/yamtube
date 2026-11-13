@@ -29,6 +29,12 @@ AppImage may require FUSE 2; `--appimage-extract-and-run` is an alternative on
 systems without it. Windows packages are initially unsigned; verify the source
 and download location. macOS downloads remain unavailable until signed builds exist.
 
+## 1.1.1
+
+In theater mode, moving below the visible header and tabs now hides them after
+just a short transition allowance. The invisible hold-open strip below the
+header is removed. The larger reveal area and access to search and menus remain.
+
 ## 1.1.0
 
 Signed-in **Playlists** now comes from your YouTube account. Create private
