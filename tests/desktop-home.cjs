@@ -40,4 +40,8 @@ module.exports = async ({app,page}) => {
   const firstShort=strip.locator('[data-video-id="hhhhhhhhhhh"] a[aria-label="Recommended Short 1"]').first()
   assert.equal(await firstShort.getAttribute('href'),'#/watch/hhhhhhhhhhh')
   console.log('PASS: Home contains For you, More to explore and one compact scrollable Shorts strip only')
+  await page.locator('a[href="#/liked"]:visible').first().click()
+  await page.getByRole('heading',{name:'Liked videos',exact:true}).waitFor()
+  await page.getByText('Connect your YouTube account to see your liked videos.',{exact:false}).waitFor()
+  console.log('PASS: Liked Videos sidebar route requests a YouTube account when signed out')
 }
