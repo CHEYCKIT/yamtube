@@ -25,6 +25,9 @@ import {
   Search as SearchIcon,
   UserRound,
   Volume2,
+  Minus,
+  Square,
+  Copy,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -263,6 +266,23 @@ function SearchBar() {
   )
 }
 
+function WindowControls() {
+  const [maximized, setMaximized] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    void window.api.getWindowState().then((state) => { if (!cancelled) setMaximized(state.maximized) }).catch(() => undefined)
+    const unsubscribe = window.api.onWindowState((state) => setMaximized(state.maximized))
+    return () => { cancelled = true; unsubscribe() }
+  }, [])
+  return <div className="wt-window-controls flex shrink-0 items-center" role="group" aria-label={t('Window controls')}>
+    <button type="button" onClick={() => void window.api.minimizeWindow()} aria-label={t('Minimize window')} title={t('Minimize window')} className="grid h-10 w-9 place-items-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-white"><Minus aria-hidden="true" className="h-4 w-4" /></button>
+    <button type="button" onClick={() => void window.api.toggleMaximizeWindow()} aria-label={t(maximized ? 'Restore window' : 'Maximize window')} title={t(maximized ? 'Restore window' : 'Maximize window')} className="grid h-10 w-9 place-items-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-white">
+      {maximized ? <Copy aria-hidden="true" className="h-3.5 w-3.5" /> : <Square aria-hidden="true" className="h-3.5 w-3.5" />}
+    </button>
+    <button type="button" onClick={() => void window.api.closeWindow()} aria-label={t('Close window')} title={t('Close window')} className="grid h-10 w-9 place-items-center rounded text-neutral-400 hover:bg-red-600 hover:text-white"><X aria-hidden="true" className="h-4 w-4" /></button>
+  </div>
+}
+
 function TopNav() {
   useLocale()
   const navigate = useNavigate()
@@ -289,14 +309,13 @@ function TopNav() {
     <>
       <header className="wt-topbar sticky top-0 z-40 grid h-[60px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-2 shadow-lg shadow-black/20 max-[680px]:fixed max-[680px]:inset-x-0 max-[680px]:top-0 max-[680px]:grid-cols-[1fr_auto]">
         <div className="flex min-w-0 items-center gap-1">
-          <Link
-            to="/"
-            className="flex h-10 min-w-0 items-center gap-2 rounded px-2 text-lg font-semibold text-neutral-100 hover:bg-neutral-800"
+          <div
+            className="wt-window-drag flex h-10 min-w-0 items-center gap-2 rounded px-2 text-lg font-semibold text-neutral-100"
             title="LokTube"
           >
             <BrandMark />
             <span className="truncate max-[680px]:hidden">LokTube</span>
-          </Link>
+          </div>
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -333,6 +352,7 @@ function TopNav() {
 
         <div className="flex justify-end gap-1">
           <ProfileMenu />
+          <WindowControls />
           <button
             type="button"
             onClick={() => setIsMobileSearchOpen((value) => !value)}

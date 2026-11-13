@@ -26,6 +26,7 @@ test('media, captions, account auth, attestation and explicit history sync survi
     'https://www.youtube.com/api/timedtext?v=jNQXAC9IVRw',
     'https://www.youtube.com/youtubei/v1/account/accounts_list',
     'https://www.youtube.com/youtubei/v1/browse',
+    'https://www.youtube.com/youtubei/v1/feedback',
     'https://www.youtube.com/youtubei/v1/att/get',
     'https://www.youtube.com/api/jnn/v1/GenerateIT',
     'https://www.youtube.com/api/stats/playback?cpn=test',
@@ -331,4 +332,80 @@ test('SABR control-only responses and mixed track payloads retain their protocol
   const result=await new SabrResponseProcessor(mixed).processChunk(concatenateChunks([mediaSegment(1,0,new Uint8Array([99]),140),mediaSegment(1,0)]))
   assert.deepEqual(result?.data,new Uint8Array([1,1,1]))
   assert.equal(mixed.streamInfo?.mediaHeader?.itag,137)
+})
+
+test('history preserves mixed renderer order instead of pinning Shorts or grouping video types', async () => {
+  const {parseYoutubeHistoryFeed}=await import('../src/main/youtubeHistoryFeed')
+  const regular=(id:string,title:string)=>({videoRenderer:{videoId:id,title:{simpleText:title},ownerText:{runs:[{text:'Creator'}]},thumbnail:{thumbnails:[]}}})
+  const short={shortsLockupViewModel:{onTap:{innertubeCommand:{reelWatchEndpoint:{videoId:'short000001'}}},overlayMetadata:{primaryText:{content:'Short'}}}}
+  const lockup={lockupViewModel:{contentId:'video000002',contentType:'LOCKUP_CONTENT_TYPE_VIDEO',metadata:{lockupMetadataViewModel:{title:{content:'Older video'}}}}}
+  const data={contents:{sectionListRenderer:{contents:[{itemSectionRenderer:{contents:[regular('video000001','Recent video'),{reelShelfRenderer:{items:[short]}},lockup,regular('video000003','Oldest video')]}}]}}}
+  assert.deepEqual(parseYoutubeHistoryFeed(data).items.map(item=>item.video.videoId),['video000001','short000001','video000002','video000003'])
+})
+
+test('history recognizes only removal feedback actions, across legacy and Shorts menus', async () => {
+  const {parseYoutubeHistoryFeed}=await import('../src/main/youtubeHistoryFeed')
+  const menu={menuRenderer:{items:[{menuServiceItemRenderer:{text:{simpleText:'Not interested'},serviceEndpoint:{feedbackEndpoint:{feedbackToken:'wrong-action'}}}}],topLevelButtons:[{buttonRenderer:{icon:{iconType:'CLOSE'},serviceEndpoint:{feedbackEndpoint:{feedbackToken:'remove-video'}}}}]}}
+  const command={innertubeCommand:{feedbackEndpoint:{feedbackToken:'remove-short'}}}
+  const item={title:{content:'Remove from watch history'},rendererContext:{commandContext:{onTap:command}}}
+  const listViewModel={listItems:[{listItemViewModel:item}]}
+  const sheetViewModel={content:{listViewModel}}
+  const sheet={innertubeCommand:{showSheetCommand:{panelLoadingStrategy:{inlineContent:{sheetViewModel}}}}}
+  const result=parseYoutubeHistoryFeed({contents:[
+    {videoRenderer:{videoId:'video000001',title:{simpleText:'Video'},menu}},
+    {shortsLockupViewModel:{onTap:{reelWatchEndpoint:{videoId:'short000001'}},overlayMetadata:{primaryText:{content:'Short'}},menuOnTap:sheet}},
+    {videoRenderer:{videoId:'video000002',title:{simpleText:'No action'},menu:{menuRenderer:{items:menu.menuRenderer.items}}}}
+  ]})
+  assert.deepEqual(result.items.map(item=>item.feedbackToken),['remove-video','remove-short',null])
+})
+
+test('history continuation follows the feed, not a Shorts shelf carousel, and ignores sidebars', async () => {
+  const {parseYoutubeHistoryFeed}=await import('../src/main/youtubeHistoryFeed')
+  const video={videoRenderer:{videoId:'video000001',title:{simpleText:'Feed video'}}}
+  const continuation=(token:string)=>({continuationItemRenderer:{continuationEndpoint:{continuationCommand:{token}}}})
+  const result=parseYoutubeHistoryFeed({contents:{sectionListRenderer:{contents:[video,{reelShelfRenderer:{items:[continuation('carousel')]}},continuation('next-feed')]}},sidebar:{videoRenderer:{videoId:'video000002',title:{simpleText:'Sidebar'}}}})
+  assert.equal(result.continuation,'next-feed')
+  assert.equal(result.items.length,1)
+  const next=parseYoutubeHistoryFeed({onResponseReceivedActions:[{appendContinuationItemsAction:{continuationItems:[video,continuation('next-page')]}}]})
+  assert.equal(next.items[0].video.title,'Feed video')
+  assert.equal(next.continuation,'next-page')
+})
+
+test('history deletion suppresses late playback writes and a new explicit watch can be recorded', async () => {
+  const context=tracker()
+  const token=context.tracking.register(context.source)
+  await context.tracking.progress({token,position:2,ended:false})
+  const removal=await context.tracking.suspendForHistoryRemoval(context.source.entry.videoId,'one')
+  const count=context.events.length
+  context.advance()
+  await context.tracking.progress({token,position:40,ended:true})
+  assert.equal(context.events.length,count)
+  removal.commit()
+  await context.tracking.progress({token,position:45,ended:true})
+  assert.equal(context.events.length,count)
+  const fresh=context.tracking.register(context.source)
+  await context.tracking.progress({token:fresh,position:1,ended:false})
+  assert.equal(context.events.filter(item=>item==='remote-add').length,2)
+})
+
+test('failed history deletion resumes tracking and waits for in-flight writes before removal', async () => {
+  const context=tracker()
+  let finish!:()=>void
+  let started!:()=>void
+  const entered=new Promise<void>(resolve=>{started=resolve})
+  const token=context.tracking.register({...context.source,remote:async()=>({addToWatchHistory:async()=>{started();await new Promise<void>(resolve=>{finish=resolve})},updateWatchTime:async()=>{context.events.push('updated')}})})
+  const progress=context.tracking.progress({token,position:1,ended:false})
+  await entered
+  let drained=false
+  const pending=context.tracking.suspendForHistoryRemoval(context.source.entry.videoId,'one').then(result=>{drained=true;return result})
+  await Promise.resolve()
+  assert.equal(drained,false)
+  finish()
+  await progress
+  const removal=await pending
+  assert.equal(context.events.includes('updated'),false)
+  removal.rollback()
+  context.advance()
+  await context.tracking.progress({token,position:31,ended:false})
+  assert.equal(context.events.includes('updated'),true)
 })

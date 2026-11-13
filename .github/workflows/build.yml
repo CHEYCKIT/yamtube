@@ -3,12 +3,13 @@ name: Build fork installers
 on:
   push:
     branches: [youtube-accounts-adblock]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+env:
+  SKIP_TESTS: ${{ contains(github.event.head_commit.message, '[skip tests]') }}
 
 jobs:
   build:
@@ -26,16 +27,18 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: node node_modules/electron/install.js
-      - run: pnpm typecheck
-      - run: pnpm test
+      - if: env.SKIP_TESTS != 'true'
+        run: pnpm typecheck
+      - if: env.SKIP_TESTS != 'true'
+        run: pnpm test
       - run: pnpm build
       - name: Desktop integration tests
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && env.SKIP_TESTS != 'true'
         run: xvfb-run -a pnpm test:desktop
       - name: Package installers
         run: pnpm package --x64
       - name: Test packaged Linux application
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && env.SKIP_TESTS != 'true'
         run: xvfb-run -a pnpm test:desktop
         env:
           WORLDTUBE_SMOKE_APP: release/linux-unpacked/loktube

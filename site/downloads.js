@@ -1,4 +1,4 @@
-const repository = 'CHEYCKIT/yamtube'
+const repository = 'lokal-music/loktube'
 const status = document.getElementById('release-status')
 const buttons = [...document.querySelectorAll('[data-platform]')]
 const command = document.getElementById('install-command')

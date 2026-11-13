@@ -1,13 +1,26 @@
 const { _electron: electron } = require('playwright')
 const assert = require('node:assert/strict')
-const { mkdtemp, writeFile, readFile, rm, readdir } = require('node:fs/promises')
+const { mkdtemp, writeFile, readFile, rm, readdir, mkdir } = require('node:fs/promises')
 const { join, resolve } = require('node:path')
 const { tmpdir } = require('node:os')
+const { createHash } = require('node:crypto')
+const historyFixture = require('./fixtures/history.cjs')
 
 ;(async () => {
   const directory = await mkdtemp(join(tmpdir(), 'yamtube-smoke-'))
   const cookies = join(directory, 'cookies.txt')
   await writeFile(cookies, '# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t9999999999\tSAPISID\tsynthetic-test-only\n.youtube.com\tTRUE\t/\tTRUE\t9999999999\tSID\tsynthetic-test-only\n')
+  const stamp=Date.now()
+  const user=(id,name)=>({id,name,hasPassword:false,passwordHash:null,passwordSalt:null,passwordIterations:null,createdAt:stamp,updatedAt:stamp})
+  const userProfile=(id,userId)=>({id,userId,name:'Fixture',color:'#2563eb',textColor:'#ffffff',avatarDataUrl:null,createdAt:stamp,updatedAt:stamp})
+  const entry=(videoId,title,age)=>({videoId,title,channelId:null,channelName:'Fixture',thumbnailUrl:null,watchedAt:stamp-age})
+  const accountKey='youtube:'+createHash('sha256').update('@worldtube-fixture').digest('hex')
+  const seed={version:1,users:[user('fixture-guest-user','Guest'),user('fixture-account-user','Fixture YouTube account')],profiles:[userProfile('fixture-guest-profile','fixture-guest-user'),userProfile('fixture-account-profile','fixture-account-user')],
+    session:{activeUserId:'fixture-guest-user',activeProfileIdByUser:{'fixture-guest-user':'fixture-guest-profile','fixture-account-user':'fixture-account-profile'}},
+    histories:{'fixture-guest-profile':[entry('video000001','Guest older video',2000),entry('short000001','Guest recent Short',1000)],'fixture-account-profile':[entry(historyFixture.ids.regular,'Remote history fixture',1000),entry(historyFixture.ids.short,'History Short fixture',2000),entry(historyFixture.ids.lockup,'History lockup fixture',3000)]},
+    subscriptions:{},savedPlaylists:{},savedVideos:{},searchHistories:{},settings:{youtubeLibraryOwners:{guest:'fixture-guest-user',[accountKey]:'fixture-account-user'}}}
+  await mkdir(join(directory,'worldtube'),{recursive:true})
+  await writeFile(join(directory,'worldtube','worldtube-data.json'),JSON.stringify(seed))
   const executablePath=process.env.LOKTUBE_SMOKE_APP || process.env.YAMTUBE_SMOKE_APP || process.env.WORLDTUBE_SMOKE_APP
   const app = await electron.launch({executablePath,args:['--no-sandbox','--disable-gpu',...(!executablePath?['.']:[])], cwd:process.cwd(),
     env:{...process.env, DISPLAY:process.env.DISPLAY || ':99', XDG_CONFIG_HOME:directory}, timeout:30_000})
@@ -26,12 +39,18 @@ const { tmpdir } = require('node:os')
     assert.equal(await page.evaluate(async()=>{try{await fetch('https://googleads.g.doubleclick.net/pagead/id');return false}catch{return true}}),true)
     assert.ok((await page.evaluate(()=>window.api.getProtection())).blocked>=1)
     console.log('PASS: desktop boot, guest library, account UI and real request blocking')
+    await require('./desktop-window.cjs')({app,page})
+    await require('./desktop-history.cjs').guest({page})
 
     // Synthetic server fixtures exercise the real IPC, cookie parser,
     // InnerTube parser and library selection without a Google credential.
-    await app.evaluate(({net,dialog},cookies)=>{
+    await app.evaluate(({net,dialog},{cookies,historyPages,historyTokens})=>{
       globalThis.__smokeOriginalFetch=net.fetch
       globalThis.__smokeAuthenticated=false
+      globalThis.__historyRemoved=[]
+      globalThis.__historyFeedbackFails=false
+      globalThis.__historyFeedbackRequests=0
+      globalThis.__historyFeedbackAuthenticated=false
       dialog.showOpenDialog=async()=>({canceled:false,filePaths:[cookies]})
       net.fetch=async(input,init)=>{
         const request=new Request(input,init)
@@ -47,8 +66,26 @@ const { tmpdir } = require('node:os')
             channelHandle:{simpleText:'@worldtube-fixture'},accountByline:{simpleText:'fixture@example.test'},
             serviceEndpoint:{selectActiveIdentityEndpoint:{supportedTokens:[]}}}}]}}]}}]})
         }
+        if(url.pathname==='/youtubei/v1/feedback') {
+          globalThis.__historyFeedbackRequests++
+          globalThis.__historyFeedbackAuthenticated=request.headers.get('cookie')?.includes('SAPISID=synthetic-test-only') && request.headers.get('authorization')?.startsWith('SAPISIDHASH ')
+          const body=JSON.parse(await request.text())
+          const id=historyTokens.find(([,token])=>token===body.feedbackTokens?.[0])?.[0]
+          const processed=!!id && !globalThis.__historyFeedbackFails
+          if(processed) globalThis.__historyRemoved.push(id)
+          return json({feedbackResponses:[{isProcessed:processed}]})
+        }
         if(url.pathname==='/youtubei/v1/browse') {
           const body=JSON.parse(await request.text())
+          if(body.continuation==='fixture-history-next') return json(historyPages.next)
+          if(body.browseId==='FEhistory') {
+            const data=structuredClone(historyPages.initial)
+            data.contents.sectionListRenderer.contents[0].itemSectionRenderer.contents=data.contents.sectionListRenderer.contents[0].itemSectionRenderer.contents.filter(item=>{
+              const serialized=JSON.stringify(item)
+              return !globalThis.__historyRemoved.some(id=>serialized.includes(id))
+            })
+            return json(data)
+          }
           const contents=['FEhistory','FEwhat_to_watch'].includes(body.browseId) ? [video,{videoRenderer:{videoId:'invalid0000',thumbnail:{thumbnails:[null]}}}] : body.browseId==='FEchannels' ? [{channelRenderer:{channelId:'UCfixture',title:{simpleText:'Fixture subscription'},thumbnail:{thumbnails:[]}}}] : []
           return json({contents:{sectionListRenderer:{contents:[{itemSectionRenderer:{contents}}]}}})
         }
@@ -58,7 +95,7 @@ const { tmpdir } = require('node:os')
         if(url.hostname==='easylist.to') return globalThis.__smokeOriginalFetch(input,init)
         return json({})
       }
-    }, cookies)
+    }, {cookies,historyPages:{initial:historyFixture.page(),next:historyFixture.page([],true)},historyTokens:Object.values(historyFixture.ids).map(id=>[id,historyFixture.feedback(id)])})
     await Promise.all([
       page.waitForEvent('domcontentloaded',{timeout:15_000}),
       page.getByRole('button',{name:'Import YouTube cookies',exact:true}).click({noWaitAfter:true})
@@ -78,6 +115,7 @@ const { tmpdir } = require('node:os')
     assert.equal((await page.evaluate(()=>window.api.getHomeFeed())).ok,true)
     await page.screenshot({path:'.cache/account-connected.png',fullPage:true})
     console.log('PASS: cookie import, authenticated headers, account identity, remote history/subscriptions and secret-free library')
+    await require('./desktop-history.cjs').account({app,page,profile})
     await require('./desktop-features.cjs')({app,page,profile})
 
     // Multi-account cookies need a verified active header, never a guessed
@@ -127,6 +165,9 @@ const { tmpdir } = require('node:os')
     await page.evaluate(()=>window.api.importYoutubeCookies())
     const secondProfile=await page.evaluate(()=>window.api.getSessionState())
     assert.notEqual(secondProfile.activeProfileId,firstProfile)
+    const requestsBefore=await app.evaluate(()=>globalThis.__historyFeedbackRequests)
+    await assert.rejects(page.evaluate(id=>window.api.removeYoutubeHistoryVideo(id),history.videos[0].historyId),/expired|changed/)
+    assert.equal(await app.evaluate(()=>globalThis.__historyFeedbackRequests),requestsBefore,'stale history cannot mutate another account')
     await page.evaluate(()=>window.api.signOutYoutube())
     assert.equal((await page.evaluate(()=>window.api.getYoutubeAccount())).signedIn,false)
     assert.equal((await page.evaluate(()=>window.api.getSessionState())).activeUser.name,'Guest')

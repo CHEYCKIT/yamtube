@@ -57,7 +57,7 @@ function UpdateControls({ state: provided }: { state?: UpdateState }) {
       {state.status === 'downloading' && <><p role="status" className="text-sm">{t('Downloading: {percent}%', { percent: Math.round(state.percent ?? 0) })}</p>
         <progress value={state.percent ?? 0} max={100} className="h-1 w-full accent-[var(--wt-accent)]" /></>}
       {state.status === 'downloaded' && <p className="text-sm">{t('Update ready to install')}</p>}
-      {state.version && <a href="https://github.com/CHEYCKIT/yamtube/releases" target="_blank" rel="noreferrer" className="wt-link text-sm">{t('Release notes')}</a>}
+      {state.version && <a href="https://github.com/lokal-music/loktube/releases" target="_blank" rel="noreferrer" className="wt-link text-sm">{t('Release notes')}</a>}
       {(state.error || requestError) && <p role="alert" className="break-words text-sm text-red-400">{requestError ?? state.error}</p>}
       <div className="flex flex-wrap gap-2">
         {['idle', 'current', 'error'].includes(state.status) && <button type="button" className={buttonClass} onClick={() => void request(window.api.checkForUpdates)}>{t('Check for updates')}</button>}

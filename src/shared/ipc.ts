@@ -1,6 +1,10 @@
 // Shared between main and renderer so both sides agree on channel names and payload shapes.
 
 export const IPC_CHANNELS = {
+  WINDOW_STATE: 'window:state',
+  WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_MAXIMIZE: 'window:maximize',
+  WINDOW_CLOSE: 'window:close',
   DIAGNOSTICS_GET: 'diagnostics:get',
   DIAGNOSTICS_EXPORT: 'diagnostics:export',
   NAVIGATE_HISTORY: 'navigation:history',
@@ -14,6 +18,7 @@ export const IPC_CHANNELS = {
   YOUTUBE_SIGN_OUT: 'youtube:sign-out',
   YOUTUBE_HISTORY: 'youtube:history',
   YOUTUBE_HISTORY_MORE: 'youtube:history-more',
+  YOUTUBE_HISTORY_REMOVE: 'youtube:history-remove',
   PLAYBACK_PROGRESS: 'youtube:playback-progress',
   PROTECTION_STATE: 'protection:state',
   PROTECTION_UPDATE: 'protection:update',
@@ -47,6 +52,7 @@ export const IPC_CHANNELS = {
   PROFILES_REMOVE: 'profiles:remove',
   HISTORY_LIST: 'history:list',
   HISTORY_CLEAR: 'history:clear',
+  HISTORY_REMOVE: 'history:remove',
   SAVED_PLAYLISTS_LIST: 'saved:playlists:list',
   SAVED_PLAYLISTS_CREATE: 'saved:playlists:create',
   SAVED_VIDEOS_LIST: 'saved:videos:list',
@@ -88,9 +94,14 @@ export interface PlaybackProgress {
 }
 
 export interface YoutubeHistoryPage {
-  videos: SearchResultItem[]
+  videos: YoutubeHistoryVideo[]
   continuation: string | null
   paused: boolean
+}
+
+export interface YoutubeHistoryVideo extends SearchResultItem {
+  historyId: string
+  canRemove: boolean
 }
 
 export interface UpdateState {

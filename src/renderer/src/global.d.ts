@@ -29,6 +29,11 @@ import type {
 declare global {
   interface Window {
     api: {
+      getWindowState: () => Promise<{ maximized: boolean }>
+      minimizeWindow: () => Promise<void>
+      toggleMaximizeWindow: () => Promise<void>
+      closeWindow: () => Promise<void>
+      onWindowState: (listener: (state: { maximized: boolean }) => void) => () => void
       getDiagnostics: () => Promise<{ path: string; contents: string }>
       exportDiagnostics: () => Promise<string | null>
       onHistoryNavigation: (listener: (direction: 'back' | 'forward') => void) => () => void
@@ -43,6 +48,8 @@ declare global {
       onYoutubeAccount: (listener: (state: import('../../shared/ipc').YoutubeAccountState) => void) => () => void
       getYoutubeHistory: () => Promise<import('../../shared/ipc').YoutubeHistoryPage>
       getMoreYoutubeHistory: (continuation: string) => Promise<import('../../shared/ipc').YoutubeHistoryPage>
+      removeYoutubeHistoryVideo: (historyId: string) => Promise<void>
+      removeLocalHistoryVideo: (videoId: string, profileId: string) => Promise<void>
       reportPlaybackProgress: (progress: import('../../shared/ipc').PlaybackProgress) => Promise<void>
       getProtection: () => Promise<import('../../shared/ipc').ProtectionState>
       updateProtection: () => Promise<import('../../shared/ipc').ProtectionState>

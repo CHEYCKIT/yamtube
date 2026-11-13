@@ -66,7 +66,7 @@ without `isSelected`. For multiple identities, a selected entry or YouTube's
 active-account menu header is required; ambiguous responses are rejected.
 A failed import leaves the existing account and local library intact. Diagnostic
 logs record endpoint names and identity counts, never the account response or cookies.
-A separate browser sign-in normally contains one Google identity. In this beta, connect the desired primary account; there is no
+A separate browser sign-in normally contains one Google identity. Connect the desired primary account; there is no
 in-app Brand Account selector. Sessions can expire and require reconnecting.
 
 ## Blocking and playback
@@ -110,7 +110,7 @@ Sponsor segments embedded in a creator's video are not automatically skipped.
 The build environment's outbound proxy denies youtube.com. Live Google login,
 remote history persistence, recommendation changes and real video playback
 could not be verified here. These require manual validation on a machine
-with YouTube access; the release is marked beta for this reason.
+with YouTube access. The release notes distinguish fixture coverage from live-account validation.
 
 ## Beta 2 playback and controls
 
@@ -193,3 +193,30 @@ parts. A desktop regression serves generated fragmented MP4 audio/video through
 the real SABR/UMP path, honors the client's buffered-segment claims and verifies
 continuous buffered ranges, playback across several five-second boundaries and
 ArrowLeft rewinds. It uses no Google credentials or YouTube media.
+
+## 1.0 history management and window chrome
+
+Account history is read in response order instead of through the video memo,
+which groups renderer classes. Legacy videos, modern lockups and Shorts are
+flattened into the same ordered list. Feed continuations are kept separate from
+Shorts carousel continuations.
+
+**Remove** on a signed-in history entry uses the removal feedback action
+provided by YouTube for that entry. Only an acknowledged `isProcessed` response
+removes the row and local cache entry; errors retain the row. Opaque removal IDs
+are scoped to the originating account revision and profile, expire after 30
+minutes, and never expose feedback tokens to the renderer. Guest deletion affects
+only the current local profile. Pending playback history writes are drained and
+suppressed during deletion, then invalidated after success so later progress
+cannot immediately re-add the removed watch. An explicit new playback can create
+a new watch. A failed removal resumes tracking.
+
+The app uses an integrated draggable header and window controls. Theater mode
+hides that header along with search and tabs. The sidebar starts at the window's
+top edge with no reserved header gap; the two hover overlays can overlap at the
+corner. Interactive controls are excluded from the drag region, which is also
+disabled during video fullscreen. Window actions apply only to their sender's
+window. Existing storage/keyring/installer IDs stay unchanged.
+
+1.0.0 is a stable release. Both stable update metadata and aliases for older beta
+clients are published so previous installations can discover this upgrade.

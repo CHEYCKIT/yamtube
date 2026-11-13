@@ -145,6 +145,21 @@ export const english: Record<string, string> = {
 }
 
 const spanish: Record<string, string> = {
+  'Window controls': 'Controles de la ventana',
+  'Minimize window': 'Minimizar ventana',
+  'Maximize window': 'Maximizar ventana',
+  'Restore window': 'Restaurar ventana',
+  'Close window': 'Cerrar ventana',
+  'Remove "{title}" from history': 'Quitar "{title}" del historial',
+  'Removing…': 'Quitando…',
+  'Remove from YouTube watch history': 'Quitar del historial de YouTube',
+  'Remove from local history': 'Quitar del historial local',
+  'Removed from YouTube watch history.': 'Se quitó del historial de YouTube.',
+  'Removed from local history.': 'Se quitó del historial local.',
+  'YouTube watch history': 'Historial de reproducciones de YouTube',
+  'From {name}’s YouTube account. Removing a video here also removes it from YouTube watch history.': 'De la cuenta de YouTube de {name}. Quitar un video aquí también lo quita del historial de YouTube.',
+  'YouTube did not provide a removal action. Refresh history or remove this video on YouTube.': 'YouTube no proporcionó una acción para quitar este video. Actualiza el historial o quítalo en YouTube.',
+  'No videos in your YouTube watch history.': 'No hay videos en tu historial de YouTube.',
   'Theater mode': 'Modo cine',
   'Exit theater mode': 'Salir del modo cine',
   'Show search and tabs': 'Mostrar búsqueda y pestañas',

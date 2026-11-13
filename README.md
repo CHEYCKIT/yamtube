@@ -1,21 +1,21 @@
 # LokTube
 
-A fork of WorldTube with browser sign-in, account recommendations and
+A desktop YouTube client with browser sign-in, account recommendations and
 history, app-wide ad protection, independent tabs and persistent players. Not affiliated with Google or YouTube.
 
 [Spanish development notes](README.es.md)
 
 ## Demo
 
-Watch the short [WorldTube demo on YouTube](https://youtu.be/ccULEv3KD28).
+Watch the short [LokTube demo on YouTube](https://youtu.be/ccULEv3KD28).
 
 ## Installation
 
-Download installers from the [LokTube download page](https://github.com/CHEYCKIT/yamtube/releases)
-or [GitHub Releases](https://github.com/CHEYCKIT/yamtube/releases).
+Download installers from the [LokTube download page](https://github.com/lokal-music/loktube/releases)
+or [GitHub Releases](https://github.com/lokal-music/loktube/releases).
 Downloads become available only after a release is successfully published.
 
-Initial public release: [v0.0.3](https://github.com/CHEYCKIT/yamtube/releases/tag/v0.0.3),
+Initial public release: [v0.0.3](https://github.com/lokal-music/loktube/releases/tag/v0.0.3),
 with Windows x64 and Linux x64 installers plus corresponding source.
 
 The release configuration prepares Windows NSIS x64 and Linux AppImage/DEB x64.
@@ -28,6 +28,22 @@ then run it. Debian/Ubuntu users can instead install the `.deb` from Releases.
 AppImage may require FUSE 2; `--appimage-extract-and-run` is an alternative on
 systems without it. Windows packages are initially unsigned; verify the source
 and download location. macOS downloads remain unavailable until signed builds exist.
+
+## 1.0.0
+
+Shorts appear in the normal history order instead of being grouped above
+other videos. Each entry has **Remove**: signed-in users remove it from their
+YouTube watch history and local cache; guests remove it from local history.
+Failed account removals stay visible for retry. Ongoing playback cannot
+immediately recreate a removed watch.
+
+Theater mode reveals the integrated window header—including minimize,
+maximize/restore and close—at the top edge. The sidebar fills the entire left
+edge. Both overlays can overlap at the corner without reserving space for one
+another. The app remains draggable and resizable in normal mode.
+
+1.0.0 is published as a stable release. Existing account sessions, libraries
+and preferences are retained on upgrade from the earlier beta releases.
 
 ## Beta 5
 
@@ -99,7 +115,7 @@ fallback is not implemented or configured in LokTube yet. External YouTube
 changes can require a compatibility update.
 
 See [YouTube accounts and protection](docs/YOUTUBE_ACCOUNTS.md) for sign-in steps,
-security/storage behavior, test coverage and beta limitations. The desktop shell
+security/storage behavior, test coverage and current limitations. The desktop shell
 still uses Electron/Chromium; blocking does not use Chrome extensions.
 
 ## Playback Shortcuts
@@ -114,7 +130,7 @@ Shortcuts respect text fields and act on the player represented in the interface
 
 ## Local Data
 
-`worldtube-data.json` is stored in Electron's user-data directory. Account exposes
+The existing local data file is stored in Electron's user-data directory. Account exposes
 its path, data totals and full-data export/import. Local library contents
 are not uploaded to a LokTube server or GitHub.
 
@@ -161,7 +177,7 @@ Earlier technical documents contain Spanish development history.
 
 ## License
 
-WorldTube's own code is licensed under [AGPL-3.0-only](LICENSE).
+LokTube's own code is licensed under [AGPL-3.0-only](LICENSE).
 Copyright (c) 2026 Juanca Ribero. Third-party notices and official local font
 origins are recorded in [Third-Party Notices](THIRD_PARTY_NOTICES.md).
 The actionable technical review is closed in

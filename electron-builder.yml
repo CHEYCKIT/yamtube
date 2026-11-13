@@ -29,8 +29,8 @@ extraResources:
     to: filters
 publish:
   provider: github
-  owner: CHEYCKIT
-  repo: yamtube
+  owner: lokal-music
+  repo: loktube
   releaseType: draft
 linux:
   executableName: loktube

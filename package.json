@@ -2,14 +2,14 @@
   "name": "worldtube",
   "private": true,
   "license": "AGPL-3.0-only",
-  "version": "0.1.0-beta.5",
+  "version": "1.0.0",
   "description": "A YouTube desktop client with browser sign-in, account history and app-wide ad protection.",
   "author": "riberojuanca",
-  "homepage": "https://github.com/CHEYCKIT/yamtube",
+  "homepage": "https://github.com/lokal-music/loktube",
   "desktopName": "com.riberojuanca.worldtube.desktop",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/CHEYCKIT/yamtube.git"
+    "url": "git+https://github.com/lokal-music/loktube.git"
   },
   "packageManager": "pnpm@12.4.1",
   "main": "./out/main/index.js",

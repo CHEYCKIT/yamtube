@@ -26,7 +26,7 @@ import type {
   VideoInfoRequest,
   VideoInfoResponse
 } from '../shared/ipc'
-import { fetchVideoInfo, getChannelInfo, getCollectionVideos, getHomeDiscovery, getSearchSuggestions, getSubscriptionsFeed, getVideoPreview, searchVideos, playbackHistory, getYoutubeHistory, getYoutubeSubscriptionsFeed } from './youtube'
+import { fetchVideoInfo, getChannelInfo, getCollectionVideos, getHomeDiscovery, getSearchSuggestions, getSubscriptionsFeed, getVideoPreview, searchVideos, playbackHistory, getYoutubeSubscriptionsFeed } from './youtube'
 import { initializeProtection, protectionState, updateProtection } from './adBlock'
 import { initializeYoutubeAccount, youtubeAccountState, connectYoutubeAccount, disconnectYoutubeAccount, hasYoutubeAccount, activateCurrentLibrary } from './youtubeAccount'
 import { signInWithBrowser, cancelBrowserLogin, removeAbandonedLoginProfiles, getSignInBrowsers, selectSignInBrowser, addSignInBrowser } from './browserLogin'
@@ -34,6 +34,7 @@ import { parseYoutubeCookies } from './youtubeCookies'
 import { getChannelPage } from './channelBrowse'
 import type { ChannelPageRequest, ChannelPageResponse } from '../shared/ipc'
 import { clearHistory, getHistory } from './historyStore'
+import { getYoutubeHistory, removeYoutubeHistoryVideo, removeLocalHistoryVideo } from './youtubeHistory'
 import {
   createLocalUser,
   getAppPreferences,
@@ -95,6 +96,19 @@ function changeAccount<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 ipcMain.handle(IPC_CHANNELS.YOUTUBE_ACCOUNT_STATE, () => youtubeAccountState())
+function senderWindow(event: Electron.IpcMainInvokeEvent): BrowserWindow {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  if (!window || window.isDestroyed()) throw new Error('No app window')
+  return window
+}
+ipcMain.handle(IPC_CHANNELS.WINDOW_STATE, (event) => ({ maximized: senderWindow(event).isMaximized() }))
+ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, (event) => senderWindow(event).minimize())
+ipcMain.handle(IPC_CHANNELS.WINDOW_MAXIMIZE, (event) => {
+  const window = senderWindow(event)
+  if (window.isMaximized()) window.unmaximize()
+  else window.maximize()
+})
+ipcMain.handle(IPC_CHANNELS.WINDOW_CLOSE, (event) => senderWindow(event).close())
 ipcMain.handle(IPC_CHANNELS.YOUTUBE_SIGN_IN, (_event, browserId?: string) => changeAccount(async () => {
   return connectYoutubeAccount(await signInWithBrowser(browserId))
 }))
@@ -120,6 +134,8 @@ ipcMain.handle(IPC_CHANNELS.YOUTUBE_IMPORT_COOKIES, (event) => changeAccount(asy
 ipcMain.handle(IPC_CHANNELS.PLAYBACK_PROGRESS, (_event, progress: import('../shared/ipc').PlaybackProgress) => playbackHistory.progress(progress))
 ipcMain.handle(IPC_CHANNELS.YOUTUBE_HISTORY, () => getYoutubeHistory())
 ipcMain.handle(IPC_CHANNELS.YOUTUBE_HISTORY_MORE, (_event, continuation: string) => getYoutubeHistory(continuation))
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_HISTORY_REMOVE, (_event, id: string) => removeYoutubeHistoryVideo(id))
+ipcMain.handle(IPC_CHANNELS.HISTORY_REMOVE, (_event, videoId: string, profileId: string) => removeLocalHistoryVideo(videoId, profileId))
 ipcMain.handle(IPC_CHANNELS.PROTECTION_STATE, () => protectionState())
 ipcMain.handle(IPC_CHANNELS.PROTECTION_UPDATE, () => updateProtection())
 ipcMain.handle(IPC_CHANNELS.DIAGNOSTICS_GET, () => getDiagnostics())
@@ -144,6 +160,7 @@ function createWindow(): void {
   const icon = app.isPackaged ? join(process.resourcesPath, 'icon.png') : join(app.getAppPath(), 'resources/icon.png')
   const mainWindow = new BrowserWindow({
     title: 'LokTube',
+    frame: false,
     icon,
     width: 1280,
     height: 800,
@@ -160,6 +177,9 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
+  const windowState = () => mainWindow.webContents.send(IPC_CHANNELS.WINDOW_STATE, { maximized: mainWindow.isMaximized() })
+  mainWindow.on('maximize', windowState)
+  mainWindow.on('unmaximize', windowState)
   mainWindow.on('app-command', (_event, command) => {
     if (command === 'browser-backward' || command === 'browser-back') mainWindow.webContents.send(IPC_CHANNELS.NAVIGATE_HISTORY, 'back')
     else if (command === 'browser-forward') mainWindow.webContents.send(IPC_CHANNELS.NAVIGATE_HISTORY, 'forward')

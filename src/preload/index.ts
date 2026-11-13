@@ -33,6 +33,15 @@ import type {
 } from '../shared/ipc'
 
 const api = {
+  getWindowState: (): Promise<{ maximized: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_STATE),
+  minimizeWindow: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MINIMIZE),
+  toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MAXIMIZE),
+  closeWindow: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_CLOSE),
+  onWindowState: (listener: (state: { maximized: boolean }) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: { maximized: boolean }) => listener(state)
+    ipcRenderer.on(IPC_CHANNELS.WINDOW_STATE, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.WINDOW_STATE, handler)
+  },
   getDiagnostics: (): Promise<{ path: string; contents: string }> => ipcRenderer.invoke(IPC_CHANNELS.DIAGNOSTICS_GET),
   exportDiagnostics: (): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.DIAGNOSTICS_EXPORT),
   onHistoryNavigation: (listener: (direction: 'back' | 'forward') => void): (() => void) => {
@@ -55,6 +64,8 @@ const api = {
   },
   getYoutubeHistory: (): Promise<import('../shared/ipc').YoutubeHistoryPage> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_HISTORY),
   getMoreYoutubeHistory: (continuation: string): Promise<import('../shared/ipc').YoutubeHistoryPage> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_HISTORY_MORE, continuation),
+  removeYoutubeHistoryVideo: (historyId: string): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_HISTORY_REMOVE, historyId),
+  removeLocalHistoryVideo: (videoId: string, profileId: string): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.HISTORY_REMOVE, videoId, profileId),
   reportPlaybackProgress: (progress: import('../shared/ipc').PlaybackProgress): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.PLAYBACK_PROGRESS, progress),
   getProtection: (): Promise<import('../shared/ipc').ProtectionState> => ipcRenderer.invoke(IPC_CHANNELS.PROTECTION_STATE),
   updateProtection: (): Promise<import('../shared/ipc').ProtectionState> => ipcRenderer.invoke(IPC_CHANNELS.PROTECTION_UPDATE),

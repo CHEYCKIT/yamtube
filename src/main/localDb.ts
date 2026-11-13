@@ -635,6 +635,13 @@ export async function clearActiveHistory(): Promise<void> {
   await persistDb(db)
 }
 
+export async function removeProfileHistoryEntry(profileId: string, videoId: string): Promise<void> {
+  const db = await loadDb()
+  if (!db.profiles.some((profile) => profile.id === profileId)) return
+  db.histories[profileId] = (db.histories[profileId] ?? []).filter((entry) => entry.videoId !== videoId)
+  await persistDb(db)
+}
+
 export async function listActiveSavedPlaylists(library: LibraryKind = 'video'): Promise<SavedPlaylist[]> {
   const db = await loadDb()
   const profile = requireActiveProfile(db)

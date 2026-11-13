@@ -1011,26 +1011,6 @@ export const playbackHistory = new PlaybackHistory({
   syncFailed: reportHistorySyncFailure
 })
 
-// Continuations are opaque tokens scoped to the current account revision.
-const historyPages = new Map<string, { revision: number; page: Awaited<ReturnType<Innertube['getHistory']>> }>()
-export async function getYoutubeHistory(continuation?: string): Promise<import('../shared/ipc').YoutubeHistoryPage> {
-  if (!hasYoutubeAccount()) throw new Error('Sign in to YouTube to view account history')
-  const revision = accountRevision()
-  const previous = continuation ? historyPages.get(continuation) : null
-  if (continuation && (!previous || previous.revision !== revision)) throw new Error('History page expired. Reload history.')
-  const page = previous ? await previous.page.getContinuation() : await (await getClient()).getHistory()
-  if (revision !== accountRevision()) throw new Error('Your YouTube account changed. Reload history.')
-  if (continuation) historyPages.delete(continuation)
-  let next: string | null = null
-  if (page.has_continuation) {
-    next = crypto.randomUUID()
-    historyPages.set(next, { revision, page })
-    while (historyPages.size > 20) historyPages.delete(historyPages.keys().next().value!)
-  }
-  return { videos: mapSearchResultNodes(page.videos), continuation: next,
-    paused: page.feed_actions?.contents.some((node) => node instanceof YTNodes.Button && node.icon_type === 'PLAY_OUTLINED') ?? false }
-}
-
 export async function getYoutubeSubscriptionsFeed(): Promise<SearchResultItem[]> {
   return mapSearchResultNodes((await (await getClient()).getSubscriptionsFeed()).videos)
 }
