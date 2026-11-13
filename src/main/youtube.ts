@@ -919,7 +919,10 @@ async function fetchVideoInfoUncached(videoId: string): Promise<VideoInfoResult>
   const loadBasicInfo = async (client: Innertube) => {
     // A PO token and its visitorData belong to the same visitor. Never
     // overwrite the separate account browsing client with this per-video state.
-    client.session.context.client.visitorData = visitorData
+    // BotGuard's visitor is anonymous. Preserve the signed-in client's
+    // visitor context instead of replacing it with an unrelated anonymous
+    // identity; the PoToken itself remains bound to this video ID.
+    if (client === anonymousPlayback) client.session.context.client.visitorData = visitorData
     client.session.po_token = poToken
     if (client.session.player) client.session.player.po_token = poToken
     const result = await client.getBasicInfo(videoId, { po_token: poToken })
