@@ -5,23 +5,32 @@ You can also browse as a guest without creating anything.
 
 ## Connecting an account
 
-1. Install Firefox on the same computer.
-2. Open **Account & privacy → Sign in with Firefox**.
-3. Sign in with Google on youtube.com in the Firefox window. Complete any
-   Google verification, and make sure YouTube shows your account avatar.
-4. Close that Firefox window. The app imports and verifies its YouTube
-   session, then reloads its tabs under your account.
+1. Install Zen, Firefox, LibreWolf, Waterfox or Floorp on the same computer.
+2. Open **Account & privacy**. The **Sign-in browser** dropdown lists detected
+   installations; Zen is preferred initially when available. Your selection is saved.
+3. Click **Sign in with [browser]**, then sign in with Google on youtube.com
+   in the opened window. Complete any Google verification, and make sure
+   YouTube shows your account avatar.
+4. Close that sign-in window. The app imports and verifies its YouTube session,
+   then reloads its tabs under your account.
 
-The app opens a separate, ordinary temporary Firefox profile. It does not
+The app opens a separate, ordinary temporary browser profile. It does not
 use WebDriver, a remote debugging port, an embedded Google login, or your
 existing browser profile. No Google password is entered into YamTube.
-If Firefox is installed at a custom path, choose its executable when asked.
+Windows detection covers standard/per-user installation directories and registered
+browser commands. macOS application bundles and Linux PATH/common locations
+are also checked. **Refresh browsers** detects newly installed browsers.
+**Add portable browser…** is a one-time fallback for portable/custom installs;
+ordinary sign-in never opens an executable picker. The selection and custom
+paths are saved separately from library backups and contain no credentials.
 Snap/Flatpak installations may restrict access to the temporary profile;
-use a native Firefox installation or the cookie-file option in that case.
+use a native installation or the cookie-file option in that case.
 
-**Import YouTube cookies.txt** accepts a Netscape cookie export from an
-existing signed-in browser. Only cookies valid for www.youtube.com are
-accepted. The export contains session credentials: delete it after import.
+**Import YouTube cookies** accepts Netscape cookies.txt or Cookie-Editor JSON
+(array or a `cookies` wrapper) from an existing signed-in browser, including
+Zen, Chrome and Edge. Open youtube.com and choose the desired account before
+exporting. Only cookies valid for www.youtube.com are accepted; expired cookies
+are dropped. The export contains session credentials: delete it after import.
 This is session-based sign-in, not Google's public OAuth/Data API (which
 cannot provide personalized home recommendations or write watch history).
 
@@ -51,9 +60,13 @@ abandoned profiles are removed on next startup.
 - History sync errors appear in Account, Home and History. A local watch is
   retained on sync failure; remote progress is retried during playback.
 
-Accounts with multiple Google identities/channels use the account YouTube
-reports as selected. A separate Firefox sign-in normally contains one Google
-identity. In this beta, connect the desired primary account; there is no
+Account verification reads authenticated account endpoints directly rather than
+relying on an optional parser flag. A single enabled identity is accepted even
+without `isSelected`. For multiple identities, a selected entry or YouTube's
+active-account menu header is required; ambiguous responses are rejected.
+A failed import leaves the existing account and local library intact. Diagnostic
+logs record endpoint names and identity counts, never the account response or cookies.
+A separate browser sign-in normally contains one Google identity. In this beta, connect the desired primary account; there is no
 in-app Brand Account selector. Sessions can expire and require reconnecting.
 
 ## Blocking and playback
@@ -81,15 +94,18 @@ Sponsor segments embedded in a creator's video are not automatically skipped.
 ## Validation
 
 - `pnpm test`: production-list blocking/allow rules, credential scoping,
-  Netscape imports, playback deduplication/throttling, account races, retries
-  and guest behavior.
+  Netscape/JSON imports, single and multiple account response layouts, ambiguous
+  identity rejection, browser discovery, playback deduplication/throttling,
+  account races, retries and guest behavior.
 - `pnpm typecheck` and `pnpm build`.
 - On Linux with a display: `DISPLAY=:99 pnpm test:desktop`. This starts the real
   Electron app, tests actual request blocking, imports a synthetic cookie jar
   through the real IPC/InnerTube parser, checks account-isolated libraries,
   authenticated history/subscriptions, secret-free storage and sign-out.
   Optional `WORLDTUBE_SMOKE_FIREFOX=/path/to/firefox` exercises native browser
-  launch/cancellation. It never uses a real Google credential.
+  selection persistence and launch/cancellation; `YAMTUBE_SMOKE_BROWSER` and
+  `YAMTUBE_SMOKE_BROWSER_NAME` can test Zen or another supported browser.
+  It never uses a real Google credential.
 
 The build environment's outbound proxy denies youtube.com. Live Google login,
 remote history persistence, recommendation changes and real video playback

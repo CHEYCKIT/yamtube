@@ -43,7 +43,7 @@ const { tmpdir } = require('node:os')
         if(url.pathname==='/youtubei/v1/account/accounts_list') {
           globalThis.__smokeAuthenticated=request.headers.get('cookie')?.includes('SAPISID=synthetic-test-only') && request.headers.get('authorization')?.startsWith('SAPISIDHASH ')
           return json({actions:[{accountSectionListRenderer:{contents:[{accountItemSectionRenderer:{contents:[{accountItem:{
-            accountName:{simpleText:'Fixture YouTube account'},isSelected:true,hasChannel:true,
+            accountName:{simpleText:'Fixture YouTube account'},hasChannel:true,
             channelHandle:{simpleText:'@worldtube-fixture'},accountByline:{simpleText:'fixture@example.test'},
             serviceEndpoint:{selectActiveIdentityEndpoint:{supportedTokens:[]}}}}]}}]}}]})
         }
@@ -61,7 +61,7 @@ const { tmpdir } = require('node:os')
     }, cookies)
     await Promise.all([
       page.waitForEvent('domcontentloaded',{timeout:15_000}),
-      page.getByRole('button',{name:'Import YouTube cookies.txt',exact:true}).click({noWaitAfter:true})
+      page.getByRole('button',{name:'Import YouTube cookies',exact:true}).click({noWaitAfter:true})
     ])
     await page.getByText('Connected to your YouTube account',{exact:true}).waitFor({timeout:15_000})
     assert.equal((await page.evaluate(()=>window.api.getYoutubeAccount())).name,'Fixture YouTube account')
@@ -80,8 +80,39 @@ const { tmpdir } = require('node:os')
     console.log('PASS: cookie import, authenticated headers, account identity, remote history/subscriptions and secret-free library')
     await require('./desktop-features.cjs')({app,page,profile})
 
+    // Multi-account cookies need a verified active header, never a guessed
+    // first account. A rejected import must leave the prior session intact.
+    await app.evaluate(({net})=>{
+      globalThis.__smokeAccountFetch=net.fetch
+      globalThis.__smokeAccountMode='ambiguous'
+      net.fetch=async(input,init)=>{
+        const url=new URL(typeof input==='string'?input:input.url)
+        const json=data=>new Response(JSON.stringify(data),{headers:{'content-type':'application/json'}})
+        if(url.pathname==='/youtubei/v1/account/accounts_list') return json({contents:[
+          {accountItem:{accountName:{simpleText:'Wrong first account'}}},
+          {accountItem:{accountName:{simpleText:'Other account'}}}
+        ]})
+        if(url.pathname==='/youtubei/v1/account/account_menu') return json(globalThis.__smokeAccountMode==='active' ? {
+          actions:[{multiPageMenuRenderer:{header:{activeAccountHeaderRenderer:{accountName:{simpleText:'Fixture YouTube account'},channelHandle:{simpleText:'@worldtube-fixture'}}}}}]
+        } : {})
+        return globalThis.__smokeAccountFetch(input,init)
+      }
+    })
+    const failed=await page.evaluate(async()=>{try{await window.api.importYoutubeCookies();return ''}catch(error){return error.message}})
+    assert.match(failed,/did not identify an active account/)
+    assert.equal((await page.evaluate(()=>window.api.getYoutubeAccount())).name,'Fixture YouTube account')
+    assert.equal((await page.evaluate(()=>window.api.getSessionState())).activeProfileId,profile.activeProfileId)
+    await app.evaluate(()=>{globalThis.__smokeAccountMode='active'})
+    await page.evaluate(()=>window.api.importYoutubeCookies())
+    assert.equal((await page.evaluate(()=>window.api.getSessionState())).activeProfileId,profile.activeProfileId)
+    await app.evaluate(({net})=>{net.fetch=globalThis.__smokeAccountFetch})
+    console.log('PASS: missing selected flag, active-account fallback, ambiguous rejection and existing session preservation')
+
     // A second account must receive its own local library.
     const firstProfile=profile.activeProfileId
+    const jsonCookies=join(directory,'cookies.json')
+    await writeFile(jsonCookies,JSON.stringify([{domain:'.youtube.com',path:'/',name:'SAPISID',value:'synthetic-test-only',expirationDate:9999999999}]))
+    await app.evaluate(({dialog},path)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[path]})},jsonCookies)
     await app.evaluate(()=>{
       const original=globalThis.__smokeOriginalFetch
       const { net }=process.getBuiltinModule('module').createRequire(process.cwd()+'/package.json')('electron')
@@ -99,13 +130,25 @@ const { tmpdir } = require('node:os')
     await page.evaluate(()=>window.api.signOutYoutube())
     assert.equal((await page.evaluate(()=>window.api.getYoutubeAccount())).signedIn,false)
     assert.equal((await page.evaluate(()=>window.api.getSessionState())).activeUser.name,'Guest')
-    console.log('PASS: account library isolation and sign-out')
+    console.log('PASS: JSON import through IPC, account library isolation and sign-out')
 
-    if(process.env.WORLDTUBE_SMOKE_FIREFOX) {
-      await app.evaluate(({dialog},path)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[path]})},resolve(process.env.WORLDTUBE_SMOKE_FIREFOX))
+    const signInBrowser=process.env.YAMTUBE_SMOKE_BROWSER || process.env.WORLDTUBE_SMOKE_FIREFOX
+    const signInBrowserName=process.env.YAMTUBE_SMOKE_BROWSER_NAME || 'Firefox'
+    if(signInBrowser) {
+      await app.evaluate(({dialog},path)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[path]})},resolve(signInBrowser))
       await page.reload()
       await page.getByRole('link',{name:'YouTube account',exact:true}).click()
-      await page.getByRole('button',{name:'Sign in with Firefox',exact:true}).click()
+      await page.getByRole('button',{name:'Add portable browser…',exact:true}).click()
+      await page.getByRole('button',{name:`Sign in with ${signInBrowserName}`,exact:true}).waitFor()
+      const browserId=await page.getByLabel('Sign-in browser',{exact:true}).inputValue()
+      assert.ok(browserId)
+      await page.reload()
+      await page.getByRole('link',{name:'YouTube account',exact:true}).click()
+      await page.getByRole('button',{name:`Sign in with ${signInBrowserName}`,exact:true}).waitFor()
+      assert.equal(await page.getByLabel('Sign-in browser',{exact:true}).inputValue(),browserId)
+      // Sign-in must use the remembered browser, without opening a file picker.
+      await app.evaluate(({dialog})=>{dialog.showOpenDialog=async()=>{throw new Error('Unexpected executable picker during sign-in')}})
+      await page.getByRole('button',{name:`Sign in with ${signInBrowserName}`,exact:true}).click()
       await page.getByRole('button',{name:'Cancel sign-in',exact:true}).waitFor()
       const profileDirectory=join(profile.dataPath,'..','browser-signin')
       const launched=await app.evaluate(async(_electron,directory)=>{
@@ -119,13 +162,13 @@ const { tmpdir } = require('node:os')
         }
         return false
       },profileDirectory)
-      assert.equal(launched,true,'Firefox must actually launch and create its cookie database before cancellation')
+      assert.equal(launched,true,`${signInBrowserName} must actually launch and create its cookie database before cancellation`)
       await page.getByRole('button',{name:'Cancel sign-in',exact:true}).click()
-      await page.getByRole('button',{name:'Sign in with Firefox',exact:true}).waitFor({state:'visible'})
+      await page.getByRole('button',{name:`Sign in with ${signInBrowserName}`,exact:true}).waitFor({state:'visible'})
       // Finish cancellation before checking temporary-profile cleanup.
-      await page.waitForFunction(()=>!document.body.textContent.includes('Waiting for Firefox'))
+      await page.waitForFunction(name=>!document.body.textContent.includes(`Waiting for ${name}`),signInBrowserName)
       assert.deepEqual(await readdir(profileDirectory),[])
-      console.log('PASS: real Firefox launch, cancel and temporary profile cleanup')
+      console.log(`PASS: portable browser remembered after reload, real ${signInBrowserName} launch without a picker, cancellation and profile cleanup`)
     }
     assert.deepEqual(errors,[])
     console.log('Desktop smoke tests passed.')

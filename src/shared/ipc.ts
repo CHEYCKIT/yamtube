@@ -7,6 +7,9 @@ export const IPC_CHANNELS = {
   YOUTUBE_ACCOUNT_STATE: 'youtube:account-state',
   YOUTUBE_SIGN_IN: 'youtube:sign-in',
   YOUTUBE_SIGN_IN_CANCEL: 'youtube:sign-in-cancel',
+  YOUTUBE_BROWSERS_GET: 'youtube:browsers-get',
+  YOUTUBE_BROWSER_SELECT: 'youtube:browser-select',
+  YOUTUBE_BROWSER_ADD: 'youtube:browser-add',
   YOUTUBE_IMPORT_COOKIES: 'youtube:import-cookies',
   YOUTUBE_SIGN_OUT: 'youtube:sign-out',
   YOUTUBE_HISTORY: 'youtube:history',
@@ -64,6 +67,11 @@ export interface YoutubeAccountState {
   persistent: boolean
   error: string | null
   syncError: string | null
+}
+
+export interface SignInBrowserState {
+  browsers: { id: string; name: string }[]
+  selectedId: string | null
 }
 
 export interface ProtectionState {

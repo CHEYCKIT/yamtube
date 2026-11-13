@@ -33,7 +33,10 @@ declare global {
       exportDiagnostics: () => Promise<string | null>
       onHistoryNavigation: (listener: (direction: 'back' | 'forward') => void) => () => void
       getYoutubeAccount: () => Promise<import('../../shared/ipc').YoutubeAccountState>
-      signInYoutube: () => Promise<import('../../shared/ipc').YoutubeAccountState>
+      signInYoutube: (browserId?: string) => Promise<import('../../shared/ipc').YoutubeAccountState>
+      getSignInBrowsers: (refresh?: boolean) => Promise<import('../../shared/ipc').SignInBrowserState>
+      selectSignInBrowser: (id: string) => Promise<import('../../shared/ipc').SignInBrowserState>
+      addSignInBrowser: () => Promise<import('../../shared/ipc').SignInBrowserState>
       cancelYoutubeSignIn: () => Promise<void>
       importYoutubeCookies: () => Promise<import('../../shared/ipc').YoutubeAccountState | null>
       signOutYoutube: () => Promise<import('../../shared/ipc').YoutubeAccountState>

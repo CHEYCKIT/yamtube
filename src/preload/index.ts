@@ -41,7 +41,10 @@ const api = {
     return () => ipcRenderer.removeListener(IPC_CHANNELS.NAVIGATE_HISTORY, receive)
   },
   getYoutubeAccount: (): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_ACCOUNT_STATE),
-  signInYoutube: (): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_IN),
+  signInYoutube: (browserId?: string): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_IN, browserId),
+  getSignInBrowsers: (refresh = false): Promise<import('../shared/ipc').SignInBrowserState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_BROWSERS_GET, refresh),
+  selectSignInBrowser: (id: string): Promise<import('../shared/ipc').SignInBrowserState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_BROWSER_SELECT, id),
+  addSignInBrowser: (): Promise<import('../shared/ipc').SignInBrowserState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_BROWSER_ADD),
   cancelYoutubeSignIn: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_IN_CANCEL),
   importYoutubeCookies: (): Promise<import('../shared/ipc').YoutubeAccountState | null> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_IMPORT_COOKIES),
   signOutYoutube: (): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_OUT),

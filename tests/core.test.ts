@@ -2,7 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { RequestPolicy, redirectHeaders, scopedCredentialHeaders } from '../src/main/requestPolicy'
-import { youtubeCookieHeader, parseNetscapeCookies } from '../src/main/youtubeCookies'
+import { youtubeCookieHeader, parseNetscapeCookies, parseYoutubeCookies } from '../src/main/youtubeCookies'
+import { inspectAccountResponse } from '../src/main/youtubeIdentity'
+import { browserCandidates, browserFromExecutable, registryBrowserExecutables } from '../src/main/browserDiscovery'
 import { PlaybackHistory } from '../src/main/playbackHistory'
 
 const policy = new RequestPolicy(['easylist', 'easyprivacy'].map((name) => readFileSync(`resources/filters/${name}.txt`, 'utf8')).join('\n'))
@@ -190,4 +192,64 @@ test('diagnostic logs redact cookies, authorization, tokens and signed media URL
   for(const secret of ['cookie-secret','sapisid-secret','bearer-secret','potoken-secret','visitor-secret','query-secret','signed-secret','path-secret']) assert.equal(redacted.includes(secret),false,secret)
   assert.equal(redacted.includes('Request failed'),true)
   assert.equal(redacted.includes('https://rr1.googlevideo.com/videoplayback'),true)
+})
+
+test('JSON cookie exports from any browser are scoped, validated and support sessions', () => {
+  const row = {domain:'.youtube.com',path:'/',name:'SAPISID',value:'synthetic',expirationDate:9999999999}
+  assert.equal(parseYoutubeCookies(JSON.stringify([row,{...row,domain:'.google.com',name:'SID',value:'excluded'}])), 'SAPISID=synthetic')
+  assert.equal(parseYoutubeCookies(JSON.stringify({cookies:[{...row,session:true,expirationDate:-1}]})), 'SAPISID=synthetic')
+  assert.equal(parseYoutubeCookies('\uFEFF# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\tSAPISID\tsynthetic'), 'SAPISID=synthetic')
+  for (const change of [{expirationDate:1},{expirationDate:'forever'},{expirationDate:-1},{value:'secret\r\nCookie: bad'},{domain:'youtube.com.evil.test'},{path:'/private'},{value:''}]) {
+    assert.throws(()=>parseYoutubeCookies(JSON.stringify([{...row,...change}])), /No signed-in YouTube/)
+  }
+  assert.throws(()=>parseYoutubeCookies('{invalid'), /Invalid cookie JSON/)
+  assert.throws(()=>parseYoutubeCookies('{}'), /Expected a Cookie-Editor/)
+})
+
+const accountItem = (name: string, extra = {}) => ({accountItem:{accountName:{simpleText:name},channelHandle:{simpleText:`@${name}`},...extra}})
+test('account verification accepts a sole account without a selected flag across response layouts', () => {
+  for (const response of [
+    {actions:[{accountSectionListRenderer:{contents:[accountItem('one')]}}]},
+    {contents:[accountItem('one',{isSelected:false})]},
+    {contents:[{accountItemRenderer:{accountName:{runs:[{text:'one'}]},channelHandle:{content:'@one'}}}]}
+  ]) assert.equal(inspectAccountResponse(response).identity?.name,'one')
+})
+
+test('account verification resolves the active identity and refuses ambiguous or guest accounts', () => {
+  assert.equal(inspectAccountResponse({contents:[accountItem('one'),accountItem('two')]}).identity,null)
+  assert.equal(inspectAccountResponse({contents:[accountItem('one'),accountItem('two',{isSelected:true})]}).identity?.name,'two')
+  assert.equal(inspectAccountResponse({contents:[accountItem('disabled',{isDisabled:true}),accountItem('two')]}).identity?.name,'two')
+  const response={actions:[{multiPageMenuRenderer:{header:{activeAccountHeaderRenderer:{
+    accountName:{runs:[{text:'Active account'}]},channelHandle:{simpleText:'@active'},accountByline:{simpleText:'user@example.test'},
+    accountPhoto:{thumbnails:[{url:'https://example.test/photo.png'}]}
+  }}}}]}
+  const result=inspectAccountResponse(response)
+  assert.equal(result.identity?.name,'Active account')
+  assert.equal(result.identity?.avatarUrl,'https://example.test/photo.png')
+  assert.equal(result.headers,1)
+  for(const data of [{},{contents:[{accountItem:{accountName:{simpleText:'N/A'}}}]},{contents:[accountItem('disabled',{isDisabled:true})]},
+    {logged_in:true,name:'Unverified'}, {contents:[accountItem('Guest',{isGuest:true})]},
+    {contents:[accountItem('Sign in',{serviceEndpoint:{signInEndpoint:{}}})]},
+    {contents:[accountItem('one',{isSelected:true}),accountItem('two',{isSelected:true})]}]) {
+    assert.equal(inspectAccountResponse(data).identity,null)
+  }
+})
+
+test('Windows browser discovery finds standard and per-user Zen installations and registry commands', () => {
+  const paths=browserCandidates('win32',{PROGRAMFILES:'C:\\Program Files',LOCALAPPDATA:'C:\\Users\\Example\\AppData\\Local'},'C:\\Users\\Example').map(browser=>browser.executable)
+  assert.ok(paths.includes('C:\\Program Files\\Zen Browser\\zen.exe'))
+  assert.ok(paths.includes('C:\\Users\\Example\\AppData\\Local\\Programs\\Zen Browser\\zen.exe'))
+  assert.ok(paths.includes('C:\\Program Files\\Mozilla Firefox\\firefox.exe'))
+  const registry='    (Default)    REG_SZ    "D:\\Portable Zen\\zen.exe" -osint -url "%1"\n    (Default) REG_SZ C:\\Program Files\\Mozilla Firefox\\firefox.exe -url "%1"\n    (Default) REG_EXPAND_SZ "%LOCALAPPDATA%\\Zen Browser\\zen.exe"\n    (Default) REG_SZ "C:\\Chrome\\chrome.exe" "%1"'
+  assert.deepEqual(registryBrowserExecutables(registry),['D:\\Portable Zen\\zen.exe','C:\\Program Files\\Mozilla Firefox\\firefox.exe','%LOCALAPPDATA%\\Zen Browser\\zen.exe'])
+  assert.equal(browserFromExecutable('C:\\Program Files\\Zen Browser\\ZEN.EXE','win32')?.name,'Zen')
+  assert.equal(browserFromExecutable('C:\\Zen\\zen.exe','win32')?.id,browserFromExecutable('c:\\zen\\ZEN.EXE','win32')?.id)
+  assert.equal(browserFromExecutable('/opt/chrome/chrome','linux'),null)
+  const duplicates=browserCandidates('win32',{},'', ['C:\\Zen\\zen.exe','c:\\zen\\ZEN.EXE']).filter(browser=>browser.executable.toLowerCase()==='c:\\zen\\zen.exe')
+  assert.equal(duplicates.length,1)
+})
+
+test('browser discovery includes macOS apps and Linux PATH installs', () => {
+  assert.ok(browserCandidates('darwin',{},'/Users/example').some(browser=>browser.executable==='/Applications/Zen.app/Contents/MacOS/zen'))
+  assert.ok(browserCandidates('linux',{PATH:'/opt/bin'},'/home/example').some(browser=>browser.executable==='/opt/bin/zen'))
 })

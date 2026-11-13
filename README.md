@@ -1,6 +1,6 @@
 # YamTube
 
-A fork of WorldTube with Firefox sign-in, account recommendations and
+A fork of WorldTube with browser sign-in, account recommendations and
 history, app-wide ad protection, independent tabs and persistent players. Not affiliated with Google or YouTube.
 
 [Spanish development notes](README.es.md)
@@ -29,6 +29,16 @@ AppImage may require FUSE 2; `--appimage-extract-and-run` is an alternative on
 systems without it. Windows packages are initially unsigned; verify the source
 and download location. macOS downloads remain unavailable until signed builds exist.
 
+## Beta 3
+
+Sign in with Zen, Firefox, LibreWolf, Waterfox or Floorp. Installed browsers
+are detected automatically; select one in **Account & privacy → Sign-in
+browser**. Custom/portable browsers only need to be added once. Cookie import
+accepts Netscape cookies.txt and Cookie-Editor JSON from any browser.
+Account verification handles YouTube responses without a selected flag and
+uses an active-account fallback for multiple identities. Failed imports keep
+your existing session and library.
+
 ## Beta 2
 
 YamTube beta 2 fixes an installer-only parser warning crash that interrupted
@@ -41,7 +51,7 @@ Existing account cookies, libraries and settings are retained on upgrade.
 
 ## Features
 
-- Real YouTube session sign-in through Firefox, with guest browsing and no local login.
+- Real YouTube session sign-in through Zen, Firefox and other Firefox-based browsers, with guest browsing and no local login.
 - Account home recommendations, watch history and subscriptions.
 - App-wide EasyList/EasyPrivacy protection with bundled filters and automatic updates.
 - Local saved videos/playlists and search history, kept separately for each account.

@@ -2,7 +2,8 @@ import { app, BrowserWindow, safeStorage } from 'electron'
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { Innertube, YTNodes } from 'youtubei.js'
+import { Innertube } from 'youtubei.js'
+import { inspectAccountResponse, type YoutubeIdentity } from './youtubeIdentity'
 import { protectedFetch } from './adBlock'
 import { IPC_CHANNELS, type YoutubeAccountState } from '../shared/ipc'
 import { activateLibraryOwner, getAppLanguage } from './localDb'
@@ -76,18 +77,32 @@ export async function initializeYoutubeAccount(): Promise<void> {
 // Never expose cookies to the preload or renderer, data export, or logs.
 export async function connectYoutubeAccount(cookie: string): Promise<YoutubeAccountState> {
   const candidate = await createClient(cookie)
-  let accounts: InstanceType<typeof YTNodes.AccountItem>[]
-  try { accounts = await candidate.account.getInfo(true) }
-  catch { throw new Error('YouTube could not verify this session. Sign in to YouTube again and retry.') }
-  const selected = accounts.find((account) => account.is_selected && !account.is_disabled)
-  if (!selected) throw new Error('YouTube did not return an active account. Finish signing in to YouTube and retry.')
+  let selected: YoutubeIdentity | null = null
+  const probes = [
+    { endpoint: '/account/accounts_list', arguments: { requestType: 'ACCOUNTS_LIST_REQUEST_TYPE_CHANNEL_SWITCHER', callCircumstance: 'SWITCHING_USERS_FULL', client: 'WEB' } },
+    { endpoint: '/account/account_menu', arguments: { client: 'WEB' } },
+    { endpoint: '/account/accounts_list', arguments: { client: 'TV' } }
+  ]
+  for (const probe of probes) {
+    try {
+      const response = await candidate.actions.execute(probe.endpoint, probe.arguments)
+      const inspected = inspectAccountResponse(response.data)
+      console.info('[account] Verification response', { endpoint: probe.endpoint, items: inspected.items, selected: inspected.selected, headers: inspected.headers })
+      if (inspected.identity) { selected = inspected.identity; break }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ''
+      console.warn('[account] Verification request failed', probe.endpoint, message)
+      if (/status(?: code)? 401\b/i.test(message)) throw new Error('This YouTube session has expired. Sign in with your browser or export fresh YouTube cookies.')
+      if (/net::|fetch failed|timed? ?out|aborted/i.test(message)) throw new Error('YouTube could not be reached. Check your connection and try again; your existing account was not changed.')
+    }
+  }
+  if (!selected) throw new Error('YouTube did not identify an active account in this session. Try browser sign-in, or export fresh cookies from the YouTube account you want to use.')
   // Handles/bylines are supplied by YouTube, not entered by a local user.
   // For accounts without either, isolate their cache by the session's SID.
-  const identity = selected.channel_handle.text?.trim() || selected.account_byline.text?.trim() || cookie.match(/(?:^|; )SID=([^;]+)/)?.[1]
-  if (!identity) throw new Error('YouTube did not return an account identity')
+  const identity = selected.handle || selected.byline || cookie.match(/(?:^|; )SID=([^;]+)/)?.[1] || createHash('sha256').update(cookie).digest('hex')
   const next: Credentials = {
     cookie, libraryKey: `youtube:${createHash('sha256').update(identity).digest('hex')}`,
-    name: selected.account_name.text?.trim() || 'YouTube account', avatarUrl: selected.account_photo[0]?.url ?? null
+    name: selected.name, avatarUrl: selected.avatarUrl
   }
   const persistent = canPersist()
   if (persistent) {
