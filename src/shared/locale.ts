@@ -4,6 +4,7 @@ export interface AppPreferences {
   language: AppLanguage
   checkForUpdatesOnStartup: boolean
   autoplayNext?: boolean
+  showVideoComments?: boolean
 }
 
 // Source phrases are kept as stable keys while migrating the existing UI.
@@ -197,6 +198,9 @@ const spanish: Record<string, string> = {
   'Restart LokTube to save application settings.': 'Reinicia LokTube para guardar los ajustes de la aplicación.',
   'Restart LokTube now to install the update?': '¿Reiniciar LokTube ahora para instalar la actualización?',
   'Install update': 'Instalar actualización', 'Cancel': 'Cancelar',
+  'Comments': 'Comentarios', 'Show video comments': 'Mostrar comentarios del video',
+  'Loading comments...': 'Cargando comentarios...', 'Comments are unavailable for this video.': 'No hay comentarios disponibles para este video.',
+  'Load more comments': 'Cargar más comentarios', 'Pinned comment': 'Comentario fijado',
 }
 
 // English is the canonical UI source language; retain old keys for saved errors/data.

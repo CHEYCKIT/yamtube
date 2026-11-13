@@ -422,18 +422,21 @@ export async function getAppPreferences(): Promise<import('../shared/locale').Ap
   appLanguage = preferences?.language === 'es' ? 'es' : 'en'
   return { language: appLanguage,
     checkForUpdatesOnStartup: preferences?.checkForUpdatesOnStartup !== false,
-    autoplayNext: preferences?.autoplayNext !== false }
+    autoplayNext: preferences?.autoplayNext !== false,
+    showVideoComments: preferences?.showVideoComments === true }
 }
 
 export async function setAppPreferences(preferences: import('../shared/locale').AppPreferences): Promise<void> {
   if (!preferences || !['en', 'es'].includes(preferences.language) || typeof preferences.checkForUpdatesOnStartup !== 'boolean' ||
-    (preferences.autoplayNext !== undefined && typeof preferences.autoplayNext !== 'boolean')) {
+    (preferences.autoplayNext !== undefined && typeof preferences.autoplayNext !== 'boolean') ||
+    (preferences.showVideoComments !== undefined && typeof preferences.showVideoComments !== 'boolean')) {
     throw new Error('Invalid application preferences')
   }
   const db = await loadDb()
   const previous = db.settings.appPreferences as Partial<import('../shared/locale').AppPreferences> | undefined
   db.settings.appPreferences = { language: preferences.language, checkForUpdatesOnStartup: preferences.checkForUpdatesOnStartup,
-    autoplayNext: preferences.autoplayNext ?? previous?.autoplayNext ?? true }
+    autoplayNext: preferences.autoplayNext ?? previous?.autoplayNext ?? true,
+    showVideoComments: preferences.showVideoComments ?? previous?.showVideoComments ?? false }
   await persistDb(db)
   appLanguage = preferences.language
 }

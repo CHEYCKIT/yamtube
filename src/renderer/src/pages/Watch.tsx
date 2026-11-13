@@ -140,7 +140,7 @@ function RelatedVideoRow({ video }: { video: SearchResultItem }) {
 }
 
 export function Watch() {
-  useLocale()
+  const preferences = useLocale()
   const { videoId } = useParams<{ videoId: string }>()
   const { active: isTabActive, id: tabId } = usePageTab()
   const { rename } = useAppTabs()
@@ -177,6 +177,51 @@ export function Watch() {
   const [isSubscribed, setIsSubscribed] = useState(false)
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
+  const [comments, setComments] = useState<VideoComment[]>([])
+  const [commentsForVideo, setCommentsForVideo] = useState<string | null>(null)
+  const [commentsCursor, setCommentsCursor] = useState<string | null>(null)
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [commentsError, setCommentsError] = useState<string | null>(null)
+  const [commentsReload, setCommentsReload] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    setComments([])
+    setCommentsCursor(null)
+    setCommentsForVideo(null)
+    setCommentsError(null)
+    setCommentsLoading(false)
+    if (!preferences.showVideoComments || !videoId || !isCurrentVideo || status !== 'ready') return
+    setCommentsLoading(true)
+    window.api.getVideoComments(videoId).then((response) => {
+      if (cancelled) return
+      setCommentsForVideo(videoId)
+      if (response.ok) {
+        setComments(response.data.comments)
+        setCommentsCursor(response.data.nextCursor)
+      } else {
+        setCommentsError(response.error)
+      }
+    }).catch((cause) => {
+      if (!cancelled) { setCommentsForVideo(videoId); setCommentsError(String(cause)) }
+    }).finally(() => { if (!cancelled) setCommentsLoading(false) })
+    return () => { cancelled = true }
+  }, [videoId, isCurrentVideo, status, preferences.showVideoComments, commentsReload])
+
+  async function loadMoreComments() {
+    if (!videoId || !commentsCursor || commentsLoading) return
+    setCommentsLoading(true)
+    setCommentsError(null)
+    try {
+      const response = await window.api.getVideoComments(videoId, commentsCursor)
+      if (videoId !== openedVideo.current) return
+      if (!response.ok) { setCommentsError(response.error); return }
+      setComments((current) => [...current, ...response.data.comments])
+      setCommentsCursor(response.data.nextCursor)
+    } catch (cause) { setCommentsError(String(cause)) }
+    finally { setCommentsLoading(false) }
+  }
+
 
   useEffect(() => {
     let cancelled = false
@@ -370,6 +415,39 @@ export function Watch() {
             )}
           </div>
         )}
+        {videoId && <section className="watch-info-card mt-4" aria-label={t('Comments')}>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold">{t('Comments')}</h2>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-300">
+              <span>{t('Show video comments')}</span>
+              <input type="checkbox" checked={preferences.showVideoComments} onChange={(event) => void preferences.savePreferences({
+                language: preferences.language,
+                checkForUpdatesOnStartup: preferences.checkForUpdatesOnStartup,
+                autoplayNext: preferences.autoplayNext,
+                showVideoComments: event.target.checked
+              })} />
+            </label>
+          </div>
+          {preferences.showVideoComments && <>
+            {commentsError && <div className="mt-3 text-sm text-neutral-400"><p role="alert">{commentsError}</p>
+              <button type="button" onClick={() => setCommentsReload((value) => value + 1)} className="wt-link mt-2">{t('Retry')}</button>
+            </div>}
+            {!commentsError && !commentsLoading && commentsForVideo === videoId && comments.length === 0 && <p className="mt-3 text-sm text-neutral-400">{t('Comments are unavailable for this video.')}</p>}
+            {commentsForVideo === videoId && comments.map((comment) => <article key={comment.id} className="mt-4 flex gap-3 border-t border-neutral-800 pt-4">
+              {comment.authorAvatarUrl ? <img src={comment.authorAvatarUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" loading="lazy" /> : <div className="h-9 w-9 shrink-0 rounded-full bg-neutral-800" />}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline gap-x-2 text-xs"><span className="font-semibold text-neutral-100">{comment.author}</span>
+                  {comment.publishedText && <span className="text-neutral-500">{comment.publishedText}</span>}
+                  {comment.isPinned && <span className="text-neutral-400">{t('Pinned comment')}</span>}
+                </div>
+                <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-5 text-neutral-200">{comment.text}</p>
+                {(comment.likeCountText || comment.replyCountText) && <p className="mt-1 text-xs text-neutral-500">{comment.likeCountText ? `♥ ${comment.likeCountText}` : ''}{comment.replyCountText ? ` · ${comment.replyCountText} replies` : ''}</p>}
+              </div>
+            </article>)}
+            {commentsLoading && <p role="status" className="mt-3 text-sm text-neutral-400">{t('Loading comments...')}</p>}
+            {commentsCursor && !commentsLoading && !commentsError && <button type="button" onClick={() => void loadMoreComments()} className="wt-action mt-4 rounded px-3 py-2 text-sm">{t('Load more comments')}</button>}
+          </>}
+        </section>}
       </section>
 
       <aside className="watch-sidebar-area">

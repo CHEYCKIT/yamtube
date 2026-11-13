@@ -4,18 +4,22 @@ import { t, useLocale } from '../i18n/LocaleContext'
 import type { UpdateState } from '../../../shared/ipc'
 
 export function ApplicationSettings() {
-  const { language, checkForUpdatesOnStartup, savePreferences, error } = useLocale()
+  const { language, checkForUpdatesOnStartup, autoplayNext, showVideoComments, savePreferences, error } = useLocale()
   return <section className="grid gap-3">
     <h2 className="border-b border-neutral-800 pb-2 text-base font-semibold">{t('Application')}</h2>
     <label className="flex flex-wrap items-center justify-between gap-3 text-sm">
       <span>{t('Language')}</span>
-      <select value={language} onChange={(event) => void savePreferences({ language: event.target.value === 'es' ? 'es' : 'en', checkForUpdatesOnStartup })} className="h-9 rounded bg-neutral-800 px-3">
+      <select value={language} onChange={(event) => void savePreferences({ language: event.target.value === 'es' ? 'es' : 'en', checkForUpdatesOnStartup, autoplayNext, showVideoComments })} className="h-9 rounded bg-neutral-800 px-3">
         <option value="en">English</option><option value="es">Español</option>
       </select>
     </label>
     <label className="flex items-center justify-between gap-3 text-sm">
       <span>{t('Check on startup')}</span>
-      <input type="checkbox" checked={checkForUpdatesOnStartup} onChange={(event) => void savePreferences({ language, checkForUpdatesOnStartup: event.target.checked })} />
+      <input type="checkbox" checked={checkForUpdatesOnStartup} onChange={(event) => void savePreferences({ language, checkForUpdatesOnStartup: event.target.checked, autoplayNext, showVideoComments })} />
+    </label>
+    <label className="flex items-center justify-between gap-3 text-sm">
+      <span>{t('Show video comments')}</span>
+      <input type="checkbox" checked={showVideoComments} onChange={(event) => void savePreferences({ language, checkForUpdatesOnStartup, autoplayNext, showVideoComments: event.target.checked })} />
     </label>
     {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
     <UpdateControls />
