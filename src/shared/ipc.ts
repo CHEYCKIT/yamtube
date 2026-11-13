@@ -365,9 +365,7 @@ export interface HomeSection {
 }
 
 export interface HomeDiscovery {
-  sections: HomeSection[]
-  liveVideos: SearchResultItem[]
-  channels: RecommendedChannel[]
+  shorts: SearchResultItem[]
 }
 
 export type SearchResponse = { ok: true; data: SearchResultItem[]; channels?: RecommendedChannel[]; collections?: SearchCollectionItem[]; home?: HomeDiscovery } | { ok: false; error: string }
