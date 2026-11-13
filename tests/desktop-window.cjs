@@ -23,7 +23,8 @@ module.exports=async({app,page})=>{
       Object.assign(window,window.__controlOriginals)
     })
   }
-  assert.equal(await page.locator('.wt-window-drag').evaluate(node=>getComputedStyle(node).getPropertyValue('-webkit-app-region')),'drag')
+  assert.equal(await page.locator('header.wt-topbar').evaluate(node=>getComputedStyle(node).getPropertyValue('-webkit-app-region')),'drag')
+  assert.equal(await page.getByRole('link',{name:'Return home',exact:true}).evaluate(node=>getComputedStyle(node).getPropertyValue('-webkit-app-region')),'no-drag')
   assert.equal(await page.getByRole('button',{name:'Close window',exact:true}).evaluate(node=>getComputedStyle(node).getPropertyValue('-webkit-app-region')),'no-drag')
   console.log('PASS: integrated window buttons reach their owning native window, maximize state updates and interactive controls stay outside the drag region')
 }
