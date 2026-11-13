@@ -1,6 +1,6 @@
 import { t, useLocale, locale } from '../i18n/LocaleContext'
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from 'lucide-react'
 import { VideoCard } from '../components/VideoCard'
 import { Link } from 'react-router-dom'
 import { PageLoader } from '../components/PageLoader'
@@ -24,20 +24,21 @@ function HistoryCard({ video, busy, canRemove, remote, meta, onRemove, portrait 
   video: SearchResultItem | HistoryEntry; busy: boolean; canRemove: boolean; remote: boolean; meta?: string; portrait?: boolean; onRemove(): void
 }) {
   return <article data-history-video-id={video.videoId}>
-    <VideoCard {...video} portrait={portrait} badge={'durationText' in video ? video.durationText : null} meta={meta} />
-    <div className="flex justify-end px-1">
-      <button type="button" disabled={busy || !canRemove} onClick={onRemove}
-        aria-label={t('Remove "{title}" from history', { title: video.title })}
-        title={!canRemove ? t('YouTube did not provide a removal action. Refresh history or remove this video on YouTube.') : t(remote ? 'Remove from YouTube watch history' : 'Remove from local history')}
-        className="inline-flex min-h-8 items-center gap-1.5 rounded px-2 py-1 text-xs text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100 disabled:cursor-default disabled:opacity-50">
-        <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />{t(busy ? 'Removing…' : 'Remove')}
-      </button>
-    </div>
+    <VideoCard {...video} portrait={portrait} badge={'durationText' in video ? video.durationText : null} meta={meta}
+      thumbnailAction={
+        <button type="button" disabled={busy || !canRemove} onClick={onRemove}
+          aria-label={t('Remove "{title}" from history', { title: video.title })}
+          title={!canRemove ? t('YouTube did not provide a removal action. Refresh history or remove this video on YouTube.') : t(remote ? 'Remove from YouTube watch history' : 'Remove from local history')}
+          className="grid h-8 w-8 place-items-center rounded bg-black/80 text-white shadow-md hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-50">
+          <Trash2 aria-hidden="true" className="h-4 w-4" />
+        </button>
+      } />
   </article>
 }
 
 export function History() {
-  useLocale()
+  const preferences = useLocale()
+  const showShortsHistory = preferences.showShortsHistory !== false
   const [entries, setEntries] = useState<HistoryEntry[] | null>(null)
   const [remote, setRemote] = useState<YoutubeHistoryVideo[]>([])
   const [continuation, setContinuation] = useState<string | null>(null)
@@ -110,7 +111,7 @@ export function History() {
   if (entries === null) return <PageLoader />
   return <div>
     <div className="mb-2 flex items-center justify-between gap-3">
-      <h1 className="text-xl font-semibold">{t(youtubeAccount.signedIn ? 'YouTube watch history' : 'History')}</h1>
+      <h1 className="text-xl font-semibold">{t('History')}</h1>
       {!youtubeAccount.signedIn && !!entries.length && <button type="button" disabled={!!deleting.size} onClick={() => void handleClear()}
         className="rounded px-3 py-1.5 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-neutral-100 disabled:opacity-50">{t('Clear history')}</button>}
     </div>
@@ -122,18 +123,28 @@ export function History() {
       {youtubeAccount.signedIn && <Link to="/account" className="ml-4 underline">{t('Account settings')}</Link>}</div>}
     {message && <p role="status" className="mb-3 text-sm text-emerald-400">{t(message)}</p>}
     {!error && !(youtubeAccount.signedIn ? remote : entries).length && <p className="text-sm text-neutral-400">{t(youtubeAccount.signedIn ? 'No videos in your YouTube watch history.' : 'You have not watched any videos yet.')}</p>}
-    {youtubeAccount.signedIn && shorts.length > 0 && <section aria-label={t('Shorts history')} className="mb-7 border-b border-neutral-800 pb-5">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">{t('Shorts history')}</h2>
-        <div className="flex gap-1">
-          <button type="button" aria-label={t('Previous Shorts')} onClick={() => shortsStrip.current?.scrollBy({ left: -360, behavior: 'smooth' })} className="grid h-9 w-9 place-items-center rounded hover:bg-neutral-800"><ChevronLeft aria-hidden="true" className="h-5 w-5" /></button>
-          <button type="button" aria-label={t('Next Shorts')} onClick={() => shortsStrip.current?.scrollBy({ left: 360, behavior: 'smooth' })} className="grid h-9 w-9 place-items-center rounded hover:bg-neutral-800"><ChevronRight aria-hidden="true" className="h-5 w-5" /></button>
+    {youtubeAccount.signedIn && shorts.length > 0 && <section aria-label={t('Shorts')} className="mb-5 border-b border-neutral-800 pb-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">{t('Shorts')}</h2>
+        <div className="flex items-center gap-1">
+          {showShortsHistory && <>
+            <button type="button" aria-label={t('Previous Shorts')} onClick={() => shortsStrip.current?.scrollBy({ left: -360, behavior: 'smooth' })} className="grid h-9 w-9 place-items-center rounded hover:bg-neutral-800"><ChevronLeft aria-hidden="true" className="h-5 w-5" /></button>
+            <button type="button" aria-label={t('Next Shorts')} onClick={() => shortsStrip.current?.scrollBy({ left: 360, behavior: 'smooth' })} className="grid h-9 w-9 place-items-center rounded hover:bg-neutral-800"><ChevronRight aria-hidden="true" className="h-5 w-5" /></button>
+          </>}
+          <button type="button" aria-expanded={showShortsHistory} aria-controls="history-shorts-strip"
+            onClick={() => void preferences.savePreferences({ ...preferences, showShortsHistory: !showShortsHistory })}
+            className="flex h-9 items-center gap-1 rounded px-2 text-sm text-neutral-300 hover:bg-neutral-800 hover:text-white">
+            {showShortsHistory ? <ChevronUp aria-hidden="true" className="h-4 w-4" /> : <ChevronDown aria-hidden="true" className="h-4 w-4" />}
+            {t(showShortsHistory ? 'Hide Shorts' : 'Show Shorts')}
+          </button>
         </div>
       </div>
-      <div ref={shortsStrip} tabIndex={0} aria-label={t('Watched Shorts')} className="flex snap-x gap-3 overflow-x-auto pb-2">
-        {shorts.map((video) => <div key={video.historyId} className="w-40 shrink-0 snap-start sm:w-44"><HistoryCard video={video} portrait remote canRemove={video.canRemove} busy={deleting.has(video.videoId)} onRemove={() => void remove(video)} /></div>)}
+      <div id="history-shorts-strip" hidden={!showShortsHistory}>
+        {showShortsHistory && <div ref={shortsStrip} tabIndex={0} aria-label={t('Watched Shorts')} className="flex snap-x gap-3 overflow-x-auto pb-2">
+          {shorts.map((video) => <div key={video.historyId} className="w-40 shrink-0 snap-start sm:w-44"><HistoryCard video={video} portrait remote canRemove={video.canRemove} busy={deleting.has(video.videoId)} onRemove={() => void remove(video)} /></div>)}
+        </div>}
       </div>
-    </section>}
+    </section>
     {youtubeAccount.signedIn && shorts.length > 0 && videos.length > 0 && <h2 className="mb-3 text-lg font-semibold">{t('Videos')}</h2>}
     <div data-history-videos className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {youtubeAccount.signedIn ? videos.map((video) => <HistoryCard key={video.historyId} video={video} remote canRemove={video.canRemove} busy={deleting.has(video.videoId)} onRemove={() => void remove(video)} />)
