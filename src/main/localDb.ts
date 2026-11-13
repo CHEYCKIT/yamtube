@@ -423,20 +423,26 @@ export async function getAppPreferences(): Promise<import('../shared/locale').Ap
   return { language: appLanguage,
     checkForUpdatesOnStartup: preferences?.checkForUpdatesOnStartup !== false,
     autoplayNext: preferences?.autoplayNext !== false,
-    showVideoComments: preferences?.showVideoComments === true }
+    showVideoComments: preferences?.showVideoComments === true,
+    showShortsHistory: preferences?.showShortsHistory !== false,
+    subscriptionsExpanded: preferences?.subscriptionsExpanded === true }
 }
 
 export async function setAppPreferences(preferences: import('../shared/locale').AppPreferences): Promise<void> {
   if (!preferences || !['en', 'es'].includes(preferences.language) || typeof preferences.checkForUpdatesOnStartup !== 'boolean' ||
     (preferences.autoplayNext !== undefined && typeof preferences.autoplayNext !== 'boolean') ||
-    (preferences.showVideoComments !== undefined && typeof preferences.showVideoComments !== 'boolean')) {
+    (preferences.showVideoComments !== undefined && typeof preferences.showVideoComments !== 'boolean') ||
+    (preferences.showShortsHistory !== undefined && typeof preferences.showShortsHistory !== 'boolean') ||
+    (preferences.subscriptionsExpanded !== undefined && typeof preferences.subscriptionsExpanded !== 'boolean')) {
     throw new Error('Invalid application preferences')
   }
   const db = await loadDb()
   const previous = db.settings.appPreferences as Partial<import('../shared/locale').AppPreferences> | undefined
   db.settings.appPreferences = { language: preferences.language, checkForUpdatesOnStartup: preferences.checkForUpdatesOnStartup,
     autoplayNext: preferences.autoplayNext ?? previous?.autoplayNext ?? true,
-    showVideoComments: preferences.showVideoComments ?? previous?.showVideoComments ?? false }
+    showVideoComments: preferences.showVideoComments ?? previous?.showVideoComments ?? false,
+    showShortsHistory: preferences.showShortsHistory ?? previous?.showShortsHistory ?? true,
+    subscriptionsExpanded: preferences.subscriptionsExpanded ?? previous?.subscriptionsExpanded ?? false }
   await persistDb(db)
   appLanguage = preferences.language
 }

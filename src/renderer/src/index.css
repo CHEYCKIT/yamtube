@@ -156,6 +156,24 @@ body {
 }
 
 .wt-topbar { -webkit-app-region: drag; }
+
+/* Show the history deletion action on the thumbnail itself, including focus/touch. */
+.wt-history-thumbnail-action {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+.wt-history-thumbnail:hover .wt-history-thumbnail-action,
+.wt-history-thumbnail:focus-within .wt-history-thumbnail-action {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (hover: none) {
+  .wt-history-thumbnail-action {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
 .wt-topbar :is(button, a, input, select, textarea, form),
 .wt-window-controls { -webkit-app-region: no-drag; }
 .wt-window-drag { -webkit-app-region: drag; user-select: none; }
