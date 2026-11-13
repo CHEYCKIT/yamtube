@@ -29,6 +29,14 @@ AppImage may require FUSE 2; `--appimage-extract-and-run` is an alternative on
 systems without it. Windows packages are initially unsigned; verify the source
 and download location. macOS downloads remain unavailable until signed builds exist.
 
+## Beta 5
+
+Fixes repeatable five-second skips caused by media-segment delivery metadata
+getting ahead of the bytes actually buffered. UMP responses are processed one
+complete part at a time, independently of HTTP chunk boundaries. Truncated or
+empty media responses fail for retry instead of leaving silent holes. Rewinding
+and replaying the affected positions is covered by a real segmented-playback test.
+
 ## Beta 4 — LokTube
 
 The app is now **LokTube**, with a large blue play icon for the Windows taskbar.

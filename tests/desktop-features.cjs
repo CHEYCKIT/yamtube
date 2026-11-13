@@ -128,4 +128,5 @@ module.exports=async({app,page,profile})=>{
   await page.getByRole('status').filter({hasText:'Logs exported to'}).waitFor()
   assert.equal((await readFile(exported,'utf8')).includes('diagnostics-secret'),false)
   console.log('PASS: settings show recent logs and export them with credentials redacted')
+  await require('./desktop-sabr.cjs')({app,page})
 }

@@ -1,5 +1,5 @@
 import shaka from 'shaka-player/dist/shaka-player.ui.js'
-import { SabrUmpProcessor } from 'googlevideo/sabr-streaming-adapter'
+import { SabrResponseProcessor } from './responseProcessor'
 import type {
   PlayerHttpRequest,
   PlayerHttpResponse,
@@ -208,7 +208,7 @@ export class ShakaSabrPlayerAdapter implements SabrPlayerAdapter {
       throw new ShakaError(ShakaError.Severity.CRITICAL, ShakaError.Category.NETWORK, ShakaError.Code.HTTP_ERROR, url, new Error('SABR request metadata missing (request interceptor did not run?)'))
     }
 
-    const processor = new SabrUmpProcessor(metadata, cacheManager ?? undefined)
+    const processor = new SabrResponseProcessor(metadata, cacheManager ?? undefined)
     const reader = fetchResponse.body?.getReader()
 
     let result: UmpProcessingResult | undefined
@@ -220,6 +220,9 @@ export class ShakaSabrPlayerAdapter implements SabrPlayerAdapter {
           result = await processor.processChunk(chunk.value)
           if (!result) chunk = await reader.read()
         }
+        processor.assertComplete()
+      } catch (error) {
+        throw new ShakaError(ShakaError.Severity.RECOVERABLE, ShakaError.Category.NETWORK, ShakaError.Code.HTTP_ERROR, url, error)
       } finally {
         await reader.cancel().catch(() => {})
         reader.releaseLock()
@@ -237,6 +240,11 @@ export class ShakaSabrPlayerAdapter implements SabrPlayerAdapter {
     this.assertRequestActive(url, abortController)
     const finalResponse = (await responseInterceptor(response)) ?? response
     this.assertRequestActive(url, abortController)
+    // Empty/truncated media cannot satisfy a segment request. Reporting success
+    // would advance Shaka's segment iterator and leave another permanent gap.
+    if (!finalResponse.data?.byteLength) {
+      throw new ShakaError(ShakaError.Severity.RECOVERABLE, ShakaError.Category.NETWORK, ShakaError.Code.HTTP_ERROR, url, new Error('SABR returned no media for the requested segment'))
+    }
 
     // A repeatable multi-second playhead jump means Shaka found a hole in
     // the buffered timeline. Record whether YouTube returned a segment whose

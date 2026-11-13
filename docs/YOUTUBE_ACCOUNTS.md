@@ -172,3 +172,24 @@ frame’s permission requests. The player button and **F**
 toggle fullscreen; **Escape** explicitly exits it. The desktop suite tests these
 real APIs using local media, including exit back into theater mode, in addition
 to PiP, footer return, sidebar geometry at laptop/narrow sizes and 150% zoom.
+
+## Beta 5 stream continuity
+
+A single HTTP chunk can contain multiple complete UMP media segments. The
+upstream processor resolved its promise with the first segment's bytes while
+continuing to parse and overwrite delivery metadata with later segments. That
+made the SABR adapter report a segment as buffered even though its bytes never
+reached the player. The resulting multi-second holes recurred during replay.
+
+The response framer now feeds one complete UMP part at a time and stops at the
+first terminal result. It also retains incomplete part headers across HTTP
+chunks. Truncated media and empty responses fail for retry rather than satisfying
+a segment request. Complete control-only responses still reach the protocol
+interceptor for redirects and context updates.
+
+Core tests cover coalesced segments, every split boundary, byte-by-byte input,
+repeated forward/backward requests, truncation and mixed audio/video/control
+parts. A desktop regression serves generated fragmented MP4 audio/video through
+the real SABR/UMP path, honors the client's buffered-segment claims and verifies
+continuous buffered ranges, playback across several five-second boundaries and
+ArrowLeft rewinds. It uses no Google credentials or YouTube media.

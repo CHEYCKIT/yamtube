@@ -253,3 +253,82 @@ test('browser discovery includes macOS apps and Linux PATH installs', () => {
   assert.ok(browserCandidates('darwin',{},'/Users/example').some(browser=>browser.executable==='/Applications/Zen.app/Contents/MacOS/zen'))
   assert.ok(browserCandidates('linux',{PATH:'/opt/bin'},'/home/example').some(browser=>browser.executable==='/opt/bin/zen'))
 })
+
+test('coalesced SABR segments return matching bytes and delivery metadata', async () => {
+  const {SabrResponseProcessor}=await import('../src/renderer/src/player/sabr/responseProcessor')
+  const {mediaSegment,sabrMetadata}=await import('./fixtures/sabr')
+  const {concatenateChunks}=await import('googlevideo/utils')
+  const metadata=sabrMetadata()
+  const processor=new SabrResponseProcessor(metadata)
+  const result=await processor.processChunk(concatenateChunks([mediaSegment(1,0),mediaSegment(2,5000),mediaSegment(3,10000)]))
+  assert.deepEqual(result?.data,new Uint8Array([1,1,1]))
+  const header=metadata.streamInfo?.mediaHeader
+  assert.equal(header?.sequenceNumber,1)
+  assert.equal(header?.startMs,'0')
+  processor.assertComplete()
+})
+
+test('SABR framing is independent of every possible HTTP split, including varints', async () => {
+  const {SabrResponseProcessor}=await import('../src/renderer/src/player/sabr/responseProcessor')
+  const {mediaSegment,sabrMetadata}=await import('./fixtures/sabr')
+  const {concatenateChunks}=await import('googlevideo/utils')
+  const payload=new Uint8Array(300).fill(42)
+  const bytes=concatenateChunks([mediaSegment(1,0,payload),mediaSegment(2,5000)])
+  for(let split=0;split<=bytes.length;split++) {
+    const metadata=sabrMetadata()
+    const processor=new SabrResponseProcessor(metadata)
+    const first=await processor.processChunk(bytes.subarray(0,split))
+    const result=first ?? await processor.processChunk(bytes.subarray(split))
+    assert.deepEqual(result?.data,payload,`split ${split}`)
+    assert.equal(metadata.streamInfo?.mediaHeader?.sequenceNumber,1,`split ${split}`)
+    processor.assertComplete()
+  }
+  const metadata=sabrMetadata()
+  const processor=new SabrResponseProcessor(metadata)
+  let result
+  for(const byte of bytes){result=await processor.processChunk(new Uint8Array([byte]));if(result)break}
+  assert.deepEqual(result?.data,payload)
+  assert.equal(metadata.streamInfo?.mediaHeader?.sequenceNumber,1)
+})
+
+test('repeated forward and backward SABR requests never claim the following segment was buffered', async () => {
+  const {SabrResponseProcessor}=await import('../src/renderer/src/player/sabr/responseProcessor')
+  const {mediaSegment,sabrMetadata}=await import('./fixtures/sabr')
+  const {concatenateChunks}=await import('googlevideo/utils')
+  for(const sequence of [1,2,3,4,5,3,2,1,4,5,6]) {
+    const metadata=sabrMetadata()
+    const result=await new SabrResponseProcessor(metadata).processChunk(concatenateChunks([
+      mediaSegment(sequence,(sequence-1)*5000),mediaSegment(sequence+1,sequence*5000)
+    ]))
+    assert.equal(result?.data?.[0],sequence)
+    assert.equal(metadata.streamInfo?.mediaHeader?.sequenceNumber,sequence)
+    assert.equal(metadata.streamInfo?.mediaHeader?.startMs,String((sequence-1)*5000))
+  }
+})
+
+test('truncated SABR media and split headers fail instead of succeeding with empty data', async () => {
+  const {SabrResponseProcessor}=await import('../src/renderer/src/player/sabr/responseProcessor')
+  const {mediaSegment,sabrMetadata}=await import('./fixtures/sabr')
+  const bytes=mediaSegment(1,0,new Uint8Array(300))
+  for(const cut of [1,2,bytes.length-4,bytes.length-1]) {
+    const processor=new SabrResponseProcessor(sabrMetadata())
+    assert.equal(await processor.processChunk(bytes.subarray(0,cut)),undefined)
+    assert.throws(()=>processor.assertComplete(),/before its media segment completed/)
+  }
+})
+
+test('SABR control-only responses and mixed track payloads retain their protocol behavior', async () => {
+  const {SabrResponseProcessor}=await import('../src/renderer/src/player/sabr/responseProcessor')
+  const {mediaSegment,sabrMetadata,umpPart}=await import('./fixtures/sabr')
+  const {concatenateChunks}=await import('googlevideo/utils')
+  const {SabrRedirect,UMPPartId}=await import('googlevideo/protos')
+  const metadata=sabrMetadata()
+  const processor=new SabrResponseProcessor(metadata)
+  assert.equal(await processor.processChunk(umpPart(UMPPartId.SABR_REDIRECT,SabrRedirect.encode({url:'https://example.test/videoplayback'}).finish())),undefined)
+  processor.assertComplete()
+  assert.equal(metadata.streamInfo?.redirect?.url,'https://example.test/videoplayback')
+  const mixed=sabrMetadata()
+  const result=await new SabrResponseProcessor(mixed).processChunk(concatenateChunks([mediaSegment(1,0,new Uint8Array([99]),140),mediaSegment(1,0)]))
+  assert.deepEqual(result?.data,new Uint8Array([1,1,1]))
+  assert.equal(mixed.streamInfo?.mediaHeader?.itag,137)
+})
