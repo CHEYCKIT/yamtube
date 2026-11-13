@@ -65,6 +65,7 @@ declare global {
       onUpdateState: (listener: (state: import('../../shared/ipc').UpdateState) => void) => () => void
       getPlayerAudioPreferences: () => Promise<PlayerAudioPreferences>
       setPlayerAudioPreferences: (audio: PlayerAudioPreferences) => Promise<void>
+      getVideoComments: (videoId: string, cursor?: string) => Promise<import('../../shared/ipc').VideoCommentsResponse>
       getVideoInfo: (videoId: string) => Promise<VideoInfoResponse>
       search: (query: string, filters?: SearchFilters) => Promise<SearchResponse>
       getCollection: (request: CollectionRequest) => Promise<CollectionResponse>

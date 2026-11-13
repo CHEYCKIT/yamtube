@@ -29,6 +29,7 @@ export const IPC_CHANNELS = {
   UPDATES_DOWNLOAD: 'updates:download',
   UPDATES_INSTALL: 'updates:install',
   GET_VIDEO_INFO: 'youtube:get-video-info',
+  GET_VIDEO_COMMENTS: 'youtube:get-video-comments',
   GET_VIDEO_PREVIEW: 'youtube:get-video-preview',
   SEARCH: 'youtube:search',
   GET_COLLECTION: 'youtube:get-collection',
@@ -106,6 +107,26 @@ export interface YoutubeHistoryVideo extends SearchResultItem {
   historyId: string
   canRemove: boolean
 }
+
+export interface VideoComment {
+  id: string
+  author: string
+  authorAvatarUrl: string | null
+  text: string
+  publishedText: string | null
+  likeCountText: string | null
+  isPinned: boolean
+  replyCountText: string | null
+}
+
+export interface VideoCommentsPage {
+  comments: VideoComment[]
+  nextCursor: string | null
+}
+
+export type VideoCommentsResponse =
+  | { ok: true; data: VideoCommentsPage }
+  | { ok: false; error: string }
 
 export interface UpdateState {
   status: 'development' | 'idle' | 'checking' | 'available' | 'current' | 'downloading' | 'downloaded' | 'error'

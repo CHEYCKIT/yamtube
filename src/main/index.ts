@@ -24,9 +24,10 @@ import type {
   Subscription,
   UpdateProfileRequest,
   VideoInfoRequest,
-  VideoInfoResponse
+  VideoInfoResponse,
+  VideoCommentsResponse
 } from '../shared/ipc'
-import { fetchVideoInfo, getChannelInfo, getCollectionVideos, getHomeDiscovery, getSearchSuggestions, getSubscriptionsFeed, getVideoPreview, searchVideos, playbackHistory, getYoutubeSubscriptionsFeed } from './youtube'
+import { fetchVideoInfo, fetchVideoComments, getChannelInfo, getCollectionVideos, getHomeDiscovery, getSearchSuggestions, getSubscriptionsFeed, getVideoPreview, searchVideos, playbackHistory, getYoutubeSubscriptionsFeed } from './youtube'
 import { initializeProtection, protectionState, updateProtection } from './adBlock'
 import { initializeYoutubeAccount, youtubeAccountState, connectYoutubeAccount, disconnectYoutubeAccount, hasYoutubeAccount, activateCurrentLibrary } from './youtubeAccount'
 import { signInWithBrowser, cancelBrowserLogin, removeAbandonedLoginProfiles, getSignInBrowsers, selectSignInBrowser, addSignInBrowser } from './browserLogin'
@@ -257,6 +258,17 @@ ipcMain.handle(
     }
   }
 )
+
+ipcMain.handle(IPC_CHANNELS.GET_VIDEO_COMMENTS, async (_event, videoId: string, cursor?: string): Promise<VideoCommentsResponse> => {
+  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId) || (cursor && (typeof cursor !== 'string' || cursor.length > 100))) {
+    return { ok: false, error: 'Invalid comments request' }
+  }
+  try {
+    return { ok: true, data: await fetchVideoComments(videoId, cursor) }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
 
 ipcMain.handle(IPC_CHANNELS.GET_VIDEO_PREVIEW, (_event, videoId: string) => getVideoPreview(videoId))
 

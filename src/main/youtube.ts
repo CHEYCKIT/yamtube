@@ -1,4 +1,5 @@
 import { Innertube, Platform, YTNodes } from 'youtubei.js'
+import { randomUUID } from 'node:crypto'
 import { generatePoToken } from './poToken'
 import { buildSabrPayload } from './sabrManifest'
 import { evaluatePlayerScript } from './jsEvaluator'
@@ -8,7 +9,7 @@ import { getAccountClient, hasYoutubeAccount, accountRevision, reportHistorySync
 import { protectedFetch } from './adBlock'
 import { PlaybackHistory } from './playbackHistory'
 import { translateFor } from '../shared/locale'
-import type { CaptionTrack, ChannelInfoResult, HomeDiscovery, HomeSection, RecommendedChannel, SearchCollectionItem, SearchFilters, SearchResultItem, VideoInfoResult, VideoPreview } from '../shared/ipc'
+import type { CaptionTrack, ChannelInfoResult, HomeDiscovery, HomeSection, RecommendedChannel, SearchCollectionItem, SearchFilters, SearchResultItem, VideoCommentsPage, VideoInfoResult, VideoPreview } from '../shared/ipc'
 
 type VideoOrGridVideo =
   | InstanceType<typeof YTNodes.Video>
@@ -850,6 +851,51 @@ async function prepareLiveManifestUrl(url: string, decipher: (url: string) => Pr
   }
   if (manifestUrl.searchParams.has('n')) manifestUrl.searchParams.set('n', solved)
   return manifestUrl.href
+}
+
+
+// Comments are requested on demand, only when the user enables them.
+// A cursor retains youtubei.js's continuation for the next page without
+// repeating previous requests or serializing its internal parser objects.
+type CommentsHandle = Awaited<ReturnType<Innertube['getComments']>>
+const commentCursors = new Map<string, { videoId: string; page: CommentsHandle }>()
+
+export async function fetchVideoComments(videoId: string, cursor?: string): Promise<VideoCommentsPage> {
+  let page: CommentsHandle
+  if (cursor) {
+    const previous = commentCursors.get(cursor)
+    if (!previous || previous.videoId !== videoId) throw new Error('Comments page expired; reload comments.')
+    page = await previous.page.getContinuation()
+    commentCursors.delete(cursor)
+  } else {
+    page = await (await getClient()).getComments(videoId)
+  }
+
+  const comments = page.contents.flatMap((thread) => {
+    const comment = thread.comment
+    if (!comment || !comment.content) return []
+    return [{
+      id: comment.comment_id,
+      author: comment.author?.name ?? 'YouTube user',
+      authorAvatarUrl: comment.author?.best_thumbnail?.url ?? null,
+      text: comment.content.toString(),
+      publishedText: comment.published_time ?? null,
+      likeCountText: comment.like_count ?? null,
+      isPinned: comment.is_pinned,
+      replyCountText: comment.reply_count ?? null
+    }]
+  })
+  const nextCursor = page.has_continuation ? randomUUID() : null
+  if (nextCursor) {
+    commentCursors.set(nextCursor, { videoId, page })
+    // Bound memory use even when users browse many videos.
+    while (commentCursors.size > 30) {
+      const oldest = commentCursors.keys().next().value
+      if (!oldest) break
+      commentCursors.delete(oldest)
+    }
+  }
+  return { comments, nextCursor }
 }
 
 async function fetchVideoInfoUncached(videoId: string): Promise<VideoInfoResult> {
