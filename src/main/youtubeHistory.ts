@@ -38,10 +38,10 @@ export async function getYoutubeHistory(continuation?: string): Promise<YoutubeH
     pages.set(next, { ...scope, continuation: feed.continuation })
     while (pages.size > 20) pages.delete(pages.keys().next().value!)
   }
-  const videos = feed.items.map(({ video, feedbackToken }) => {
+  const videos = feed.items.map(({ video, feedbackToken, isShort }) => {
     const historyId = randomUUID()
     removals.set(historyId, { ...scope, videoId: video.videoId, feedbackToken, createdAt: Date.now() })
-    return { ...video, historyId, canRemove: !!feedbackToken }
+    return { ...video, isShort, historyId, canRemove: !!feedbackToken }
   })
   while (removals.size > 4000) removals.delete(removals.keys().next().value!)
   return { videos, continuation: next, paused: feed.paused }

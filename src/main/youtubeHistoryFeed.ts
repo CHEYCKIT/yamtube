@@ -39,7 +39,7 @@ function removalToken(menu: unknown, depth = 0): string | null {
   return null
 }
 
-export interface HistoryFeedItem { video: SearchResultItem; feedbackToken: string | null }
+export interface HistoryFeedItem { video: SearchResultItem; feedbackToken: string | null; isShort: boolean }
 export interface HistoryFeed { items: HistoryFeedItem[]; continuation: string | null; paused: boolean }
 
 function videoItem(kind: string, value: unknown): HistoryFeedItem | null {
@@ -76,26 +76,30 @@ function videoItem(kind: string, value: unknown): HistoryFeedItem | null {
     thumbnailUrl: typeof url === 'string' && url.startsWith('https://') ? url : null,
     durationText: duration || null,
     viewCountText: text(data.viewCountText) || text(overlay?.secondaryText) || null,
-    publishedText: text(data.publishedTimeText) || null }, feedbackToken: removalToken(menu) }
+    publishedText: text(data.publishedTimeText) || null }, feedbackToken: removalToken(menu),
+    isShort: ['shortsLockupViewModel', 'reelItemRenderer'].includes(kind) || data.contentType === 'LOCKUP_CONTENT_TYPE_SHORT' || data.isShort === true ||
+      !!find(data.navigationEndpoint ?? data.onTap, 'reelWatchEndpoint') }
 }
 
 // Walk the response's ordered feed, not YouTube.js's type-grouped video memo.
 // Stop at a video so its menus/metadata cannot introduce unrelated entries.
+// Preserve Shorts identity instead of flattening YouTube's pinned shelf into
+// ordinary cards: shelf position does not establish mixed watch chronology.
 export function parseYoutubeHistoryFeed(response: unknown): HistoryFeed {
   const items: HistoryFeedItem[] = []
   const seen = new Set<string>()
   let continuation: string | null = null
   let visited = 0
-  const walk = (value: unknown, allowContinuation = true, depth = 0): void => {
+  const walk = (value: unknown, allowContinuation = true, depth = 0, shortsShelf = false): void => {
     if (depth > 40 || ++visited > 50_000 || !value || typeof value !== 'object') return
-    if (Array.isArray(value)) { value.forEach((child) => walk(child, allowContinuation, depth + 1)); return }
+    if (Array.isArray(value)) { value.forEach((child) => walk(child, allowContinuation, depth + 1, shortsShelf)); return }
     const data = value as Data
     for (const [key, child] of Object.entries(data)) {
       if (['videoRenderer', 'compactVideoRenderer', 'gridVideoRenderer', 'lockupViewModel', 'shortsLockupViewModel', 'reelItemRenderer'].includes(key)) {
         const item = videoItem(key, child)
-        if (item && !seen.has(item.video.videoId)) { seen.add(item.video.videoId); items.push(item) }
+        if (item && !seen.has(item.video.videoId)) { item.isShort ||= shortsShelf; seen.add(item.video.videoId); items.push(item) }
       } else if (key === 'tabRenderer') {
-        if (object(child)?.selected !== false) walk(child, allowContinuation, depth + 1)
+        if (object(child)?.selected !== false) walk(child, allowContinuation, depth + 1, shortsShelf)
       } else if (key === 'continuationItemRenderer') {
         const token = allowContinuation ? find(child, 'token') : null
         if (typeof token === 'string') continuation = token
@@ -103,7 +107,10 @@ export function parseYoutubeHistoryFeed(response: unknown): HistoryFeed {
         const token = find(child, 'continuation')
         if (typeof token === 'string') continuation = token
       } else if (!['header', 'sidebar', 'secondaryContents', 'menu', 'trackingParams'].includes(key)) {
-        walk(child, allowContinuation && !['reelShelfRenderer', 'richShelfRenderer', 'horizontalListRenderer'].includes(key), depth + 1)
+        const shelf = object(child)
+        const isShortsShelf = key === 'reelShelfRenderer' || shelf?.isShorts === true ||
+          (['richShelfRenderer', 'shelfRenderer'].includes(key) && (/^shorts$/i.test(text(shelf?.title)) || find(shelf?.icon, 'iconType') === 'SHORTS'))
+        walk(child, allowContinuation && !['reelShelfRenderer', 'richShelfRenderer', 'horizontalListRenderer'].includes(key), depth + 1, shortsShelf || isShortsShelf)
       }
     }
   }

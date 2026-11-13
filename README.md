@@ -29,6 +29,14 @@ AppImage may require FUSE 2; `--appimage-extract-and-run` is an alternative on
 systems without it. Windows packages are initially unsigned; verify the source
 and download location. macOS downloads remain unavailable until signed builds exist.
 
+## 1.1.4
+
+YouTube Shorts history now has a labeled horizontal strip with portrait cards
+and previous/next controls. Regular videos stay in the main history grid in
+YouTube's returned order. Shorts shelf placement is no longer presented as
+mixed watch chronology. Both sections keep account-history removal, pagination
+and duplicate/removal filtering. Guest history remains ordered by watch time.
+
 ## 1.1.3
 
 Visited pages now stay loaded within each tab during navigation. Home feeds,

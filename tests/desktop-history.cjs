@@ -20,7 +20,8 @@ async function account({app,page,profile}){
   await page.locator('a[href="#/history"]').first().click()
   await page.getByRole('heading',{name:'YouTube watch history',exact:true}).waitFor()
   await card(page,ids.short).waitFor()
-  assert.deepEqual(await page.locator('[data-history-video-id]').evaluateAll(nodes=>nodes.map(node=>node.dataset.historyVideoId)),[ids.regular,ids.short,ids.lockup,ids.reel])
+  assert.deepEqual(await page.getByRole('region',{name:'Shorts history',exact:true}).locator('[data-history-video-id]').evaluateAll(nodes=>nodes.map(node=>node.dataset.historyVideoId)),[ids.short,ids.reel])
+  assert.deepEqual(await page.locator('[data-history-videos] [data-history-video-id]').evaluateAll(nodes=>nodes.map(node=>node.dataset.historyVideoId)),[ids.regular,ids.lockup])
   const history=await page.evaluate(()=>window.api.getYoutubeHistory())
   assert.equal(JSON.stringify(history).includes('synthetic-history-remove'),false,'feedback tokens remain in main')
   assert.equal(history.videos.every(video=>video.canRemove),true)
@@ -43,6 +44,6 @@ async function account({app,page,profile}){
   assert.equal(db.histories[profile.activeProfileId].some(video=>[ids.short,ids.lockup].includes(video.videoId)),false)
   assert.equal(db.histories['fixture-guest-profile'].some(video=>video.videoId==='video000001'),true)
   await page.locator('a[href="#/account"]').first().click()
-  console.log('PASS: ordered mixed YouTube history, authenticated removal for Shorts/modern menus, pagination, honest failure/retry and local/account isolation')
+  console.log('PASS: horizontal Shorts history and ordered normal videos, authenticated removal for Shorts/modern menus, pagination, honest failure/retry and local/account isolation')
 }
 module.exports={guest,account}

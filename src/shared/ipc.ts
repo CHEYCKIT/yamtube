@@ -102,6 +102,7 @@ export interface YoutubeHistoryPage {
 }
 
 export interface YoutubeHistoryVideo extends SearchResultItem {
+  isShort?: boolean
   historyId: string
   canRemove: boolean
 }
