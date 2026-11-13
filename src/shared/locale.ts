@@ -204,6 +204,11 @@ const spanish: Record<string, string> = {
   'Loading comments...': 'Cargando comentarios...', 'Comments are unavailable for this video.': 'No hay comentarios disponibles para este video.',
   'Load more comments': 'Cargar más comentarios', 'Pinned comment': 'Comentario fijado',
   'Shorts': 'Shorts', 'Show Shorts': 'Mostrar Shorts', 'Hide Shorts': 'Ocultar Shorts',
+  'Liked videos': 'Videos que te gustan', 'Unlike': 'Quitar Me gusta',
+  'No liked videos yet.': 'Todavía no hay videos que te gusten.',
+  'Connect your YouTube account to see your liked videos.': 'Conecta tu cuenta de YouTube para ver los videos que te gustan.',
+  'Like': 'Me gusta', 'Dislike': 'No me gusta', 'Remove like': 'Quitar Me gusta', 'Remove dislike': 'Quitar No me gusta',
+  'Sign in to YouTube to rate videos': 'Inicia sesión en YouTube para valorar videos',
   'Subscribed channels': 'Canales suscritos', 'Expand channels': 'Expandir canales', 'Collapse channels': 'Contraer canales',
 }
 

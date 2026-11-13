@@ -86,6 +86,8 @@ const api = {
   getPlayerAudioPreferences: (): Promise<PlayerAudioPreferences> => ipcRenderer.invoke(IPC_CHANNELS.PLAYER_AUDIO_GET),
   setPlayerAudioPreferences: (audio: PlayerAudioPreferences): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.PLAYER_AUDIO_SET, audio),
   getVideoComments: (videoId: string, cursor?: string): Promise<import('../shared/ipc').VideoCommentsResponse> => ipcRenderer.invoke(IPC_CHANNELS.GET_VIDEO_COMMENTS, videoId, cursor),
+  setVideoRating: (videoId: string, rating: import('../shared/ipc').VideoRating): Promise<import('../shared/ipc').VideoRatingResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SET_VIDEO_RATING, videoId, rating),
   getVideoInfo: (videoId: string): Promise<VideoInfoResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_VIDEO_INFO, { videoId } satisfies VideoInfoRequest),
   search: (query: string, filters?: SearchFilters): Promise<SearchResponse> =>

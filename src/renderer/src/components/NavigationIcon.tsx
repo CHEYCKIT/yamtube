@@ -1,13 +1,14 @@
-import { Bookmark, CircleUserRound, Clapperboard, History, House, ListVideo, Music2, type LucideIcon } from 'lucide-react'
+import { Bookmark, CircleUserRound, Clapperboard, History, House, ListVideo, Music2, ThumbsUp, type LucideIcon } from 'lucide-react'
 import { useId } from 'react'
 
-type NavigationIconName = 'home' | 'subscriptions' | 'history' | 'saved' | 'playlists' | 'music' | 'account'
+type NavigationIconName = 'home' | 'subscriptions' | 'history' | 'saved' | 'liked' | 'playlists' | 'music' | 'account'
 
 const icons: Record<NavigationIconName, LucideIcon> = {
   home: House,
   subscriptions: Clapperboard,
   history: History,
   saved: Bookmark,
+  liked: ThumbsUp,
   playlists: ListVideo,
   music: Music2,
   account: CircleUserRound

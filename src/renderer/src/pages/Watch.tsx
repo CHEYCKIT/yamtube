@@ -5,6 +5,7 @@ import { Check, Clock3, Eye, Share2, Tag, ThumbsUp, type LucideIcon } from 'luci
 import { ChannelAvatar } from '../components/ChannelAvatar'
 import { SubscribeButton } from '../components/SubscribeButton'
 import { VideoSaveActions } from '../components/VideoSaveButton'
+import { VideoRatingButtons } from '../components/VideoRatingButtons'
 import { VideoThumbnail } from '../components/VideoCard'
 import { WATCH_SLOT_ID } from '../player/GlobalPlayerHost'
 import { useGlobalPlayer } from '../player/GlobalPlayerContext'
@@ -160,6 +161,7 @@ export function Watch() {
     durationText,
     viewCountText,
     likeCountText,
+    rating,
     publishedText,
     category,
     description,
@@ -327,7 +329,6 @@ export function Watch() {
 
   const detailPills: { icon: IconName; text: string }[] = []
   if (viewCountText) detailPills.push({ icon: 'eye', text: viewCountText })
-  if (likeCountText) detailPills.push({ icon: 'thumb', text: likeCountText })
   if (publishedText) detailPills.push({ icon: 'clock', text: publishedText })
   if (durationText) detailPills.push({ icon: 'clock', text: durationText })
   if (category) detailPills.push({ icon: 'tag', text: category })
@@ -379,6 +380,7 @@ export function Watch() {
               </div>
 
               <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2">
+                {videoId && <VideoRatingButtons key={videoId} videoId={videoId} initialRating={rating ?? 'none'} likeCountText={likeCountText} />}
                 {videoId && (
                   <VideoSaveActions
                     className="relative"

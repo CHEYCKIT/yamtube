@@ -24,6 +24,7 @@ export interface GlobalPlayerState {
   durationText: string | null
   viewCountText: string | null
   likeCountText: string | null
+  rating: VideoInfoResult['rating']
   publishedText: string | null
   category: string | null
   description: string | null
@@ -66,6 +67,7 @@ export const initialState: GlobalPlayerState = {
   durationText: null,
   viewCountText: null,
   likeCountText: null,
+  rating: 'none',
   publishedText: null,
   category: null,
   description: null,
@@ -187,6 +189,7 @@ export function GlobalPlayerProvider({ children, tabId = '', onOpenShort }: { ch
         durationText: response.data.durationText,
         viewCountText: response.data.viewCountText,
         likeCountText: response.data.likeCountText,
+        rating: response.data.rating ?? 'none',
         publishedText: response.data.publishedText,
         category: response.data.category,
         description: response.data.description,
@@ -214,6 +217,7 @@ export function GlobalPlayerProvider({ children, tabId = '', onOpenShort }: { ch
       durationText: response.data.durationText,
       viewCountText: response.data.viewCountText,
       likeCountText: response.data.likeCountText,
+      rating: response.data.rating ?? 'none',
       publishedText: response.data.publishedText,
       category: response.data.category,
       description: response.data.description,

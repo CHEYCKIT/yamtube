@@ -66,6 +66,7 @@ declare global {
       getPlayerAudioPreferences: () => Promise<PlayerAudioPreferences>
       setPlayerAudioPreferences: (audio: PlayerAudioPreferences) => Promise<void>
       getVideoComments: (videoId: string, cursor?: string) => Promise<import('../../shared/ipc').VideoCommentsResponse>
+      setVideoRating: (videoId: string, rating: import('../../shared/ipc').VideoRating) => Promise<import('../../shared/ipc').VideoRatingResponse>
       getVideoInfo: (videoId: string) => Promise<VideoInfoResponse>
       search: (query: string, filters?: SearchFilters) => Promise<SearchResponse>
       getCollection: (request: CollectionRequest) => Promise<CollectionResponse>

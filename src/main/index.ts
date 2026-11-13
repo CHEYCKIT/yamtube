@@ -27,6 +27,7 @@ import type {
   VideoInfoResponse,
   VideoCommentsResponse
 } from '../shared/ipc'
+import { setYoutubeVideoRating } from './videoRatings'
 import { fetchVideoInfo, fetchVideoComments, getChannelInfo, getCollectionVideos, getHomeDiscovery, getSearchSuggestions, getSubscriptionsFeed, getVideoPreview, searchVideos, playbackHistory, getYoutubeSubscriptionsFeed } from './youtube'
 import { initializeProtection, protectionState, updateProtection } from './adBlock'
 import { initializeYoutubeAccount, youtubeAccountState, connectYoutubeAccount, disconnectYoutubeAccount, hasYoutubeAccount, activateCurrentLibrary } from './youtubeAccount'
@@ -260,6 +261,14 @@ ipcMain.handle(
     }
   }
 )
+
+ipcMain.handle(IPC_CHANNELS.SET_VIDEO_RATING, async (_event, videoId: string, target: import('../shared/ipc').VideoRating): Promise<import('../shared/ipc').VideoRatingResponse> => {
+  try {
+    return { ok: true, data: await setYoutubeVideoRating(videoId, target) }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
 
 ipcMain.handle(IPC_CHANNELS.GET_VIDEO_COMMENTS, async (_event, videoId: string, cursor?: string): Promise<VideoCommentsResponse> => {
   if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId) || (cursor && (typeof cursor !== 'string' || cursor.length > 100))) {

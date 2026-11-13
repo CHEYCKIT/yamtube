@@ -52,6 +52,7 @@ import { Music } from './pages/Music'
 import { Account } from './pages/Account'
 import { Playlists } from './pages/Playlists'
 import { Saved } from './pages/Saved'
+import { Liked } from './pages/Liked'
 import { Search } from './pages/Search'
 import { Subscriptions } from './pages/Subscriptions'
 import { Watch } from './pages/Watch'
@@ -437,6 +438,10 @@ function SideNav({ isOpen }: { isOpen: boolean }) {
             <NavigationIcon name="saved" />
           </span>
           <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{youtubeAccount.signedIn ? t("Watch Later") : t("Saved")}</span>
+        </NavLink>
+        <NavLink to="/liked" className={({ isActive }) => navClass(isOpen, isActive)} title={t('Liked videos')}>
+          <span className="grid h-9 w-9 shrink-0 place-items-center"><NavigationIcon name="liked" /></span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t('Liked videos')}</span>
         </NavLink>
         <NavLink to="/playlists" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Playlists")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
@@ -989,6 +994,7 @@ function AppRoutes() {
         <Route path="/history" element={<History />} />
         <Route path="/subscriptions" element={<Subscriptions />} />
         <Route path="/saved" element={<Saved />} />
+        <Route path="/liked" element={<Liked />} />
         <Route path="/playlists" element={<Playlists />} />
         <Route path="/music" element={<Music />} />
         <Route path="/profile" element={<Navigate to="/saved" replace />} />

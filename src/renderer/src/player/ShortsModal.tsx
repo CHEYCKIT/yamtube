@@ -2,6 +2,7 @@ import { t, useLocale } from '../i18n/LocaleContext'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { VideoSaveActions } from '../components/VideoSaveButton'
+import { VideoRatingButtons } from '../components/VideoRatingButtons'
 import { VideoThumbnail } from '../components/VideoCard'
 import { PlaybackLoadingIcon } from '../components/PlaybackStatusIcon'
 import { SHORTS_SLOT_ID } from './GlobalPlayerHost'
@@ -9,7 +10,7 @@ import { useGlobalPlayer } from './GlobalPlayerContext'
 
 export function ShortsModal() {
   useLocale()
-  const { shorts, videoId, status, error, openShort, playVideo, closePlayer, dismissShorts, ownerTabId } = useGlobalPlayer()
+  const { shorts, videoId, status, error, rating, likeCountText, openShort, playVideo, closePlayer, dismissShorts, ownerTabId } = useGlobalPlayer()
   const dialogRef = useRef<HTMLDialogElement | null>(null)
   const location = useLocation()
   const previousPath = useRef(location.pathname)
@@ -108,7 +109,10 @@ export function ShortsModal() {
       <button type="button" onClick={() => move(1)} disabled={index < 0 || index >= shorts.length - 1 || Boolean(slide)} aria-label={t("Next Short")} title={t("Next")}
         className="grid h-9 w-9 place-items-center rounded bg-neutral-800 text-lg hover:bg-neutral-700 disabled:cursor-default disabled:opacity-30">{'\u2193'}</button>
       </div>
-      {short && <VideoSaveActions key={`save-${short.videoId}`} buttonClassName="grid h-9 w-9 place-items-center rounded bg-neutral-800 text-sm hover:bg-neutral-700 disabled:opacity-40" video={{ ...short, playlistId: null }} />}
+      {short && <div className="flex flex-col items-center gap-2">
+        <VideoRatingButtons key={`rating-${short.videoId}`} videoId={short.videoId} initialRating={short.videoId === videoId ? rating ?? 'none' : 'none'} likeCountText={short.videoId === videoId ? likeCountText : null} compact />
+        <VideoSaveActions key={`save-${short.videoId}`} buttonClassName="grid h-9 w-9 place-items-center rounded bg-neutral-800 text-sm hover:bg-neutral-700 disabled:opacity-40" video={{ ...short, playlistId: null }} />
+      </div>}
     </div>
   </dialog>
 }

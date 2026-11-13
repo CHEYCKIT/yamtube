@@ -29,6 +29,7 @@ export const IPC_CHANNELS = {
   UPDATES_DOWNLOAD: 'updates:download',
   UPDATES_INSTALL: 'updates:install',
   GET_VIDEO_INFO: 'youtube:get-video-info',
+  SET_VIDEO_RATING: 'youtube:set-video-rating',
   GET_VIDEO_COMMENTS: 'youtube:get-video-comments',
   GET_VIDEO_PREVIEW: 'youtube:get-video-preview',
   SEARCH: 'youtube:search',
@@ -503,6 +504,10 @@ export interface CaptionTrack {
   isAutomatic: boolean
 }
 
+export type VideoRating = 'like' | 'dislike' | 'none'
+export interface VideoRatingResult { rating: VideoRating; likeCount: number | null }
+export type VideoRatingResponse = { ok: true; data: VideoRatingResult } | { ok: false; error: string }
+
 export interface VideoInfoResult {
   playbackToken: string
   videoId: string
@@ -516,6 +521,7 @@ export interface VideoInfoResult {
   durationText: string | null
   viewCountText: string | null
   likeCountText: string | null
+  rating?: VideoRating
   publishedText: string | null
   category: string | null
   description: string | null
