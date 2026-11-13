@@ -2,7 +2,7 @@ import { Innertube, Platform, YTNodes } from 'youtubei.js'
 import { randomUUID } from 'node:crypto'
 import { generatePoToken } from './poToken'
 import { buildSabrPayload } from './sabrManifest'
-import { mapRecommendedShorts } from './shortsRecommendations'
+import { interleaveShorts, mapRecommendedShorts, selectDiverseShorts, shortsTopicQuery } from './shortsRecommendations'
 import { evaluatePlayerScript } from './jsEvaluator'
 import { getHistory } from './historyStore'
 import { getAppLanguage, getSessionState, listActiveSubscriptions, recordProfileHistoryEntry } from './localDb'
@@ -554,31 +554,45 @@ export async function getHomeFeed(sections: HomeSection[] = []): Promise<SearchR
 
 export async function getHomeDiscovery(): Promise<{ videos: SearchResultItem[]; home: HomeDiscovery }> {
   const videos = await resolveChannelNames(await getHomeFeed())
-  // Keep Home focused on regular recommendations, with a small Shorts strip.
-  // Unlike the old live/channel discovery, this only performs Shorts searches.
-  const history = await getHistory()
-  const seeds = [...history.slice(0, 2).map((entry) => entry.channelName),
-    ...videos.slice(0, 2).map((video) => video.channelName)]
-    .map((name) => name.trim())
-    .filter((name) => name && name !== '(unknown)')
-  const queries = [...new Set(seeds)].slice(0, 2)
-  if (!queries.length) queries.push('shorts')
-
+  // Search using subjects from diverse recommendations, never channel names.
+  // Searching recent creators verbatim returned an almost single-channel strip.
+  const topics = [videos[0], videos[Math.floor(videos.length / 2)], videos[videos.length - 1]]
+    .map((video) => video ? shortsTopicQuery(video.title) : null).filter((query): query is string => Boolean(query))
+  const queries = [...new Set(['shorts', ...topics])].slice(0, 4)
   const yt = await getClient()
-  const searchShorts = async (query: string): Promise<SearchResultItem[]> => {
+  const batches = await Promise.all(queries.map(async (query) => {
     try {
-      const results = await yt.search(query, { type: 'shorts' })
-      return mapRecommendedShorts(results.videos)
+      return mapRecommendedShorts((await yt.search(query, { type: 'shorts' })).videos)
     } catch (error) {
-      console.warn('[youtube] Shorts recommendations unavailable:', error instanceof Error ? error.message : String(error))
-      return []
+      console.warn('[youtube] Shorts search unavailable:', error instanceof Error ? error.message : String(error))
+      return [] as SearchResultItem[]
     }
+  }))
+
+  const candidates = interleaveShorts(batches, 20)
+  // Shorts search cards omit author IDs. Resolve only candidates that might
+  // appear in the compact row, in small batches, so we can limit each creator
+  // to two recommendations without guessing from the video title.
+  const verified: SearchResultItem[] = []
+  for (let i = 0; i < candidates.length; i += 4) {
+    const batch = await Promise.all(candidates.slice(i, i + 4).map(async (short) => {
+      try {
+        const info = await yt.getBasicInfo(short.videoId)
+        return { ...short,
+          channelId: info.basic_info.channel?.id ?? info.basic_info.channel_id ?? null,
+          channelName: info.basic_info.channel?.name ?? info.basic_info.author ?? '' }
+      } catch {
+        return short
+      }
+    }))
+    verified.push(...batch)
+    // A second page of recommendations is unnecessary when sufficient distinct
+    // creators have already been verified for the strip.
+    if (selectDiverseShorts(verified).length >= 12) break
   }
-  const batches = await Promise.all(queries.map(searchShorts))
-  let shorts = [...new Map(batches.flat().map((video) => [video.videoId, video])).values()]
-  if (!shorts.length && !queries.includes('shorts')) shorts = await searchShorts('shorts')
-  console.log(`[youtube] home: ${videos.length} regular recommendations, ${shorts.length} Shorts`)
-  return { videos, home: { shorts: shorts.slice(0, 12) } }
+  const shorts = selectDiverseShorts(verified)
+  console.log(`[youtube] home: ${videos.length} regular recommendations, ${shorts.length} Shorts from ${new Set(shorts.map((item) => item.channelId).filter(Boolean)).size} verified channels`)
+  return { videos, home: { shorts } }
 }
 export async function getChannelInfo(channelId: string, includeVideos = true): Promise<ChannelInfoResult> {
   console.log(`[youtube] getChannelInfo(${channelId})`)
