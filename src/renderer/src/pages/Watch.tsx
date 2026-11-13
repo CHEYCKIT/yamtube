@@ -13,7 +13,7 @@ import { usePlayerWorkspace } from '../player/PlayerWorkspace'
 import { useProfiles } from '../profiles/ProfileContext'
 import { PROFILE_DATA_CHANGED_EVENT } from '../profiles/events'
 import { useAppTabs, usePageTab } from '../tabs/AppTabs'
-import type { SavedPlaylist, SavedVideo, SearchResultItem } from '../../../shared/ipc'
+import type { SavedPlaylist, SavedVideo, SearchResultItem, VideoComment } from '../../../shared/ipc'
 
 type IconName = 'check' | 'clock' | 'share' | 'eye' | 'tag' | 'thumb'
 
