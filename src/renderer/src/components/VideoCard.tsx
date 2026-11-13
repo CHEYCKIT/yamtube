@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { VideoSaveActions } from './VideoSaveButton'
 import { useGlobalPlayer } from '../player/GlobalPlayerContext'
@@ -21,6 +21,8 @@ interface VideoCardProps {
   featured?: boolean
   alignedFooter?: boolean
   previewUrl?: string | null
+  /** Overlay action inside thumbnail; replaces regular save actions (history deletion). */
+  thumbnailAction?: ReactNode
 }
 
 type ThumbnailQuality = 'compact' | 'grid' | 'featured'
@@ -104,12 +106,12 @@ export function VideoThumbnail({ videoId, thumbnailUrl, title, portrait = false,
   )
 }
 
-export function VideoCard({ videoId, title, channelId, channelName, thumbnailUrl, badge, meta, portrait = false, shorts, featured = false, alignedFooter = false, previewUrl }: VideoCardProps) {
+export function VideoCard({ videoId, title, channelId, channelName, thumbnailUrl, badge, meta, portrait = false, shorts, featured = false, alignedFooter = false, previewUrl, thumbnailAction }: VideoCardProps) {
   const { openShort } = useGlobalPlayer()
   const open = shorts ? (event: MouseEvent) => { event.preventDefault(); openShort(videoId, shorts) } : undefined
   return (
     <div data-video-id={videoId} data-video-title={title} className={`group flex min-w-0 flex-col gap-2 rounded p-1 hover:bg-neutral-900 ${featured ? 'h-full' : ''}`}>
-      <div className={`relative min-h-0 w-full overflow-hidden rounded bg-neutral-900 ${portrait ? 'aspect-[9/16]' : 'aspect-video'}`}>
+      <div className={`relative min-h-0 w-full overflow-hidden rounded bg-neutral-900 ${portrait ? 'aspect-[9/16]' : 'aspect-video'} ${thumbnailAction ? 'wt-history-thumbnail' : ''}`}>
         <Link to={`/watch/${videoId}`} onClick={open} className="absolute inset-0 block overflow-hidden rounded" aria-label={title}>
           <VideoThumbnail videoId={videoId} thumbnailUrl={thumbnailUrl} title={title} portrait={portrait} previewUrl={previewUrl} allowPreview={badge !== 'LIVE'} quality={featured ? 'featured' : 'grid'} />
           {badge && (
@@ -118,10 +120,16 @@ export function VideoCard({ videoId, title, channelId, channelName, thumbnailUrl
             </span>
           )}
         </Link>
-        <VideoSaveActions
-          className="absolute right-1 top-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 max-[680px]:opacity-100"
-          video={{ videoId, title, channelId: channelId ?? null, channelName, thumbnailUrl, playlistId: null }}
-        />
+        {thumbnailAction ? (
+          <div className="wt-history-thumbnail-action absolute right-2 top-2 z-10">
+            {thumbnailAction}
+          </div>
+        ) : (
+          <VideoSaveActions
+            className="absolute right-1 top-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 max-[680px]:opacity-100"
+            video={{ videoId, title, channelId: channelId ?? null, channelName, thumbnailUrl, playlistId: null }}
+          />
+        )}
       </div>
       <div className={`shrink-0 ${alignedFooter ? 'lg:h-20' : ''}`}>
         <Link to={`/watch/${videoId}`} onClick={open}>
