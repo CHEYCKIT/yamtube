@@ -84,7 +84,7 @@ export function Subscriptions() {
             </Link>
           ))}
         </div>
-      </section>
+      </section>}
 
       {feedStatus === 'loading' && <PageLoader />}
       {feedStatus === 'error' && <p className="text-sm text-red-400">{feedError}</p>}
