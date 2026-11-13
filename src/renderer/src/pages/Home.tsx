@@ -1,10 +1,9 @@
 import { t, useLocale } from '../i18n/LocaleContext'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { VideoCard } from '../components/VideoCard'
 import { PageLoader } from '../components/PageLoader'
 import { useProfiles } from '../profiles/ProfileContext'
-import { RecommendedChannels } from '../components/RecommendedChannels'
 import type { HomeDiscovery, SearchResultItem } from '../../../shared/ipc'
 
 type FeedStatus = 'loading' | 'ready' | 'error'
@@ -40,15 +39,6 @@ export function Home() {
     return () => { cancelled = true }
   }, [attempt, activeProfileId])
 
-  const sections = useMemo(() => {
-    const displayed = new Set(feed.slice(0, 5).map((video) => video.videoId))
-    return (discovery?.sections ?? []).map((section) => {
-      const videos = section.videos.filter((video) => !displayed.has(video.videoId)).slice(0, 8)
-      videos.forEach((video) => displayed.add(video.videoId))
-      return { ...section, videos }
-    }).filter((section) => section.videos.length)
-  }, [feed, discovery])
-
   const videoTile = (video: SearchResultItem) => <VideoCard key={video.videoId} {...video} badge={video.durationText}
     meta={[video.viewCountText, video.publishedText].filter(Boolean).join(' · ')} />
 
@@ -76,23 +66,20 @@ export function Home() {
               meta={[video.viewCountText, video.publishedText].filter(Boolean).join(' · ')} />)}</div>
           </div>
         </section>}
-        {discovery && <section className="border-t border-neutral-800 pt-6">
-          <h2 className="mb-3 text-lg font-semibold">{t('Live now')}</h2>
-          {discovery.liveVideos.length ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{discovery.liveVideos.slice(0, 8).map(videoTile)}</div>
-            : <p className="text-sm text-neutral-400">{t('No related live streams right now')}</p>}
-        </section>}
-        {discovery && discovery.channels.length > 0 && <section className="border-t border-neutral-800 pt-6">
-          <h2 className="mb-3 text-lg font-semibold">{t('Channels to discover')}</h2>
-          <RecommendedChannels channels={discovery.channels} />
-        </section>}
-        {sections.map((section) => <section key={section.id} className="border-t border-neutral-800 pt-6">
-          {section.topic && <p className="wt-accent-text mb-1 text-sm font-medium">{section.topic}</p>}
-          <h2 className="mb-3 break-words text-lg font-semibold">{t('Because you watched')}: <span className="font-normal text-neutral-400">{section.title}</span></h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{section.videos.map(videoTile)}</div>
-        </section>)}
-        {!sections.length && feed.length > 5 && <section className="border-t border-neutral-800 pt-6">
+        {feed.length > 5 && <section className="border-t border-neutral-800 pt-6">
           <h2 className="mb-3 text-lg font-semibold">{t('More to explore')}</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{feed.slice(5).map(videoTile)}</div>
+        </section>}
+        {discovery && discovery.shorts.length > 0 && <section aria-label={t('Shorts')} className="border-t border-neutral-800 pt-6">
+          <h2 className="mb-3 text-lg font-semibold">{t('Shorts')}</h2>
+          <div data-home-shorts-strip tabIndex={0} aria-label={t('Recommended Shorts')}
+            className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2">
+            {discovery.shorts.map((short) =>
+              <div key={short.videoId} className="w-32 shrink-0 snap-start sm:w-36">
+                <VideoCard {...short} portrait shorts={discovery.shorts} meta={short.viewCountText} />
+              </div>
+            )}
+          </div>
         </section>}
       </div>}
     </section>
