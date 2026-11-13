@@ -110,7 +110,7 @@ export async function getChannelPage(request: ChannelPageRequest): Promise<Chann
   if (request.continuation) {
     const previous = continuations.get(request.continuation)
     if (!previous || previous.channelId !== request.channelId || previous.tab !== request.tab || previous.playlistId !== request.playlistId) {
-      throw new Error('La lista vencio. Vuelve a abrir esta seccion.')
+      throw new Error("This list expired. Open this section again.")
     }
     feed = await previous.feed.getContinuation()
     name = previous.name
@@ -148,7 +148,7 @@ export async function getChannelPage(request: ChannelPageRequest): Promise<Chann
     }
     if (!request.playlistId && request.tab === 'videos' && !channel.has_videos && channel.metadata.music_artist_name) {
       const id = channel.metadata.external_id ?? request.channelId
-      if (!id.startsWith('UC')) throw new Error('No se encontro la playlist de subidas de este canal.')
+      if (!id.startsWith('UC')) throw new Error("This channel’s uploads playlist could not be found.")
       feed = await yt.getPlaylist(`UU${id.slice(2)}`)
     } else if (request.playlistId) {
       feed = await yt.getPlaylist(request.playlistId)
@@ -166,18 +166,22 @@ export async function getChannelPage(request: ChannelPageRequest): Promise<Chann
         case 'search':
           if (!request.query?.trim()) return emptyPage()
           feed = await channel.search(request.query.trim()); break
-        default: throw new Error('Seccion desconocida')
+        default: throw new Error("Unknown section")
       }
-      filters = feed.filters
-      sorts = feed.sort_filters
-      secondaryFilters = feed.secondary_filters
-      const subMenu = feed.current_tab?.content
-      if (subMenu instanceof YTNodes.SectionList && subMenu.sub_menu instanceof YTNodes.ChannelSubMenu) {
-        contentTypes = feed.content_type_filters
+      // Shorts may return ChannelListContinuation, which has videos but no
+      // channel filtering API. Only expose/apply controls the feed supports.
+      if ('filters' in feed) {
+        filters = feed.filters
+        sorts = feed.sort_filters
+        secondaryFilters = feed.secondary_filters
+        const subMenu = feed.current_tab?.content
+        if (subMenu instanceof YTNodes.SectionList && subMenu.sub_menu instanceof YTNodes.ChannelSubMenu) {
+          contentTypes = feed.content_type_filters
+        }
       }
-      if (request.contentType) feed = await feed.applyContentTypeFilter(request.contentType)
-      if (request.sort) feed = await feed.applySort(request.sort)
-      if (request.filter || request.secondaryFilter) feed = await feed.applyFilter(request.filter || filters[0], request.secondaryFilter)
+      if (request.contentType && 'applyContentTypeFilter' in feed) feed = await feed.applyContentTypeFilter(request.contentType)
+      if (request.sort && 'applySort' in feed) feed = await feed.applySort(request.sort)
+      if ((request.filter || request.secondaryFilter) && 'applyFilter' in feed) feed = await feed.applyFilter(request.filter || filters[0], request.secondaryFilter)
     }
   }
   const result = emptyPage()
@@ -198,7 +202,7 @@ export async function getChannelPage(request: ChannelPageRequest): Promise<Chann
       return { title: shelf.title?.toString() ?? '', videos: videosFrom(nodes, request.channelId, name), playlists: playlistsFrom(nodes) }
     }).filter((section) => section.videos.length > 0 || section.playlists.length > 0)
     const featured = videosFrom(feed.memo.getType(YTNodes.ChannelVideoPlayer), request.channelId, name)
-    if (featured.length) result.sections.unshift({ title: 'Destacado', videos: featured, playlists: [] })
+    if (featured.length) result.sections.unshift({ title: "Featured", videos: featured, playlists: [] })
   }
   if (feed.has_continuation) {
     const id = randomUUID()

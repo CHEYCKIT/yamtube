@@ -155,6 +155,24 @@ body {
   box-shadow: inset -1px 0 0 color-mix(in srgb, var(--wt-accent) 8%, transparent);
 }
 
+.wt-topbar { -webkit-app-region: drag; }
+.wt-topbar :is(button, a, input, select, textarea, form),
+.wt-window-controls { -webkit-app-region: no-drag; }
+.wt-window-drag { -webkit-app-region: drag; user-select: none; }
+html:has(:fullscreen) :is(.wt-topbar, .wt-window-drag) { -webkit-app-region: no-drag; }
+
+.wt-nav-label {
+  display: block;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+@media (max-width: 680px) {
+  .wt-nav-label { font-size: 10px; line-height: 12px; }
+}
+
 .wt-sidebar::before,
 .wt-sidebar::after {
   content: '✦';
@@ -576,4 +594,104 @@ input[type='checkbox'] {
       'info info sidebar' auto
       'info info sidebar' auto / minmax(0, 1fr) minmax(0, 1fr) minmax(380px, 1fr);
   }
+}
+
+/* Theater mode keeps the same video element; only the surrounding layout moves. */
+.wt-theater .wt-workspace {
+  min-height: 100dvh;
+  padding: 0;
+}
+.wt-theater .wt-page-content { padding: 0; }
+.wt-theater .watch-layout {
+  grid-template: 'video' auto 'info' auto 'sidebar' auto / minmax(0, 1fr);
+}
+.wt-theater .watch-video-frame {
+  width: 100%;
+  height: 100dvh;
+  max-inline-size: none;
+  margin: 0;
+  background: black;
+}
+.wt-theater .watch-video-frame > div { height: 100%; aspect-ratio: auto; }
+.wt-theater .watch-info-area,
+.wt-theater .watch-sidebar-area {
+  max-inline-size: none;
+  min-inline-size: 0;
+  padding: 16px 16px 0;
+}
+.wt-theater .watch-sidebar-card { margin-inline-start: 0; }
+@media (min-width: 1051px) {
+  .wt-theater .watch-layout {
+    grid-template: 'video video' auto 'info sidebar' auto / minmax(0, 2fr) minmax(320px, 1fr);
+  }
+  .wt-theater .watch-info-area { padding-inline-end: 0; }
+}
+/* Native window drag regions swallow pointer events, making the reveal retract
+   over the logo and empty header space. Keep the overlay in the client area. */
+.wt-theater :is(.wt-topbar, .wt-window-drag) { -webkit-app-region: no-drag; }
+.wt-theater .wt-topbar,
+.wt-theater .wt-tabbar {
+  position: fixed;
+  inset-inline: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 160ms ease-out, opacity 160ms ease-out;
+}
+.wt-theater .wt-topbar {
+  top: 0;
+  z-index: 60;
+  transform: translateY(-100%);
+}
+.wt-theater .wt-tabbar {
+  top: 60px;
+  z-index: 59;
+  transform: translateY(-100px);
+}
+.wt-theater .wt-mobile-search { top: 60px; transform: translateY(-120px); }
+.wt-theater .wt-sidebar {
+  position: fixed;
+  inset-inline: 0 auto;
+  top: 0;
+  bottom: 0;
+  width: 112px;
+  height: 100dvh;
+  z-index: 58;
+  border-right-width: 1px;
+  border-top-width: 0;
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 160ms ease-out, opacity 160ms ease-out;
+}
+.wt-theater .wt-sidebar > div {
+  flex-direction: column;
+  align-items: stretch;
+  overflow-y: auto;
+  padding-block: 12px;
+}
+.wt-theater .wt-sidebar a { flex: 0 0 auto; padding-block: 8px; }
+.wt-theater .wt-nav-label { font-size: 11px; line-height: 1.25; }
+.wt-theater-edge {
+  position: fixed;
+  z-index: 61;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.wt-theater-top-edge { inset: 0 0 auto; height: 36px; }
+/* Once revealed, the trigger must not cover window buttons or the search bar. */
+.wt-theater-header-visible .wt-theater-top-edge { pointer-events: none; }
+.wt-theater-side-edge { inset: 0 auto 0 0; width: 10px; }
+.wt-theater-edge:focus-visible { outline: 2px solid var(--wt-accent); outline-offset: -2px; }
+.wt-theater-header-visible :is(.wt-topbar, .wt-tabbar),
+.wt-theater:has(.wt-theater-top-edge:focus-visible, .wt-topbar:focus-within, .wt-tabbar:focus-within) :is(.wt-topbar, .wt-tabbar),
+.wt-theater:has(.wt-theater-side-edge:hover, .wt-theater-side-edge:focus-visible, .wt-sidebar:hover, .wt-sidebar:focus-within) .wt-sidebar {
+  transform: translate(0, 0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.shaka-theater-button svg { display: block; margin: auto; }
+.shaka-video-container:fullscreen .shaka-theater-button { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .wt-theater :is(.wt-topbar, .wt-tabbar, .wt-sidebar) { transition: none; }
 }

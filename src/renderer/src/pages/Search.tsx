@@ -15,7 +15,7 @@ function FilterIcon() {
 }
 
 function CollectionCard({ item }: { item: SearchCollectionItem }) {
-  const kindLabel = item.kind === 'album' ? t('Álbum') : item.kind === 'podcast' ? t('Podcast') : t('Playlist')
+  const kindLabel = item.kind === 'album' ? t("Album") : item.kind === 'podcast' ? t("Podcast") : t("Playlist")
   const href = `/collection/${item.kind}/${encodeURIComponent(item.collectionId)}?title=${encodeURIComponent(item.title)}`
   return <Link to={href} className="group min-w-0 rounded no-underline">
     <div className={`relative overflow-hidden bg-neutral-900 ${item.kind === 'album' ? 'aspect-square rounded-lg' : 'aspect-video rounded'}`}>
@@ -74,33 +74,33 @@ export function Search() {
 
   return <div>
     <div className="relative mb-5 flex items-center justify-between gap-3 border-b border-neutral-800 pb-3">
-      <h1 className="min-w-0 truncate text-lg font-semibold">{t('Resultados para “{query}”', { query })}</h1>
+      <h1 className="min-w-0 truncate text-lg font-semibold">{t("Results for “{query}”", { query })}</h1>
       <details className="relative">
-        <summary className="flex cursor-pointer list-none items-center gap-2 rounded px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-800"><FilterIcon />{t('Filtros')}{activeFilterCount > 0 && <span className="wt-action grid h-5 min-w-5 place-items-center rounded-full px-1 text-xs">{activeFilterCount}</span>}</summary>
+        <summary className="flex cursor-pointer list-none items-center gap-2 rounded px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-800"><FilterIcon />{t("Filters")}{activeFilterCount > 0 && <span className="wt-action grid h-5 min-w-5 place-items-center rounded-full px-1 text-xs">{activeFilterCount}</span>}</summary>
         <form onSubmit={applyFilters} className="absolute right-0 z-30 mt-2 grid w-72 gap-3 rounded border border-neutral-800 bg-neutral-950 p-4 shadow-2xl">
-          <label className="grid gap-1 text-xs text-neutral-400">{t('Tipo')}<select value={draftFilters.type} onChange={(event) => setDraftFilters((value) => ({ ...value, type: event.target.value as SearchFilters['type'] }))} className="rounded border border-neutral-700 bg-neutral-900 px-2 py-2 text-sm text-white">
-            <option value="all">{t('Todo')}</option><option value="videos">{t('Videos')}</option><option value="shorts">Shorts</option><option value="live">{t('En directo')}</option><option value="channels">{t('Canales')}</option><option value="playlists">{t('Playlists')}</option><option value="albums">{t('Álbumes')}</option><option value="podcasts">{t('Podcasts')}</option>
+          <label className="grid gap-1 text-xs text-neutral-400">{t("Type")}<select value={draftFilters.type} onChange={(event) => setDraftFilters((value) => ({ ...value, type: event.target.value as SearchFilters['type'] }))} className="rounded border border-neutral-700 bg-neutral-900 px-2 py-2 text-sm text-white">
+            <option value="all">{t("All")}</option><option value="videos">{t("Videos")}</option><option value="shorts">Shorts</option><option value="live">{t("Live")}</option><option value="channels">{t("Channels")}</option><option value="playlists">{t("Playlists")}</option><option value="albums">{t("Albums")}</option><option value="podcasts">{t("Podcasts")}</option>
           </select></label>
-          <label className="grid gap-1 text-xs text-neutral-400">{t('Fecha de subida')}<select value={draftFilters.uploadDate} onChange={(event) => setDraftFilters((value) => ({ ...value, uploadDate: event.target.value as SearchFilters['uploadDate'] }))} className="rounded border border-neutral-700 bg-neutral-900 px-2 py-2 text-sm text-white">
-            <option value="all">{t('Cualquier fecha')}</option><option value="today">{t('Hoy')}</option><option value="week">{t('Esta semana')}</option><option value="month">{t('Este mes')}</option><option value="year">{t('Este año')}</option>
+          <label className="grid gap-1 text-xs text-neutral-400">{t("Upload date")}<select value={draftFilters.uploadDate} onChange={(event) => setDraftFilters((value) => ({ ...value, uploadDate: event.target.value as SearchFilters['uploadDate'] }))} className="rounded border border-neutral-700 bg-neutral-900 px-2 py-2 text-sm text-white">
+            <option value="all">{t("Any time")}</option><option value="today">{t("Today")}</option><option value="week">{t("This week")}</option><option value="month">{t("This month")}</option><option value="year">{t("This year")}</option>
           </select></label>
-          <label className="grid gap-1 text-xs text-neutral-400">{t('Duración')}<select value={draftFilters.duration} onChange={(event) => setDraftFilters((value) => ({ ...value, duration: event.target.value as SearchFilters['duration'] }))} className="rounded border border-neutral-700 bg-neutral-900 px-2 py-2 text-sm text-white">
-            <option value="all">{t('Cualquier duración')}</option><option value="short">{t('Menos de 3 minutos')}</option><option value="medium">{t('De 3 a 20 minutos')}</option><option value="long">{t('Más de 20 minutos')}</option>
+          <label className="grid gap-1 text-xs text-neutral-400">{t("Duration")}<select value={draftFilters.duration} onChange={(event) => setDraftFilters((value) => ({ ...value, duration: event.target.value as SearchFilters['duration'] }))} className="rounded border border-neutral-700 bg-neutral-900 px-2 py-2 text-sm text-white">
+            <option value="all">{t("Any duration")}</option><option value="short">{t("Under 3 minutes")}</option><option value="medium">{t("3 to 20 minutes")}</option><option value="long">{t("Over 20 minutes")}</option>
           </select></label>
-          <label className="grid gap-1 text-xs text-neutral-400">{t('Ordenar por')}<select value={draftFilters.sort} onChange={(event) => setDraftFilters((value) => ({ ...value, sort: event.target.value as SearchFilters['sort'] }))} className="rounded border border-neutral-700 bg-neutral-900 px-2 py-2 text-sm text-white">
-            <option value="relevance">{t('Relevancia')}</option><option value="popularity">{t('Visualizaciones')}</option>
+          <label className="grid gap-1 text-xs text-neutral-400">{t("Sort by")}<select value={draftFilters.sort} onChange={(event) => setDraftFilters((value) => ({ ...value, sort: event.target.value as SearchFilters['sort'] }))} className="rounded border border-neutral-700 bg-neutral-900 px-2 py-2 text-sm text-white">
+            <option value="relevance">{t("Relevance")}</option><option value="popularity">{t("View count")}</option>
           </select></label>
-          <div className="flex justify-end gap-2 border-t border-neutral-800 pt-3"><button type="button" onClick={() => setDraftFilters(defaultFilters)} className="cursor-pointer rounded px-3 py-2 text-sm text-neutral-400 hover:bg-neutral-800">{t('Restablecer')}</button><button type="submit" className="wt-action cursor-pointer rounded px-4 py-2 text-sm font-medium">{t('Aplicar')}</button></div>
+          <div className="flex justify-end gap-2 border-t border-neutral-800 pt-3"><button type="button" onClick={() => setDraftFilters(defaultFilters)} className="cursor-pointer rounded px-3 py-2 text-sm text-neutral-400 hover:bg-neutral-800">{t("Reset")}</button><button type="submit" className="wt-action cursor-pointer rounded px-4 py-2 text-sm font-medium">{t("Apply")}</button></div>
         </form>
       </details>
     </div>
     {status === 'loading' && <PageLoader />}
     {status === 'error' && <p className="text-sm text-red-400">{error}</p>}
-    {status === 'ready' && results.length === 0 && channels.length === 0 && collections.length === 0 && <p className="text-sm text-neutral-400">{t('Sin resultados para “{query}”.', { query })}</p>}
+    {status === 'ready' && results.length === 0 && channels.length === 0 && collections.length === 0 && <p className="text-sm text-neutral-400">{t("No results for “{query}”.", { query })}</p>}
     {status === 'ready' && <>
-      {channels.length > 0 && <section className="mb-7"><h2 className="mb-3 text-lg font-semibold">{t('Canales')}</h2><RecommendedChannels channels={channels} /></section>}
-      {collections.length > 0 && <section className="mb-7"><h2 className="mb-3 text-lg font-semibold">{filters.type === 'albums' ? t('Álbumes') : filters.type === 'podcasts' ? t('Podcasts') : filters.type === 'playlists' ? t('Playlists') : t('Playlists, álbumes y podcasts')}</h2><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{collections.map((item) => <CollectionCard key={`${item.kind}:${item.collectionId}`} item={item} />)}</div></section>}
-      {results.length > 0 && <section><h2 className="mb-3 text-lg font-semibold">{t('Videos')}</h2><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{results.map((video) => <VideoCard key={video.videoId} videoId={video.videoId} title={video.title} channelId={video.channelId} channelName={video.channelName} thumbnailUrl={video.thumbnailUrl} previewUrl={video.previewUrl} badge={video.durationText} meta={[video.viewCountText, video.publishedText].filter(Boolean).join(' · ')} />)}</div></section>}
+      {channels.length > 0 && <section className="mb-7"><h2 className="mb-3 text-lg font-semibold">{t("Channels")}</h2><RecommendedChannels channels={channels} /></section>}
+      {collections.length > 0 && <section className="mb-7"><h2 className="mb-3 text-lg font-semibold">{filters.type === 'albums' ? t("Albums") : filters.type === 'podcasts' ? t("Podcasts") : filters.type === 'playlists' ? t("Playlists") : t("Playlists, albums and podcasts")}</h2><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{collections.map((item) => <CollectionCard key={`${item.kind}:${item.collectionId}`} item={item} />)}</div></section>}
+      {results.length > 0 && <section><h2 className="mb-3 text-lg font-semibold">{t("Videos")}</h2><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{results.map((video) => <VideoCard key={video.videoId} videoId={video.videoId} title={video.title} channelId={video.channelId} channelName={video.channelName} thumbnailUrl={video.thumbnailUrl} previewUrl={video.previewUrl} badge={video.durationText} meta={[video.viewCountText, video.publishedText].filter(Boolean).join(' · ')} />)}</div></section>}
     </>}
   </div>
 }

@@ -13,6 +13,7 @@ export interface MusicQueueItem {
 }
 
 export interface GlobalPlayerState {
+  playbackToken: string
   videoId: string | null
   title: string
   channelId: string | null
@@ -54,6 +55,7 @@ export interface GlobalPlayerContextValue extends GlobalPlayerState {
 }
 
 export const initialState: GlobalPlayerState = {
+  playbackToken: '',
   videoId: null,
   title: '',
   channelId: null,
@@ -163,7 +165,7 @@ export function GlobalPlayerProvider({ children, tabId = '', onOpenShort }: { ch
   const playVideoImpl = useCallback(async (videoId: string) => {
     const requestId = ++requestIdRef.current
 
-    setState((prev) => ({ ...prev, videoId, status: 'loading', error: null, relatedVideos: [], dashManifest: null, liveManifests: null, sabr: null }))
+    setState((prev) => ({ ...prev, playbackToken: '', videoId, status: 'loading', error: null, relatedVideos: [], dashManifest: null, liveManifests: null, sabr: null }))
 
     const response = await window.api.getVideoInfo(videoId)
     if (requestIdRef.current !== requestId) return
@@ -195,13 +197,14 @@ export function GlobalPlayerProvider({ children, tabId = '', onOpenShort }: { ch
         liveManifests: null,
         sabr: null,
         status: 'error',
-        error: t("No se pudo generar un manifest reproducible para este video (ver logs del proceso principal).")
+        error: t("Could not generate a playable manifest for this video (see main process logs).")
       }))
       return
     }
 
     setState((prev) => ({
       ...prev,
+      playbackToken: response.data.playbackToken,
       title: response.data.title,
       channelId: response.data.channelId,
       channelName: response.data.channelName,

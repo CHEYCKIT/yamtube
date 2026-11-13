@@ -1,4 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { readFile, writeFile } from 'node:fs/promises'
+import { initializeDiagnostics, getDiagnostics } from './diagnosticLog'
 import { join } from 'node:path'
 import { IPC_CHANNELS } from '../shared/ipc'
 import { translateFor } from '../shared/locale'
@@ -22,17 +24,22 @@ import type {
   Subscription,
   UpdateProfileRequest,
   VideoInfoRequest,
-  VideoInfoResponse
+  VideoInfoResponse,
+  VideoCommentsResponse
 } from '../shared/ipc'
-import { fetchVideoInfo, getChannelInfo, getCollectionVideos, getHomeDiscovery, getSearchSuggestions, getSubscriptionsFeed, getVideoPreview, searchVideos } from './youtube'
+import { fetchVideoInfo, fetchVideoComments, getChannelInfo, getCollectionVideos, getHomeDiscovery, getSearchSuggestions, getSubscriptionsFeed, getVideoPreview, searchVideos, playbackHistory, getYoutubeSubscriptionsFeed } from './youtube'
+import { initializeProtection, protectionState, updateProtection } from './adBlock'
+import { initializeYoutubeAccount, youtubeAccountState, connectYoutubeAccount, disconnectYoutubeAccount, hasYoutubeAccount, activateCurrentLibrary } from './youtubeAccount'
+import { signInWithBrowser, cancelBrowserLogin, removeAbandonedLoginProfiles, getSignInBrowsers, selectSignInBrowser, addSignInBrowser } from './browserLogin'
+import { parseYoutubeCookies } from './youtubeCookies'
 import { getChannelPage } from './channelBrowse'
 import type { ChannelPageRequest, ChannelPageResponse } from '../shared/ipc'
 import { clearHistory, getHistory } from './historyStore'
+import { getYoutubeHistory, removeYoutubeHistoryVideo, removeLocalHistoryVideo } from './youtubeHistory'
 import {
   createLocalUser,
   getAppPreferences,
   setAppPreferences,
-  createActiveSavedPlaylist,
   deleteLocalUser,
   createUserProfile,
   exportLocalData,
@@ -42,17 +49,14 @@ import {
   setPlayerAudioPreferences,
   importLocalData,
   listActiveSearchHistory,
-  listActiveSavedPlaylists,
-  listActiveSavedVideos,
   loginLocalUser,
   logoutLocalUser,
   recordActiveSearchQuery,
-  removeActiveSavedVideo,
   removeUserProfile,
-  saveActiveVideo,
   setActiveUserProfile,
   updateUserProfile
 } from './localDb'
+import { createSavedPlaylist, listSavedPlaylists, listSavedVideos, saveVideo, removeSavedVideo, getLibraryVideos, getLibrarySaveOptions } from './accountLibrary'
 import { addSubscription, listSubscriptions, removeSubscription } from './subscriptionsStore'
 
 // AppImage launches do not always keep stdout/stderr attached. Node emits an
@@ -66,10 +70,83 @@ for (const stream of [process.stdout, process.stderr]) {
 }
 
 // Keep the data directory identical in development and packaged installations.
+// Keep the encryption/keyring identity and storage location compatible with beta 1.
+// The window, installer, executable and desktop entry use the LokTube product name.
 app.setName('worldtube')
+// Use the installer app ID for Windows media controls and shell integration.
+if (process.platform === 'win32') app.setAppUserModelId('com.riberojuanca.worldtube')
+app.setPath('userData', join(app.getPath('appData'), 'worldtube'))
+const primaryInstance = app.requestSingleInstanceLock()
+if (!primaryInstance) app.quit()
+app.on('second-instance', () => {
+  const window = BrowserWindow.getAllWindows().find((candidate) => candidate.isVisible())
+  if (window) { if (window.isMinimized()) window.restore(); window.focus() }
+})
 if (process.platform === 'linux') {
   app.setDesktopName(app.isPackaged ? 'com.riberojuanca.worldtube.desktop' : 'com.riberojuanca.worldtube.dev.desktop')
 }
+
+let accountOperation: Promise<unknown> | null = null
+function changeAccount<T>(operation: () => Promise<T>): Promise<T> {
+  if (accountOperation) return Promise.reject(new Error('Another account operation is in progress'))
+  const pending = operation().finally(() => { if (accountOperation === pending) accountOperation = null })
+  accountOperation = pending
+  return pending
+}
+
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_ACCOUNT_STATE, () => youtubeAccountState())
+function senderWindow(event: Electron.IpcMainInvokeEvent): BrowserWindow {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  if (!window || window.isDestroyed()) throw new Error('No app window')
+  return window
+}
+ipcMain.handle(IPC_CHANNELS.WINDOW_STATE, (event) => ({ maximized: senderWindow(event).isMaximized() }))
+ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, (event) => senderWindow(event).minimize())
+ipcMain.handle(IPC_CHANNELS.WINDOW_MAXIMIZE, (event) => {
+  const window = senderWindow(event)
+  if (window.isMaximized()) window.unmaximize()
+  else window.maximize()
+})
+ipcMain.handle(IPC_CHANNELS.WINDOW_CLOSE, (event) => senderWindow(event).close())
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_SIGN_IN, (_event, browserId?: string) => changeAccount(async () => {
+  return connectYoutubeAccount(await signInWithBrowser(browserId))
+}))
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_BROWSERS_GET, (_event, refresh?: boolean) => getSignInBrowsers(refresh === true))
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_BROWSER_SELECT, (_event, id: string) => selectSignInBrowser(id))
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_BROWSER_ADD, async (event) => {
+  const owner = BrowserWindow.fromWebContents(event.sender)
+  if (!owner) throw new Error('No app window')
+  return addSignInBrowser(owner)
+})
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_SIGN_IN_CANCEL, () => cancelBrowserLogin())
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_SIGN_OUT, () => changeAccount(disconnectYoutubeAccount))
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_IMPORT_COOKIES, (event) => changeAccount(async () => {
+  const owner = BrowserWindow.fromWebContents(event.sender)
+  if (!owner) throw new Error('No app window')
+  const selected = await dialog.showOpenDialog(owner, {
+    title: 'Import YouTube cookies', properties: ['openFile'],
+    filters: [{ name: 'YouTube cookies (Netscape or Cookie-Editor)', extensions: ['txt', 'json'] }]
+  })
+  if (selected.canceled || !selected.filePaths[0]) return null
+  return connectYoutubeAccount(parseYoutubeCookies(await readFile(selected.filePaths[0], 'utf8')))
+}))
+ipcMain.handle(IPC_CHANNELS.PLAYBACK_PROGRESS, (_event, progress: import('../shared/ipc').PlaybackProgress) => playbackHistory.progress(progress))
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_HISTORY, () => getYoutubeHistory())
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_HISTORY_MORE, (_event, continuation: string) => getYoutubeHistory(continuation))
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_HISTORY_REMOVE, (_event, id: string) => removeYoutubeHistoryVideo(id))
+ipcMain.handle(IPC_CHANNELS.HISTORY_REMOVE, (_event, videoId: string, profileId: string) => removeLocalHistoryVideo(videoId, profileId))
+ipcMain.handle(IPC_CHANNELS.PROTECTION_STATE, () => protectionState())
+ipcMain.handle(IPC_CHANNELS.PROTECTION_UPDATE, () => updateProtection())
+ipcMain.handle(IPC_CHANNELS.DIAGNOSTICS_GET, () => getDiagnostics())
+ipcMain.handle(IPC_CHANNELS.DIAGNOSTICS_EXPORT, async (event) => {
+  const owner = BrowserWindow.fromWebContents(event.sender)
+  if (!owner) throw new Error('No app window')
+  const result = await dialog.showSaveDialog(owner, { title: 'Export LokTube logs', defaultPath: 'LokTube-diagnostics.txt', filters: [{ name: 'Diagnostic log', extensions: ['txt'] }] })
+  if (result.canceled || !result.filePath) return null
+  const { contents } = await getDiagnostics(true)
+  await writeFile(result.filePath, `LokTube ${app.getVersion()} · ${process.platform} ${process.arch}\n${contents}`, { mode: 0o600 })
+  return result.filePath
+})
 
 // This dev machine doesn't have the setuid chrome-sandbox helper configured
 // (needs root-owned 4755, which we won't set from here), so Chromium's native
@@ -81,6 +158,8 @@ if (process.platform === 'linux') {
 function createWindow(): void {
   const icon = app.isPackaged ? join(process.resourcesPath, 'icon.png') : join(app.getAppPath(), 'resources/icon.png')
   const mainWindow = new BrowserWindow({
+    title: 'LokTube',
+    frame: false,
     icon,
     width: 1280,
     height: 800,
@@ -88,12 +167,21 @@ function createWindow(): void {
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+  const windowState = () => mainWindow.webContents.send(IPC_CHANNELS.WINDOW_STATE, { maximized: mainWindow.isMaximized() })
+  mainWindow.on('maximize', windowState)
+  mainWindow.on('unmaximize', windowState)
+  mainWindow.on('app-command', (_event, command) => {
+    if (command === 'browser-backward' || command === 'browser-back') mainWindow.webContents.send(IPC_CHANNELS.NAVIGATE_HISTORY, 'back')
+    else if (command === 'browser-forward') mainWindow.webContents.send(IPC_CHANNELS.NAVIGATE_HISTORY, 'forward')
   })
 
   // The renderer's `fetch()` calls to YouTube's SABR/ABR endpoint
@@ -138,6 +226,21 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    // Reloading the trusted app document is required after account changes.
+    if (url.split('#')[0] === mainWindow.webContents.getURL().split('#')[0]) return
+    event.preventDefault()
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
+  })
+  // Fullscreen is part of our trusted player UI. Scope its permission requests
+  // to the main app frame; the attestation renderer keeps its own deny policy.
+  mainWindow.webContents.session.setPermissionRequestHandler((contents, permission, respond, details) => {
+    respond(contents === mainWindow.webContents && permission === 'fullscreen' && details.isMainFrame)
+  })
+  mainWindow.webContents.session.setPermissionCheckHandler((contents, permission, _origin, details) => {
+    return contents === mainWindow.webContents && permission === 'fullscreen' && details.isMainFrame
+  })
+
   if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -152,10 +255,22 @@ ipcMain.handle(
       const data = await fetchVideoInfo(videoId)
       return { ok: true, data }
     } catch (error) {
+      console.error('[playback] Failed to load video', error)
       return { ok: false, error: error instanceof Error ? error.message : String(error) }
     }
   }
 )
+
+ipcMain.handle(IPC_CHANNELS.GET_VIDEO_COMMENTS, async (_event, videoId: string, cursor?: string): Promise<VideoCommentsResponse> => {
+  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId) || (cursor && (typeof cursor !== 'string' || cursor.length > 100))) {
+    return { ok: false, error: 'Invalid comments request' }
+  }
+  try {
+    return { ok: true, data: await fetchVideoComments(videoId, cursor) }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
 
 ipcMain.handle(IPC_CHANNELS.GET_VIDEO_PREVIEW, (_event, videoId: string) => getVideoPreview(videoId))
 
@@ -226,11 +341,12 @@ ipcMain.handle(IPC_CHANNELS.SESSION_LOGOUT, (): Promise<LocalSessionState> => lo
 ipcMain.handle(IPC_CHANNELS.SESSION_DELETE_USER, (_event, request: DeleteLocalUserRequest): Promise<LocalSessionState> => deleteLocalUser(request))
 
 ipcMain.handle(IPC_CHANNELS.DATA_EXPORT, async (event): Promise<string | null> => {
-  const ownerWindow = BrowserWindow.fromWebContents(event.sender) ?? undefined
+  const ownerWindow = BrowserWindow.fromWebContents(event.sender)
+  if (!ownerWindow) throw new Error('No app window')
   const result = await dialog.showSaveDialog(ownerWindow, {
-    title: translateFor((await getAppPreferences()).language, 'Exportar datos de WorldTube'),
-    defaultPath: 'worldtube-data.json',
-    filters: [{ name: 'WorldTube data', extensions: ['json'] }]
+    title: translateFor((await getAppPreferences()).language, "Export LokTube data"),
+    defaultPath: 'loktube-data.json',
+    filters: [{ name: 'LokTube data', extensions: ['json'] }]
   })
   if (result.canceled || !result.filePath) return null
   await exportLocalData(result.filePath)
@@ -238,15 +354,18 @@ ipcMain.handle(IPC_CHANNELS.DATA_EXPORT, async (event): Promise<string | null> =
 })
 
 ipcMain.handle(IPC_CHANNELS.DATA_IMPORT, async (event): Promise<LocalSessionState | null> => {
-  const ownerWindow = BrowserWindow.fromWebContents(event.sender) ?? undefined
+  const ownerWindow = BrowserWindow.fromWebContents(event.sender)
+  if (!ownerWindow) throw new Error('No app window')
   const result = await dialog.showOpenDialog(ownerWindow, {
-    title: translateFor((await getAppPreferences()).language, 'Importar datos de WorldTube'),
+    title: translateFor((await getAppPreferences()).language, "Import LokTube data"),
     properties: ['openFile'],
-    filters: [{ name: 'WorldTube data', extensions: ['json'] }]
+    filters: [{ name: 'LokTube data', extensions: ['json'] }]
   })
   const [filePath] = result.filePaths
   if (result.canceled || !filePath) return null
-  return importLocalData(filePath)
+  await importLocalData(filePath)
+  await activateCurrentLibrary()
+  return getSessionState()
 })
 
 ipcMain.handle(IPC_CHANNELS.PROFILES_GET_STATE, (): Promise<ProfilesState> => getProfilesState())
@@ -258,12 +377,14 @@ ipcMain.handle(IPC_CHANNELS.PROFILES_REMOVE, (_event, profileId: string): Promis
 ipcMain.handle(IPC_CHANNELS.HISTORY_LIST, () => getHistory())
 ipcMain.handle(IPC_CHANNELS.HISTORY_CLEAR, () => clearHistory())
 
-ipcMain.handle(IPC_CHANNELS.SAVED_PLAYLISTS_LIST, (_event, library?: LibraryKind) => listActiveSavedPlaylists(library))
-ipcMain.handle(IPC_CHANNELS.SAVED_PLAYLISTS_CREATE, (_event, request: CreateSavedPlaylistRequest) => createActiveSavedPlaylist(request))
-ipcMain.handle(IPC_CHANNELS.SAVED_VIDEOS_LIST, (_event, playlistId?: string | null, library?: LibraryKind) => listActiveSavedVideos(playlistId, library))
-ipcMain.handle(IPC_CHANNELS.SAVED_VIDEOS_SAVE, (_event, request: SaveVideoRequest) => saveActiveVideo(request))
+ipcMain.handle(IPC_CHANNELS.LIBRARY_VIDEOS_PAGE, (_event, playlistId: string | null, library?: LibraryKind, continuation?: string) => getLibraryVideos(playlistId, library, continuation))
+ipcMain.handle(IPC_CHANNELS.LIBRARY_SAVE_OPTIONS, (_event, videoId: string, library?: LibraryKind) => getLibrarySaveOptions(videoId, library))
+ipcMain.handle(IPC_CHANNELS.SAVED_PLAYLISTS_LIST, (_event, library?: LibraryKind) => listSavedPlaylists(library))
+ipcMain.handle(IPC_CHANNELS.SAVED_PLAYLISTS_CREATE, (_event, request: CreateSavedPlaylistRequest) => createSavedPlaylist(request))
+ipcMain.handle(IPC_CHANNELS.SAVED_VIDEOS_LIST, (_event, playlistId?: string | null, library?: LibraryKind) => listSavedVideos(playlistId, library))
+ipcMain.handle(IPC_CHANNELS.SAVED_VIDEOS_SAVE, (_event, request: SaveVideoRequest) => saveVideo(request))
 ipcMain.handle(IPC_CHANNELS.SAVED_VIDEOS_REMOVE, (_event, videoId: string, playlistId?: string | null, library?: LibraryKind) =>
-  removeActiveSavedVideo(videoId, playlistId, library)
+  removeSavedVideo(videoId, playlistId, library)
 )
 ipcMain.handle(IPC_CHANNELS.SEARCH_HISTORY_LIST, () => listActiveSearchHistory())
 ipcMain.handle(IPC_CHANNELS.SEARCH_HISTORY_RECORD, (_event, query: string) => recordActiveSearchQuery(query))
@@ -271,8 +392,8 @@ ipcMain.handle(IPC_CHANNELS.SEARCH_HISTORY_RECORD, (_event, query: string) => re
 ipcMain.handle(IPC_CHANNELS.SUBSCRIPTIONS_LIST, () => listSubscriptions())
 ipcMain.handle(IPC_CHANNELS.SUBSCRIPTIONS_FEED, async (): Promise<SearchResponse> => {
   try {
-    const subs = await listSubscriptions()
-    const data = await getSubscriptionsFeed(subs.map((sub) => sub.channelId))
+    const data = hasYoutubeAccount() ? await getYoutubeSubscriptionsFeed()
+      : await getSubscriptionsFeed((await listSubscriptions()).map((sub) => sub.channelId))
     return { ok: true, data }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
@@ -281,7 +402,13 @@ ipcMain.handle(IPC_CHANNELS.SUBSCRIPTIONS_FEED, async (): Promise<SearchResponse
 ipcMain.handle(IPC_CHANNELS.SUBSCRIPTIONS_ADD, (_event, sub: Omit<Subscription, 'subscribedAt'>) => addSubscription(sub))
 ipcMain.handle(IPC_CHANNELS.SUBSCRIPTIONS_REMOVE, (_event, channelId: string) => removeSubscription(channelId))
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  if (!primaryInstance) return
+  await initializeDiagnostics(join(app.getPath('userData'), 'logs'))
+  console.info(`LokTube ${app.getVersion()} starting on ${process.platform} ${process.arch}`)
+  await initializeProtection()
+  await removeAbandonedLoginProfiles()
+  await initializeYoutubeAccount()
   if (process.platform === 'darwin') {
     app.dock?.setIcon(app.isPackaged ? join(process.resourcesPath, 'icon.png') : join(app.getAppPath(), 'resources/icon.png'))
   }
@@ -303,6 +430,8 @@ app.whenReady().then(() => {
       .catch((error) => console.error('[autotest] RESULT_ERROR', error))
   }
 })
+
+app.on('before-quit', cancelBrowserLogin)
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

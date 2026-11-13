@@ -24,6 +24,8 @@ import type {
   SearchFilters,
   SearchResponse,
   SearchSuggestionsResponse,
+  LibraryVideosPage,
+  LibrarySaveOptions,
   SavedPlaylist,
   SavedVideo,
   Subscription,
@@ -33,6 +35,42 @@ import type {
 } from '../shared/ipc'
 
 const api = {
+  getWindowState: (): Promise<{ maximized: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_STATE),
+  minimizeWindow: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MINIMIZE),
+  toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MAXIMIZE),
+  closeWindow: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.WINDOW_CLOSE),
+  onWindowState: (listener: (state: { maximized: boolean }) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: { maximized: boolean }) => listener(state)
+    ipcRenderer.on(IPC_CHANNELS.WINDOW_STATE, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.WINDOW_STATE, handler)
+  },
+  getDiagnostics: (): Promise<{ path: string; contents: string }> => ipcRenderer.invoke(IPC_CHANNELS.DIAGNOSTICS_GET),
+  exportDiagnostics: (): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.DIAGNOSTICS_EXPORT),
+  onHistoryNavigation: (listener: (direction: 'back' | 'forward') => void): (() => void) => {
+    const receive = (_event: Electron.IpcRendererEvent, direction: 'back' | 'forward') => listener(direction)
+    ipcRenderer.on(IPC_CHANNELS.NAVIGATE_HISTORY, receive)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.NAVIGATE_HISTORY, receive)
+  },
+  getYoutubeAccount: (): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_ACCOUNT_STATE),
+  signInYoutube: (browserId?: string): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_IN, browserId),
+  getSignInBrowsers: (refresh = false): Promise<import('../shared/ipc').SignInBrowserState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_BROWSERS_GET, refresh),
+  selectSignInBrowser: (id: string): Promise<import('../shared/ipc').SignInBrowserState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_BROWSER_SELECT, id),
+  addSignInBrowser: (): Promise<import('../shared/ipc').SignInBrowserState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_BROWSER_ADD),
+  cancelYoutubeSignIn: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_IN_CANCEL),
+  importYoutubeCookies: (): Promise<import('../shared/ipc').YoutubeAccountState | null> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_IMPORT_COOKIES),
+  signOutYoutube: (): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_OUT),
+  onYoutubeAccount: (listener: (state: import('../shared/ipc').YoutubeAccountState) => void): (() => void) => {
+    const receive = (_event: Electron.IpcRendererEvent, state: import('../shared/ipc').YoutubeAccountState) => listener(state)
+    ipcRenderer.on(IPC_CHANNELS.YOUTUBE_ACCOUNT_STATE, receive)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.YOUTUBE_ACCOUNT_STATE, receive)
+  },
+  getYoutubeHistory: (): Promise<import('../shared/ipc').YoutubeHistoryPage> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_HISTORY),
+  getMoreYoutubeHistory: (continuation: string): Promise<import('../shared/ipc').YoutubeHistoryPage> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_HISTORY_MORE, continuation),
+  removeYoutubeHistoryVideo: (historyId: string): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_HISTORY_REMOVE, historyId),
+  removeLocalHistoryVideo: (videoId: string, profileId: string): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.HISTORY_REMOVE, videoId, profileId),
+  reportPlaybackProgress: (progress: import('../shared/ipc').PlaybackProgress): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.PLAYBACK_PROGRESS, progress),
+  getProtection: (): Promise<import('../shared/ipc').ProtectionState> => ipcRenderer.invoke(IPC_CHANNELS.PROTECTION_STATE),
+  updateProtection: (): Promise<import('../shared/ipc').ProtectionState> => ipcRenderer.invoke(IPC_CHANNELS.PROTECTION_UPDATE),
   getVideoPreview: (videoId: string): Promise<import('../shared/ipc').VideoPreview | null> => ipcRenderer.invoke(IPC_CHANNELS.GET_VIDEO_PREVIEW, videoId),
   getAppPreferences: (): Promise<AppPreferences> => ipcRenderer.invoke(IPC_CHANNELS.APP_PREFERENCES_GET),
   setAppPreferences: (preferences: AppPreferences): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.APP_PREFERENCES_SET, preferences),
@@ -47,6 +85,7 @@ const api = {
   },
   getPlayerAudioPreferences: (): Promise<PlayerAudioPreferences> => ipcRenderer.invoke(IPC_CHANNELS.PLAYER_AUDIO_GET),
   setPlayerAudioPreferences: (audio: PlayerAudioPreferences): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.PLAYER_AUDIO_SET, audio),
+  getVideoComments: (videoId: string, cursor?: string): Promise<import('../shared/ipc').VideoCommentsResponse> => ipcRenderer.invoke(IPC_CHANNELS.GET_VIDEO_COMMENTS, videoId, cursor),
   getVideoInfo: (videoId: string): Promise<VideoInfoResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_VIDEO_INFO, { videoId } satisfies VideoInfoRequest),
   search: (query: string, filters?: SearchFilters): Promise<SearchResponse> =>
@@ -72,6 +111,8 @@ const api = {
   removeProfile: (profileId: string): Promise<ProfilesState> => ipcRenderer.invoke(IPC_CHANNELS.PROFILES_REMOVE, profileId),
   getHistory: (): Promise<HistoryEntry[]> => ipcRenderer.invoke(IPC_CHANNELS.HISTORY_LIST),
   clearHistory: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.HISTORY_CLEAR),
+  getLibraryVideos: (playlistId: string | null, library: LibraryKind = 'video', continuation?: string): Promise<LibraryVideosPage> => ipcRenderer.invoke(IPC_CHANNELS.LIBRARY_VIDEOS_PAGE, playlistId, library, continuation),
+  getLibrarySaveOptions: (videoId: string, library: LibraryKind = 'video'): Promise<LibrarySaveOptions> => ipcRenderer.invoke(IPC_CHANNELS.LIBRARY_SAVE_OPTIONS, videoId, library),
   listSavedPlaylists: (library?: LibraryKind): Promise<SavedPlaylist[]> => ipcRenderer.invoke(IPC_CHANNELS.SAVED_PLAYLISTS_LIST, library),
   createSavedPlaylist: (request: CreateSavedPlaylistRequest): Promise<SavedPlaylist> =>
     ipcRenderer.invoke(IPC_CHANNELS.SAVED_PLAYLISTS_CREATE, request),
@@ -87,7 +128,7 @@ const api = {
   unsubscribe: (channelId: string): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.SUBSCRIPTIONS_REMOVE, channelId)
 }
 
-export type WorldTubeApi = typeof api
+export type LokTubeApi = typeof api
 
 if (process.contextIsolated) {
   try {

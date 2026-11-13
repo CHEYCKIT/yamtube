@@ -13,7 +13,7 @@ import { usePlayerWorkspace } from '../player/PlayerWorkspace'
 import { useProfiles } from '../profiles/ProfileContext'
 import { PROFILE_DATA_CHANGED_EVENT } from '../profiles/events'
 import { useAppTabs, usePageTab } from '../tabs/AppTabs'
-import type { SavedPlaylist, SavedVideo, SearchResultItem } from '../../../shared/ipc'
+import type { SavedPlaylist, SavedVideo, SearchResultItem, VideoComment } from '../../../shared/ipc'
 
 type IconName = 'check' | 'clock' | 'share' | 'eye' | 'tag' | 'thumb'
 
@@ -140,7 +140,7 @@ function RelatedVideoRow({ video }: { video: SearchResultItem }) {
 }
 
 export function Watch() {
-  useLocale()
+  const preferences = useLocale()
   const { videoId } = useParams<{ videoId: string }>()
   const { active: isTabActive, id: tabId } = usePageTab()
   const { rename } = useAppTabs()
@@ -177,6 +177,51 @@ export function Watch() {
   const [isSubscribed, setIsSubscribed] = useState(false)
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
+  const [comments, setComments] = useState<VideoComment[]>([])
+  const [commentsForVideo, setCommentsForVideo] = useState<string | null>(null)
+  const [commentsCursor, setCommentsCursor] = useState<string | null>(null)
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [commentsError, setCommentsError] = useState<string | null>(null)
+  const [commentsReload, setCommentsReload] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    setComments([])
+    setCommentsCursor(null)
+    setCommentsForVideo(null)
+    setCommentsError(null)
+    setCommentsLoading(false)
+    if (!preferences.showVideoComments || !videoId || !isCurrentVideo || status !== 'ready') return
+    setCommentsLoading(true)
+    window.api.getVideoComments(videoId).then((response) => {
+      if (cancelled) return
+      setCommentsForVideo(videoId)
+      if (response.ok) {
+        setComments(response.data.comments)
+        setCommentsCursor(response.data.nextCursor)
+      } else {
+        setCommentsError(response.error)
+      }
+    }).catch((cause) => {
+      if (!cancelled) { setCommentsForVideo(videoId); setCommentsError(String(cause)) }
+    }).finally(() => { if (!cancelled) setCommentsLoading(false) })
+    return () => { cancelled = true }
+  }, [videoId, isCurrentVideo, status, preferences.showVideoComments, commentsReload])
+
+  async function loadMoreComments() {
+    if (!videoId || !commentsCursor || commentsLoading) return
+    setCommentsLoading(true)
+    setCommentsError(null)
+    try {
+      const response = await window.api.getVideoComments(videoId, commentsCursor)
+      if (videoId !== openedVideo.current) return
+      if (!response.ok) { setCommentsError(response.error); return }
+      setComments((current) => [...current, ...response.data.comments])
+      setCommentsCursor(response.data.nextCursor)
+    } catch (cause) { setCommentsError(String(cause)) }
+    finally { setCommentsLoading(false) }
+  }
+
 
   useEffect(() => {
     let cancelled = false
@@ -187,7 +232,7 @@ export function Watch() {
     if (!playlistId) return
     const load = () => {
       const current = ++generation
-      Promise.all([window.api.listSavedPlaylists(), window.api.listSavedVideos()]).then(([lists, items]) => {
+      Promise.all([window.api.listSavedPlaylists(), window.api.listSavedVideos(playlistId)]).then(([lists, items]) => {
         if (cancelled || current !== generation) return
         setPlaylist(lists.find((item) => item.id === playlistId) ?? null)
         setPlaylistVideos(items.filter((item) => item.playlistId === playlistId))
@@ -202,9 +247,8 @@ export function Watch() {
   }, [playlistId, activeProfileId])
 
   useEffect(() => {
-    if (!isTabActive || openedVideo.current === videoId) return
+    if (!isTabActive || (openedVideo.current === videoId && activeVideoId === videoId)) return
     openedVideo.current = videoId || null
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
     setIsDescriptionExpanded(false)
     setCopyState('idle')
     if (videoId && videoId !== activeVideoId) {
@@ -218,7 +262,7 @@ export function Watch() {
   }, [videoId, isTabActive])
 
   useEffect(() => {
-    if (!playlistId || !videoId || activeVideoId !== videoId || !playlistVideos.length) return
+    if (!isTabActive || !playlistId || !videoId || activeVideoId !== videoId || !playlistVideos.length) return
     globalPlayer.extendVideoQueue(playlistVideos.map((video) => ({
       videoId: video.videoId,
       title: video.title,
@@ -229,7 +273,7 @@ export function Watch() {
       viewCountText: null,
       publishedText: null
     })))
-  }, [playlistId, playlistVideos, videoId, activeVideoId, globalPlayer.extendVideoQueue])
+  }, [playlistId, playlistVideos, videoId, activeVideoId, globalPlayer.extendVideoQueue, isTabActive])
 
   useEffect(() => {
     if (isCurrentVideo && title && status === 'ready') rename(tabId, title)
@@ -292,10 +336,10 @@ export function Watch() {
     <div className="watch-layout">
       <section className="watch-video-area">
         <div className="watch-video-frame">
-          {isCurrentVideo ? <div id={`${WATCH_SLOT_ID}-${tabId}`} className="aspect-video w-full overflow-hidden bg-black" /> : (
+          {isCurrentVideo ? <div id={`${WATCH_SLOT_ID}-${tabId}`} className="wt-watch-player-slot aspect-video w-full overflow-hidden bg-black" /> : (
             <div className="relative grid aspect-video w-full place-items-center overflow-hidden bg-black">
               {snapshot.current.videoId === videoId && thumbnailUrl && <img src={thumbnailUrl} alt="" className="absolute inset-0 h-full w-full object-contain opacity-60" />}
-              <button type="button" onClick={() => videoId && void globalPlayer.playVideo(videoId)} className="wt-action relative rounded px-4 py-2 text-sm font-medium">{t("Reproducir video")}</button>
+              <button type="button" onClick={() => videoId && void globalPlayer.playVideo(videoId)} className="wt-action relative rounded px-4 py-2 text-sm font-medium">{t("Play video")}</button>
             </div>
           )}
         </div>
@@ -339,15 +383,15 @@ export function Watch() {
                   <VideoSaveActions
                     className="relative"
                     buttonClassName="inline-flex h-9 items-center gap-2 rounded bg-neutral-800 px-4 text-sm font-medium text-neutral-200 hover:bg-neutral-700"
-                    label={t("Guardar")}
+                    label={t("Save")}
                     video={{ videoId, title, channelId, channelName, thumbnailUrl, playlistId: null }}
                   />
                 )}
                 <button
                   type="button"
                   onClick={copyShareLink}
-                  aria-label={copyState === 'copied' ? t("Enlace copiado") : copyState === 'error' ? t("No se pudo copiar el enlace") : t("Compartir: copiar enlace")}
-                  title={copyState === 'copied' ? t("Enlace copiado") : copyState === 'error' ? t("No se pudo copiar el enlace") : t("Compartir: copiar enlace")}
+                  aria-label={copyState === 'copied' ? t("Link copied") : copyState === 'error' ? t("Could not copy the link") : t("Share: copy link")}
+                  title={copyState === 'copied' ? t("Link copied") : copyState === 'error' ? t("Could not copy the link") : t("Share: copy link")}
                   className={`grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded bg-neutral-800 hover:bg-neutral-700 ${copyState === 'copied' ? 'wt-accent-text' : copyState === 'error' ? 'text-red-400' : 'text-neutral-200'}`}
                 >
                   <Icon name={copyState === 'copied' ? 'check' : 'share'} className="h-4 w-4" />
@@ -365,12 +409,45 @@ export function Watch() {
                   onClick={() => setIsDescriptionExpanded((value) => !value)}
                   className="mt-2 text-sm font-medium text-neutral-100 hover:text-white"
                 >
-                  {isDescriptionExpanded ? t("Mostrar menos") : t("Mostrar más")}
+                  {isDescriptionExpanded ? t("Show less") : t("Show more")}
                 </button>
               </div>
             )}
           </div>
         )}
+        {videoId && <section className="watch-info-card mt-4" aria-label={t('Comments')}>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold">{t('Comments')}</h2>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-300">
+              <span>{t('Show video comments')}</span>
+              <input type="checkbox" checked={preferences.showVideoComments} onChange={(event) => void preferences.savePreferences({
+                language: preferences.language,
+                checkForUpdatesOnStartup: preferences.checkForUpdatesOnStartup,
+                autoplayNext: preferences.autoplayNext,
+                showVideoComments: event.target.checked
+              })} />
+            </label>
+          </div>
+          {preferences.showVideoComments && <>
+            {commentsError && <div className="mt-3 text-sm text-neutral-400"><p role="alert">{commentsError}</p>
+              <button type="button" onClick={() => setCommentsReload((value) => value + 1)} className="wt-link mt-2">{t('Retry')}</button>
+            </div>}
+            {!commentsError && !commentsLoading && commentsForVideo === videoId && comments.length === 0 && <p className="mt-3 text-sm text-neutral-400">{t('Comments are unavailable for this video.')}</p>}
+            {commentsForVideo === videoId && comments.map((comment) => <article key={comment.id} className="mt-4 flex gap-3 border-t border-neutral-800 pt-4">
+              {comment.authorAvatarUrl ? <img src={comment.authorAvatarUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" loading="lazy" /> : <div className="h-9 w-9 shrink-0 rounded-full bg-neutral-800" />}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline gap-x-2 text-xs"><span className="font-semibold text-neutral-100">{comment.author}</span>
+                  {comment.publishedText && <span className="text-neutral-500">{comment.publishedText}</span>}
+                  {comment.isPinned && <span className="text-neutral-400">{t('Pinned comment')}</span>}
+                </div>
+                <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-5 text-neutral-200">{comment.text}</p>
+                {(comment.likeCountText || comment.replyCountText) && <p className="mt-1 text-xs text-neutral-500">{comment.likeCountText ? `♥ ${comment.likeCountText}` : ''}{comment.replyCountText ? ` · ${comment.replyCountText} replies` : ''}</p>}
+              </div>
+            </article>)}
+            {commentsLoading && <p role="status" className="mt-3 text-sm text-neutral-400">{t('Loading comments...')}</p>}
+            {commentsCursor && !commentsLoading && !commentsError && <button type="button" onClick={() => void loadMoreComments()} className="wt-action mt-4 rounded px-3 py-2 text-sm">{t('Load more comments')}</button>}
+          </>}
+        </section>}
       </section>
 
       <aside className="watch-sidebar-area">
@@ -378,7 +455,7 @@ export function Watch() {
         {playlist && <section className="mb-5 overflow-hidden rounded border border-neutral-800 bg-neutral-950">
           <header className="border-b border-neutral-800 px-3 py-3">
             <Link to={`/playlists?playlist=${encodeURIComponent(playlist.id)}`} className="block break-words text-base font-semibold text-neutral-100 hover:text-white">{playlist.name}</Link>
-            <p className="mt-1 text-xs text-neutral-400">{playlistVideos.some((item) => item.videoId === videoId) ? `${playlistVideos.findIndex((item) => item.videoId === videoId) + 1} / ` : ''}{playlistVideos.length} {t('Videos')}</p>
+            <p className="mt-1 text-xs text-neutral-400">{playlistVideos.some((item) => item.videoId === videoId) ? `${playlistVideos.findIndex((item) => item.videoId === videoId) + 1} / ` : ''}{playlistVideos.length} {t("Videos")}</p>
           </header>
           <div className="max-h-96 overflow-y-auto">
             {playlistVideos.map((item, index) => <Link key={item.id} to={`/watch/${item.videoId}?playlist=${encodeURIComponent(playlist.id)}`}
@@ -394,7 +471,7 @@ export function Watch() {
         {relatedVideos.length > 0 && (
           <div className="watch-sidebar-card">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-neutral-100">{t("A continuación")}</h2>
+              <h2 className="text-base font-semibold text-neutral-100">{t("Up next")}</h2>
             </div>
             <div className="grid gap-2">
               {relatedVideos.map((video) => (

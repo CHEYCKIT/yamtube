@@ -7,6 +7,7 @@ on:
       - site/**
       - scripts/prepare-site.mjs
       - resources/icon.svg
+      - resources/brand.svg
       - src/renderer/src/assets/icons/LICENSE-*.txt
       - .github/workflows/pages.yml
   workflow_dispatch:

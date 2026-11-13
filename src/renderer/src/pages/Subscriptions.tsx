@@ -15,6 +15,7 @@ export function Subscriptions() {
   const [feedStatus, setFeedStatus] = useState<FeedStatus>('loading')
   const [feed, setFeed] = useState<SearchResultItem[]>([])
   const [feedError, setFeedError] = useState<string | null>(null)
+  const [subsError, setSubsError] = useState<string | null>(null)
   const { activeProfileId } = useProfiles()
 
   useEffect(() => {
@@ -23,10 +24,11 @@ export function Subscriptions() {
     setFeed([])
     setFeedStatus('loading')
     setFeedError(null)
+    setSubsError(null)
 
     window.api.listSubscriptions().then((items) => {
       if (!cancelled) setSubs(items)
-    })
+    }).catch(() => { if (!cancelled) { setSubs([]); setSubsError('Your subscriptions could not be loaded. Check your connection or reconnect your YouTube account.') } })
     window.api.getSubscriptionsFeed().then((response) => {
       if (cancelled) return
       if (response.ok) {
@@ -43,13 +45,14 @@ export function Subscriptions() {
   }, [activeProfileId])
 
   if (subs === null) return <PageLoader />
+  if (subsError) return <p role="alert" className="text-sm text-red-400">{subsError}</p>
 
-  if (subs.length === 0) {
+  if (subs.length === 0 && feedStatus === 'ready' && feed.length === 0) {
     return (
       <div>
-        <h1 className="mb-4 text-xl font-semibold">{t("Suscripciones")}</h1>
+        <h1 className="mb-4 text-xl font-semibold">{t("Subscriptions")}</h1>
         <p className="text-sm text-neutral-400">
-          {t("No estás suscripto a ningún canal. Entrá a un canal desde un video y tocá \"Suscribirse\".")}</p>
+          {t("You are not subscribed to any channels.")}</p>
       </div>
     )
   }
@@ -72,7 +75,7 @@ export function Subscriptions() {
       {feedStatus === 'loading' && <PageLoader />}
       {feedStatus === 'error' && <p className="text-sm text-red-400">{feedError}</p>}
       {feedStatus === 'ready' && feed.length === 0 && (
-        <p className="text-sm text-neutral-400">{t("Ninguno de tus canales suscriptos tiene videos disponibles.")}</p>
+        <p className="text-sm text-neutral-400">{t("No videos are available from your subscribed channels.")}</p>
       )}
       {feedStatus === 'ready' && feed.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

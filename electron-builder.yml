@@ -1,6 +1,6 @@
 appId: com.riberojuanca.worldtube
-productName: WorldTube
-artifactName: WorldTube-${version}-${os}-${arch}.${ext}
+productName: LokTube
+artifactName: LokTube-${version}-${os}-${arch}.${ext}
 beforePack: ./scripts/prepare-third-party-notices.cjs
 directories:
   output: release
@@ -25,12 +25,15 @@ extraResources:
     to: icon.png
   - from: build/botguard.js
     to: botguard.js
+  - from: resources/filters
+    to: filters
 publish:
   provider: github
-  owner: riberojuanca
-  repo: worldtube
+  owner: lokal-music
+  repo: loktube
   releaseType: draft
 linux:
+  executableName: loktube
   syncDesktopName: true
   icon: resources/icons
   maintainer: riberojuanca
@@ -39,6 +42,7 @@ linux:
     - AppImage
     - deb
 win:
+  icon: resources/icon.ico
   target:
     - nsis
 nsis:

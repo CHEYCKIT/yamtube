@@ -3,7 +3,7 @@ import { BrandMark } from './BrandMark'
 
 export function PageLoader({ fullScreen = false, compact = false }: { fullScreen?: boolean; compact?: boolean }) {
   useLocale()
-  return <div role="status" aria-label={t('Cargando…')}
+  return <div role="status" aria-label={t("Loading...")}
     className={`wt-page-loader ${fullScreen ? 'wt-page-loader-full' : ''} ${compact ? 'wt-page-loader-compact' : ''}`}>
     <span className="wt-page-loader-mark"><BrandMark /></span>
   </div>

@@ -55,7 +55,7 @@ export function extractYouTubePageData(html: string): { config: Record<string, D
     if (!source.includes('ytcfg') && !source.includes('ytAtN')) continue
     let program: ReturnType<typeof parse>
     try {
-      program = parse(source, { ecmaVersion: 'latest', sourceType: script.type === 'module' ? 'module' : 'script' })
+      program = parse(source, { ecmaVersion: 'latest', sourceType: script.getAttribute('type') === 'module' ? 'module' : 'script' })
     } catch {
       // Unrelated inline code may use unsupported syntax. Required data still
       // has to be found and validated below; no regex/eval fallback is used.

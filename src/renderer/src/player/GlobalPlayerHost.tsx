@@ -15,6 +15,9 @@ import { usePlayerWorkspace } from './PlayerWorkspace'
 import shaka from 'shaka-player/dist/shaka-player.ui.js'
 import './styles/shaka-controls.css'
 import './styles/shaka-overrides.css'
+import './AutoplaySetting'
+import './TheaterButton'
+import { usePictureInPictureNavigation } from './usePictureInPictureNavigation'
 import { useGlobalPlayer } from './GlobalPlayerContext'
 import { PLAYER_COMMAND_EVENT, PLAYER_SEEK_EVENT, PLAYER_STATE_EVENT, type PlayerCommandDetail, type PlayerStateDetail } from './events'
 import { startSabrSession, type SabrSession } from './sabr'
@@ -69,6 +72,21 @@ function addPictureInPictureControl(elements: string[]): string[] {
   return next
 }
 
+function movePlayerMount(target: HTMLElement, mount: HTMLElement): void {
+  if (mount.parentElement === target) return
+  // A state-preserving DOM move retains playback, focus and native PiP.
+  const destination = target as HTMLElement & { moveBefore?: (node: Node, child: Node | null) => void }
+  if (mount.isConnected && target.isConnected && typeof destination.moveBefore === 'function') destination.moveBefore(mount, null)
+  else target.appendChild(mount)
+}
+
+function watchControls(elements: string[]): string[] {
+  const next = addPictureInPictureControl(elements).filter((name) => name !== 'yamtube_theater')
+  const index = next.indexOf('fullscreen')
+  next.splice(index < 0 ? next.length : index, 0, 'yamtube_theater')
+  return next
+}
+
 export const WATCH_SLOT_ID = 'global-player-watch-slot'
 export const MINI_SLOT_ID = 'global-player-mini-slot'
 export const SHORTS_SLOT_ID = 'global-player-shorts-slot'
@@ -88,8 +106,8 @@ export const SHORTS_SLOT_ID = 'global-player-shorts-slot'
  * the element (and the shaka.Player attached to it) never unmounts.
  */
 export function GlobalPlayerHost() {
-  const { language } = useLocale()
-  const { videoId, dashManifest, liveManifests, sabr, title, captions, storyboardVtt, playVideo, playVideoQueue, extendVideoQueue, playbackMode, videoQueue, shorts, openShort, status, relatedVideos } = useGlobalPlayer()
+  const { language, autoplayNext } = useLocale()
+  const { videoId, playbackToken, dashManifest, liveManifests, sabr, title, captions, storyboardVtt, playVideo, playVideoQueue, extendVideoQueue, playbackMode, videoQueue, shorts, openShort, status, relatedVideos } = useGlobalPlayer()
   const location = useLocation()
   const navigate = useNavigate()
   const { activeId: activeTabId } = useAppTabs()
@@ -125,6 +143,9 @@ export function GlobalPlayerHost() {
   // wouldn't trigger the effect that creates it (see below).
   const [rawVideoEl, setRawVideoEl] = useState<HTMLVideoElement | null>(null)
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null)
+  usePictureInPictureNavigation(videoEl, tabId, videoId, isWatchRoute, () => {
+    if (hiddenHomeRef.current) movePlayerMount(hiddenHomeRef.current, portalMount)
+  })
   const [attachedPlayer, setAttachedPlayer] = useState<shaka.Player | null>(null)
   const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null)
   // shaka.Player.load() rejecting was previously only logged to the console —
@@ -141,6 +162,47 @@ export function GlobalPlayerHost() {
   // user navigates to a different video while the reload is still in flight.
   const pendingResumeRef = useRef<{ videoId: string; seconds: number } | null>(null)
 
+  useEffect(() => {
+    if (!videoEl || !playbackToken || status !== 'ready' || !sourceReady) return
+    let watched = 0
+    let lastPosition = videoEl.currentTime
+    let lastTick = performance.now()
+    let lastReport: number | null = null
+    const send = (final = false) => {
+      if (watched < 1 || loadedVideoRef.current !== videoId) return
+      const now = performance.now()
+      if (!final && lastReport !== null && now - lastReport < 30_000) return
+      lastReport = now
+      void window.api.reportPlaybackProgress({ token: playbackToken, position: videoEl.currentTime, ended: final })
+        .catch(() => undefined)
+    }
+    const tick = () => {
+      const now = performance.now()
+      const elapsed = (now - lastTick) / 1000
+      const advanced = (videoEl.currentTime - lastPosition) / Math.max(videoEl.playbackRate, 0.1)
+      // Count observed playback, excluding seeks, pauses and buffering.
+      if (!videoEl.paused && !videoEl.seeking && advanced > 0 && advanced <= elapsed + 0.5) watched += Math.min(advanced, elapsed)
+      lastTick = now
+      lastPosition = videoEl.currentTime
+      send()
+    }
+    const reset = () => { lastTick = performance.now(); lastPosition = videoEl.currentTime }
+    const finish = () => send(true)
+    videoEl.addEventListener('timeupdate', tick)
+    videoEl.addEventListener('playing', reset)
+    videoEl.addEventListener('seeked', reset)
+    videoEl.addEventListener('pause', finish)
+    videoEl.addEventListener('ended', finish)
+    return () => {
+      finish()
+      videoEl.removeEventListener('timeupdate', tick)
+      videoEl.removeEventListener('playing', reset)
+      videoEl.removeEventListener('seeked', reset)
+      videoEl.removeEventListener('pause', finish)
+      videoEl.removeEventListener('ended', finish)
+    }
+  }, [videoEl, playbackToken, videoId, status, sourceReady])
+
   // Elegir otra canción es una acción explícita de reproducción. Reactivamos
   // el autoplay para esa fuente aunque otra pestaña hubiera pausado esta. Una
   // recarga SABR del mismo video no reactiva el efecto, por lo que una canción
@@ -153,13 +215,15 @@ export function GlobalPlayerHost() {
     const movePortalMount = (nextTarget: HTMLElement | null) => {
       const target = nextTarget || hiddenHomeRef.current
       if (!target) return
-      if (portalMount.parentElement !== target) {
-        target.appendChild(portalMount)
-      }
+      movePlayerMount(target, portalMount)
     }
 
     if (videoId === null) {
       console.log('[player-slot] no active video, using hidden home slot')
+      movePortalMount(hiddenHomeRef.current)
+      return
+    }
+    if (document.pictureInPictureElement === rawVideoEl) {
       movePortalMount(hiddenHomeRef.current)
       return
     }
@@ -225,7 +289,7 @@ export function GlobalPlayerHost() {
         return
       }
       console.error(`shaka player error [tab=${tabId}]: ${JSON.stringify(description)}`)
-      setLoadError(`${t('Error de reproducción')}: ${JSON.stringify(description)}`)
+      setLoadError(`${t("Playback error")}: ${JSON.stringify(description)}`)
     }
     const handleVideoError = () => console.error(`video element error: ${JSON.stringify(rawVideoEl.error)}`)
 
@@ -272,6 +336,7 @@ export function GlobalPlayerHost() {
       seekBarColors: { base: 'var(--wt-track)', buffered: 'var(--wt-buffered)', played: 'var(--wt-accent)', adBreaks: 'var(--wt-important)', chapters: 'var(--wt-important)' },
       volumeBarColors: { base: 'var(--wt-track)', level: 'var(--wt-accent)' },
       playbackRateBarColors: { base: 'var(--wt-track)', level: 'var(--wt-accent)' },
+      overflowMenuButtons: [...ui.getConfiguration().overflowMenuButtons.filter((name) => name !== 'yamtube_autoplay'), 'yamtube_autoplay'],
       // Electron exposes Document PiP, but that API creates a new renderer
       // window. Our external-window policy correctly rejects that window and
       // previously left the system browser on about:blank. Native video PiP
@@ -281,7 +346,7 @@ export function GlobalPlayerHost() {
         preferInitialWindowPlacement: false,
         disallowReturnToOpener: false
       },
-      controlPanelElements: isWatchRoute && shorts.length === 0 ? addPictureInPictureControl(fullControlPanelRef.current)
+      controlPanelElements: isWatchRoute && shorts.length === 0 ? watchControls(fullControlPanelRef.current)
       : ['play_pause', 'mute', 'volume', 'time_and_duration', 'spacer', 'queue', 'overflow_menu', 'fullscreen'] })
   }, [isWatchRoute, shorts.length, rawVideoEl, containerEl, language])
 
@@ -289,11 +354,23 @@ export function GlobalPlayerHost() {
     if (!videoEl || typeof window.api.setPlayerAudioPreferences !== 'function') return
     const saveAudio = () => {
       void window.api.setPlayerAudioPreferences({ volume: videoEl.volume, muted: videoEl.muted })
-        .catch((error) => console.warn(t("No se pudo guardar el volumen"), error))
+        .catch((error) => console.warn(t("Could not save the volume"), error))
     }
     videoEl.addEventListener('volumechange', saveAudio)
     return () => videoEl.removeEventListener('volumechange', saveAudio)
   }, [videoEl])
+
+  useEffect(() => {
+    if (!containerEl) return
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || document.fullscreenElement !== containerEl) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      void document.exitFullscreen().catch((error) => console.warn('[player] Could not exit fullscreen', error))
+    }
+    window.addEventListener('keydown', escape, true)
+    return () => window.removeEventListener('keydown', escape, true)
+  }, [containerEl])
 
   useEffect(() => {
     if (!videoEl || !videoId || ownerId !== tabId) return
@@ -453,7 +530,7 @@ export function GlobalPlayerHost() {
             if (cancelled || isLoadInterrupted(error)) return
             console.warn(`Live manifest failed [video=${videoId}, type=${source.mimeType}]: ${JSON.stringify(describeError(error))}`)
             if (index === liveManifests.length - 1) {
-              setLoadError(`${t('No se pudo reproducir')}: ${JSON.stringify(describeError(error))}`)
+              setLoadError(`${t("Could not play")}: ${JSON.stringify(describeError(error))}`)
             }
           }
         }
@@ -505,7 +582,7 @@ export function GlobalPlayerHost() {
             return
           }
           console.error(`shaka load (sabr) failed [tab=${tabId}, video=${videoId}]: ${JSON.stringify(description)}`)
-          setLoadError(`${t('No se pudo reproducir')}: ${JSON.stringify(description)}`)
+          setLoadError(`${t("Could not play")}: ${JSON.stringify(description)}`)
         })
       return () => {
         cancelled = true
@@ -540,7 +617,7 @@ export function GlobalPlayerHost() {
           return
         }
         console.error(`shaka load failed: ${JSON.stringify(description)}`)
-        setLoadError(`${t('No se pudo reproducir')}: ${JSON.stringify(description)}`)
+        setLoadError(`${t("Could not play")}: ${JSON.stringify(description)}`)
       })
 
     return () => {
@@ -558,14 +635,14 @@ export function GlobalPlayerHost() {
   useEffect(() => {
     if (!videoEl || shorts.length === 0 || status !== 'ready') return
     const onEnded = () => {
-      if (!videoEl.ended) return
+      if (!videoEl.ended || !autoplayNext) return
       const index = shorts.findIndex((short) => short.videoId === videoId)
       const next = index >= 0 ? shorts[index + 1] : undefined
       if (next) openShort(next.videoId, shorts)
     }
     videoEl.addEventListener('ended', onEnded)
     return () => videoEl.removeEventListener('ended', onEnded)
-  }, [videoEl, shorts, videoId, status, openShort])
+  }, [videoEl, shorts, videoId, status, openShort, autoplayNext])
 
   useEffect(() => {
     if (playbackMode !== 'video' || shorts.length > 0 || status !== 'ready' || !videoRecommendations.length) return
@@ -576,7 +653,7 @@ export function GlobalPlayerHost() {
   useEffect(() => {
     if (!videoEl || playbackMode !== 'video' || shorts.length > 0 || status !== 'ready') return
     const onEnded = () => {
-      if (!videoEl.ended) return
+      if (!videoEl.ended || !autoplayNext) return
       const index = videoQueue.findIndex((video) => video.videoId === videoId)
       const next = index >= 0 ? videoQueue[index + 1] : undefined
       if (next) {
@@ -595,7 +672,7 @@ export function GlobalPlayerHost() {
     }
     videoEl.addEventListener('ended', onEnded)
     return () => videoEl.removeEventListener('ended', onEnded)
-  }, [videoEl, playbackMode, shorts.length, videoQueue, videoId, status, videoRecommendations, playVideoQueue, isWatchRoute, navigate])
+  }, [videoEl, playbackMode, shorts.length, videoQueue, videoId, status, videoRecommendations, playVideoQueue, isWatchRoute, navigate, autoplayNext])
 
   useEffect(() => {
     if (!videoEl) return
@@ -609,7 +686,8 @@ export function GlobalPlayerHost() {
         paused: videoEl.paused,
         currentTime: videoEl.currentTime || 0,
         duration: Number.isFinite(videoEl.duration) ? videoEl.duration : 0,
-        volume: videoEl.muted ? 0 : videoEl.volume
+        volume: videoEl.muted ? 0 : videoEl.volume,
+        pictureInPicture: document.pictureInPictureElement === videoEl
       }
       window.dispatchEvent(new CustomEvent<PlayerStateDetail>(PLAYER_STATE_EVENT, { detail }))
     }
@@ -635,6 +713,17 @@ export function GlobalPlayerHost() {
       if (detail.tabId !== tabId) return
 
       if (detail.action === 'sync') {
+        emitState()
+        return
+      }
+
+      if (detail.action === 'play') {
+        void videoEl.play().catch((error: unknown) => console.error('System media play failed', error))
+        return
+      }
+
+      if (detail.action === 'pause') {
+        videoEl.pause()
         emitState()
         return
       }
@@ -687,6 +776,8 @@ export function GlobalPlayerHost() {
     videoEl.addEventListener('playing', emitState)
     videoEl.addEventListener('timeupdate', emitState)
     videoEl.addEventListener('volumechange', emitState)
+    videoEl.addEventListener('enterpictureinpicture', emitState)
+    videoEl.addEventListener('leavepictureinpicture', emitState)
     emitState()
     return () => {
       window.removeEventListener(PLAYER_SEEK_EVENT, handleSeek)
@@ -699,6 +790,8 @@ export function GlobalPlayerHost() {
       videoEl.removeEventListener('playing', emitState)
       videoEl.removeEventListener('timeupdate', emitState)
       videoEl.removeEventListener('volumechange', emitState)
+      videoEl.removeEventListener('enterpictureinpicture', emitState)
+      videoEl.removeEventListener('leavepictureinpicture', emitState)
     }
   }, [videoEl, tabId])
 
@@ -710,7 +803,7 @@ export function GlobalPlayerHost() {
         // (it only sets a data-attribute marker on this element) — controls.css scopes
         // every layout/positioning rule for the control bar under this class, so without
         // it shaka's injected buttons/seek bar render completely unstyled.
-        <div ref={setContainerEl} className={`shaka-video-container relative h-full w-full overflow-hidden bg-black ${isInitialLoading ? 'wt-player-loading' : ''}`}>
+        <div ref={setContainerEl} data-player-tab-id={tabId} className={`shaka-video-container relative h-full w-full overflow-hidden bg-black ${isInitialLoading ? 'wt-player-loading' : ''}`}>
           <video ref={setVideoRef} className="h-full w-full" title={title} crossOrigin="anonymous" playsInline preload="auto">
             {captions.map((track) => (
               <track
@@ -726,7 +819,7 @@ export function GlobalPlayerHost() {
               />
             ))}
           </video>
-          {isInitialLoading && <div className="wt-initial-loader" role="status" aria-label={t('Cargando…')}><GradientLoader label={t('Cargando…')} size={42} /></div>}
+          {isInitialLoading && <div className="wt-initial-loader" role="status" aria-label={t("Loading...")}><GradientLoader label={t("Loading...")} size={42} /></div>}
           {loadError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 p-4 text-center text-white">
               <p className="text-sm">{loadError}</p>
@@ -735,7 +828,7 @@ export function GlobalPlayerHost() {
                 onClick={() => videoId && (playbackMode === 'video' && videoQueue.length ? playVideoQueue(videoId, videoQueue) : playVideo(videoId, playbackMode))}
                 className="wt-action rounded px-3 py-1.5 text-sm font-medium"
               >
-                {t("Reintentar")}</button>
+                {t("Retry")}</button>
             </div>
           )}
         </div>,

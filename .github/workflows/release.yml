@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -15,11 +17,15 @@ concurrency:
 
 jobs:
   prepare:
+    # A deliberately marked merge commit can publish 1.1.5 without manually
+    # creating a tag. Other main pushes never start a release.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref_type == 'tag' || (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release v1.1.5]')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
     outputs:
       tag: ${{ steps.version.outputs.tag }}
+      published: ${{ steps.draft.outputs.published }}
     steps:
       - uses: actions/checkout@v4
       - name: Require license and recorded technical review
@@ -42,6 +48,7 @@ jobs:
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
       - name: Prepare draft
+        id: draft
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -49,15 +56,17 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             DRAFT=$(gh release view "$TAG" --json isDraft --jq .isDraft)
             if [ "$DRAFT" != "true" ]; then
-              echo "Do not overwrite published versions. Increment package.json."
-              exit 1
+              echo "published=true" >> "$GITHUB_OUTPUT"
+              echo "This version is already published; keeping its existing assets."
+              exit 0
             fi
           else
-            gh release create "$TAG" --draft --title "WorldTube $TAG" --generate-notes --target "$GITHUB_SHA"
+            gh release create "$TAG" --draft --title "LokTube $TAG" --generate-notes --target "$GITHUB_SHA"
           fi
 
   package:
     needs: prepare
+    if: needs.prepare.outputs.published != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -81,7 +90,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@v4
         with:
-          name: worldtube-${{ matrix.os }}
+          name: loktube-${{ matrix.os }}
           path: |
             release/*.AppImage
             release/*.deb
@@ -92,7 +101,7 @@ jobs:
 
   mac:
     needs: prepare
-    if: vars.ENABLE_MAC_RELEASE == 'true'
+    if: needs.prepare.outputs.published != 'true' && vars.ENABLE_MAC_RELEASE == 'true'
     runs-on: macos-latest
     permissions:
       contents: write
@@ -128,7 +137,7 @@ jobs:
 
   publish:
     needs: [prepare, package, mac]
-    if: always() && needs.prepare.result == 'success' && needs.package.result == 'success' && (needs.mac.result == 'success' || needs.mac.result == 'skipped')
+    if: always() && needs.prepare.outputs.published != 'true' && needs.prepare.result == 'success' && needs.package.result == 'success' && (needs.mac.result == 'success' || needs.mac.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -139,6 +148,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
         run: |
-          git archive --format=tar.gz --prefix="WorldTube-$TAG/" HEAD -o "WorldTube-$TAG-source.tar.gz"
-          gh release upload "$TAG" "WorldTube-$TAG-source.tar.gz" --clobber
+          git archive --format=tar.gz --prefix="LokTube-$TAG/" HEAD -o "LokTube-$TAG-source.tar.gz"
+          gh release upload "$TAG" "LokTube-$TAG-source.tar.gz" --clobber
           gh release edit "$TAG" --draft=false

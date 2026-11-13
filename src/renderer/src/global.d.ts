@@ -15,6 +15,8 @@ import type {
   LoginLocalUserRequest,
   ProfilesState,
   SaveVideoRequest,
+  LibraryVideosPage,
+  LibrarySaveOptions,
   SavedPlaylist,
   SavedVideo,
   SearchHistoryEntry,
@@ -29,6 +31,30 @@ import type {
 declare global {
   interface Window {
     api: {
+      getWindowState: () => Promise<{ maximized: boolean }>
+      minimizeWindow: () => Promise<void>
+      toggleMaximizeWindow: () => Promise<void>
+      closeWindow: () => Promise<void>
+      onWindowState: (listener: (state: { maximized: boolean }) => void) => () => void
+      getDiagnostics: () => Promise<{ path: string; contents: string }>
+      exportDiagnostics: () => Promise<string | null>
+      onHistoryNavigation: (listener: (direction: 'back' | 'forward') => void) => () => void
+      getYoutubeAccount: () => Promise<import('../../shared/ipc').YoutubeAccountState>
+      signInYoutube: (browserId?: string) => Promise<import('../../shared/ipc').YoutubeAccountState>
+      getSignInBrowsers: (refresh?: boolean) => Promise<import('../../shared/ipc').SignInBrowserState>
+      selectSignInBrowser: (id: string) => Promise<import('../../shared/ipc').SignInBrowserState>
+      addSignInBrowser: () => Promise<import('../../shared/ipc').SignInBrowserState>
+      cancelYoutubeSignIn: () => Promise<void>
+      importYoutubeCookies: () => Promise<import('../../shared/ipc').YoutubeAccountState | null>
+      signOutYoutube: () => Promise<import('../../shared/ipc').YoutubeAccountState>
+      onYoutubeAccount: (listener: (state: import('../../shared/ipc').YoutubeAccountState) => void) => () => void
+      getYoutubeHistory: () => Promise<import('../../shared/ipc').YoutubeHistoryPage>
+      getMoreYoutubeHistory: (continuation: string) => Promise<import('../../shared/ipc').YoutubeHistoryPage>
+      removeYoutubeHistoryVideo: (historyId: string) => Promise<void>
+      removeLocalHistoryVideo: (videoId: string, profileId: string) => Promise<void>
+      reportPlaybackProgress: (progress: import('../../shared/ipc').PlaybackProgress) => Promise<void>
+      getProtection: () => Promise<import('../../shared/ipc').ProtectionState>
+      updateProtection: () => Promise<import('../../shared/ipc').ProtectionState>
       getVideoPreview: (videoId: string) => Promise<import('../../shared/ipc').VideoPreview | null>
       getAppPreferences: () => Promise<import('../../shared/locale').AppPreferences>
       setAppPreferences: (preferences: import('../../shared/locale').AppPreferences) => Promise<void>
@@ -39,6 +65,7 @@ declare global {
       onUpdateState: (listener: (state: import('../../shared/ipc').UpdateState) => void) => () => void
       getPlayerAudioPreferences: () => Promise<PlayerAudioPreferences>
       setPlayerAudioPreferences: (audio: PlayerAudioPreferences) => Promise<void>
+      getVideoComments: (videoId: string, cursor?: string) => Promise<import('../../shared/ipc').VideoCommentsResponse>
       getVideoInfo: (videoId: string) => Promise<VideoInfoResponse>
       search: (query: string, filters?: SearchFilters) => Promise<SearchResponse>
       getCollection: (request: CollectionRequest) => Promise<CollectionResponse>
@@ -60,6 +87,8 @@ declare global {
       removeProfile: (profileId: string) => Promise<ProfilesState>
       getHistory: () => Promise<HistoryEntry[]>
       clearHistory: () => Promise<void>
+      getLibraryVideos: (playlistId: string | null, library?: LibraryKind, continuation?: string) => Promise<LibraryVideosPage>
+      getLibrarySaveOptions: (videoId: string, library?: LibraryKind) => Promise<LibrarySaveOptions>
       listSavedPlaylists: (library?: LibraryKind) => Promise<SavedPlaylist[]>
       createSavedPlaylist: (request: CreateSavedPlaylistRequest) => Promise<SavedPlaylist>
       listSavedVideos: (playlistId?: string | null, library?: LibraryKind) => Promise<SavedVideo[]>

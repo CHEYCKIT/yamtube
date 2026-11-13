@@ -29,7 +29,7 @@ async function check(): Promise<UpdateState> {
 export function registerUpdates(): void {
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = false
-  autoUpdater.allowPrerelease = false
+  autoUpdater.allowPrerelease = app.getVersion().includes('-')
   autoUpdater.allowDowngrade = false
   autoUpdater.logger = console
   autoUpdater.on('checking-for-update', () => publish({ status: 'checking', error: undefined }))
@@ -56,7 +56,7 @@ export function registerUpdates(): void {
     const owner = BrowserWindow.fromWebContents(event.sender)
     if (!owner) return
     const confirmation = await dialog.showMessageBox(owner, {
-      type: 'question', message: tr('Restart WorldTube now to install the update?'),
+      type: 'question', message: tr('Restart LokTube now to install the update?'),
       buttons: [tr('Install update'), tr('Cancel')], defaultId: 1, cancelId: 1
     })
     if (confirmation.response === 0) autoUpdater.quitAndInstall(false, true)

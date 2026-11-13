@@ -1,11 +1,16 @@
 export const PLAYER_SEEK_EVENT = 'worldtube:player-seek'
 export const PLAYER_COMMAND_EVENT = 'worldtube:player-command'
 export const PLAYER_STATE_EVENT = 'worldtube:player-state'
+export const MINI_PLAYER_OPEN_EVENT = 'yamtube:mini-player-open'
+export const THEATER_TOGGLE_EVENT = 'yamtube:theater-toggle'
+export const THEATER_STATE_EVENT = 'yamtube:theater-state'
 
 export type PlayerCommandDetail = { tabId?: string } & (
   | { action: 'sync' }
   | { action: 'pause-others' }
   | { action: 'toggle-play' }
+  | { action: 'play' }
+  | { action: 'pause' }
   | { action: 'toggle-picture-in-picture' }
   | { action: 'seek-relative'; seconds: number }
   | { action: 'seek-to'; seconds: number }
@@ -19,4 +24,5 @@ export interface PlayerStateDetail {
   currentTime: number
   duration: number
   volume: number
+  pictureInPicture?: boolean
 }

@@ -1,9 +1,18 @@
 # Third-Party Notices
 
 WorldTube uses independently maintained open-source components and assets.
-Their licenses remain separate from the project's own license, which has not
-yet been chosen. These notices do not grant rights to unrelated third parties'
+Their licenses remain separate from the project's AGPL-3.0-only license.
+These notices do not grant rights to unrelated third parties'
 code or certify WorldTube's entire historical provenance.
+
+## Advertising and tracking protection
+
+The network filtering engine is `@ghostery/adblocker` (MPL-2.0); its complete
+upstream notices are included by the dependency-notice generator. EasyList
+and EasyPrivacy are by The EasyList authors (https://easylist.to/). Their
+unmodified snapshots, attribution and complete GPL-3.0-or-later license text
+are included under `resources/filters` in the source and `filters` in packaged
+applications. See `resources/filters/README.md` for source and license links.
 
 ## Fonts
 
@@ -23,10 +32,11 @@ script. The running application serves bundled font files, not cloud fonts.
   upstream ISC/MIT notices in `third-party/Lucide-LICENSE.txt`.
 - `world-solid.svg` uses Pictogrammers/Material Design earth geometry under
   Apache 2.0. Its SVG wrapper is customized for WorldTube.
-- The application mark combines that earth geometry with WorldTube's layout
-  and play shape. PNG, ICO and ICNS files are generated from `resources/icon.svg`.
-  The monochrome buffering artwork also uses this mark. They are not wholly
-  WorldTube-origin geometry and retain the applicable asset notices.
+- The wordmark in `resources/brand.svg` combines that earth geometry with
+  WorldTube's layout and play shape. The monochrome buffering artwork also
+  uses that mark. Both retain the applicable asset notices.
+- The desktop application icon uses only the blue play symbol. PNG, ICO and
+  ICNS files are generated from `resources/icon.svg`.
 - Preserve `third-party/Pictogrammers-LICENSE.txt` and the complete
   `third-party/Apache-2.0.txt`, not only a link to the license.
 
@@ -74,3 +84,10 @@ The preparation step is offline. It verifies recorded asset hashes and uses
 installed dependency notices plus the reviewed copies in `third-party/`.
 Maintenance download scripts are explicit, not part of application startup or
 packaging. No personal data or developer home-directory paths enter the inventory.
+
+## YouTube.js compatibility patch
+
+YouTube.js 18.0.0 (MIT) is distributed with the small compatibility patch in
+`patches/youtubei.js@18.0.0.patch`. Diagnostic warning links fall back to the
+upstream issue URL when optional `bugs` package metadata is absent in an
+installer. Original upstream license notices are preserved.

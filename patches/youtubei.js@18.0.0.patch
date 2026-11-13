@@ -1,0 +1,46 @@
+diff --git a/dist/src/parser/parser.js b/dist/src/parser/parser.js
+index 12f6a81ec19033a19e225ee5c23d665d3815e2bd..1e7266f83fefd0b8cf0653c38f18478c2c475396 100644
+--- a/dist/src/parser/parser.js
++++ b/dist/src/parser/parser.js
+@@ -49,7 +49,7 @@ let ERROR_HANDLER = ({ classname, ...context }) => {
+         case 'parse':
+             if (context.error instanceof Error) {
+                 Log.warn(TAG, new InnertubeError(`Something went wrong at ${classname}!\n` +
+-                    `This is a bug, please report it at ${packageInfo.bugs.url}`, {
++                    `This is a bug, please report it at ${(packageInfo.bugs?.url || 'https://github.com/LuanRT/YouTube.js/issues')}`, {
+                     stack: context.error.stack,
+                     classdata: JSON.stringify(context.classdata, null, 2)
+                 }));
+@@ -60,16 +60,16 @@ let ERROR_HANDLER = ({ classname, ...context }) => {
+             break;
+         case 'mutation_data_missing':
+             Log.warn(TAG, new InnertubeError(`Mutation data required for processing ${classname}, but none found.\n` +
+-                `This is a bug, please report it at ${packageInfo.bugs.url}`));
++                `This is a bug, please report it at ${(packageInfo.bugs?.url || 'https://github.com/LuanRT/YouTube.js/issues')}`));
+             break;
+         case 'mutation_data_invalid':
+             Log.warn(TAG, new InnertubeError(`Mutation data missing or invalid for ${context.failed} out of ${context.total} MusicMultiSelectMenuItems. ` +
+                 `The titles of the failed items are: ${context.titles.join(', ')}.\n` +
+-                `This is a bug, please report it at ${packageInfo.bugs.url}`));
++                `This is a bug, please report it at ${(packageInfo.bugs?.url || 'https://github.com/LuanRT/YouTube.js/issues')}`));
+             break;
+         case 'class_not_found':
+             Log.warn(TAG, new InnertubeError(`${classname} not found!\n` +
+-                `This is a bug, want to help us fix it? Follow the instructions at ${packageInfo.homepage.split('#', 1)[0]}/blob/main/docs/updating-the-parser.md or report it at ${packageInfo.bugs.url}!\n` +
++                `This is a bug, want to help us fix it? Follow the instructions at ${packageInfo.homepage.split('#', 1)[0]}/blob/main/docs/updating-the-parser.md or report it at ${(packageInfo.bugs?.url || 'https://github.com/LuanRT/YouTube.js/issues')}!\n` +
+                 `Introspected and JIT generated this class in the meantime:\n${generateTypescriptClass(classname, context.key_info)}`));
+             break;
+         case 'class_changed':
+diff --git a/dist/src/utils/StreamingInfo.js b/dist/src/utils/StreamingInfo.js
+index ccacd3e767c091b2fc15af2e52b189a3b0a8e442..24462855e346b419df88ba2c05c09a7a6869cd20 100644
+--- a/dist/src/utils/StreamingInfo.js
++++ b/dist/src/utils/StreamingInfo.js
+@@ -299,7 +299,7 @@ function getColorInfo(format) {
+                 anonymisedFormat.signature_cipher = 'REDACTED';
+                 anonymisedFormat.cipher = 'REDACTED';
+                 Log.warn(TAG_, `Unknown matrix coefficients "${color_info.matrix_coefficients}". The DASH manifest is still usable without this.\n`
+-                    + `Please report it at ${packageInfo.bugs.url} so we can add support for it.\n`
++                    + `Please report it at ${(packageInfo.bugs?.url || 'https://github.com/LuanRT/YouTube.js/issues')} so we can add support for it.\n`
+                     + `InnerTube client: ${url.searchParams.get('c')}\nformat:`, anonymisedFormat);
+             }
+         }

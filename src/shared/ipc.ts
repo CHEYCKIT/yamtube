@@ -1,6 +1,27 @@
 // Shared between main and renderer so both sides agree on channel names and payload shapes.
 
 export const IPC_CHANNELS = {
+  WINDOW_STATE: 'window:state',
+  WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_MAXIMIZE: 'window:maximize',
+  WINDOW_CLOSE: 'window:close',
+  DIAGNOSTICS_GET: 'diagnostics:get',
+  DIAGNOSTICS_EXPORT: 'diagnostics:export',
+  NAVIGATE_HISTORY: 'navigation:history',
+  YOUTUBE_ACCOUNT_STATE: 'youtube:account-state',
+  YOUTUBE_SIGN_IN: 'youtube:sign-in',
+  YOUTUBE_SIGN_IN_CANCEL: 'youtube:sign-in-cancel',
+  YOUTUBE_BROWSERS_GET: 'youtube:browsers-get',
+  YOUTUBE_BROWSER_SELECT: 'youtube:browser-select',
+  YOUTUBE_BROWSER_ADD: 'youtube:browser-add',
+  YOUTUBE_IMPORT_COOKIES: 'youtube:import-cookies',
+  YOUTUBE_SIGN_OUT: 'youtube:sign-out',
+  YOUTUBE_HISTORY: 'youtube:history',
+  YOUTUBE_HISTORY_MORE: 'youtube:history-more',
+  YOUTUBE_HISTORY_REMOVE: 'youtube:history-remove',
+  PLAYBACK_PROGRESS: 'youtube:playback-progress',
+  PROTECTION_STATE: 'protection:state',
+  PROTECTION_UPDATE: 'protection:update',
   APP_PREFERENCES_GET: 'app:preferences-get',
   APP_PREFERENCES_SET: 'app:preferences-set',
   UPDATES_STATE: 'updates:state',
@@ -8,6 +29,7 @@ export const IPC_CHANNELS = {
   UPDATES_DOWNLOAD: 'updates:download',
   UPDATES_INSTALL: 'updates:install',
   GET_VIDEO_INFO: 'youtube:get-video-info',
+  GET_VIDEO_COMMENTS: 'youtube:get-video-comments',
   GET_VIDEO_PREVIEW: 'youtube:get-video-preview',
   SEARCH: 'youtube:search',
   GET_COLLECTION: 'youtube:get-collection',
@@ -31,6 +53,9 @@ export const IPC_CHANNELS = {
   PROFILES_REMOVE: 'profiles:remove',
   HISTORY_LIST: 'history:list',
   HISTORY_CLEAR: 'history:clear',
+  HISTORY_REMOVE: 'history:remove',
+  LIBRARY_VIDEOS_PAGE: 'library:videos:page',
+  LIBRARY_SAVE_OPTIONS: 'library:save:options',
   SAVED_PLAYLISTS_LIST: 'saved:playlists:list',
   SAVED_PLAYLISTS_CREATE: 'saved:playlists:create',
   SAVED_VIDEOS_LIST: 'saved:videos:list',
@@ -43,6 +68,65 @@ export const IPC_CHANNELS = {
   SUBSCRIPTIONS_ADD: 'subscriptions:add',
   SUBSCRIPTIONS_REMOVE: 'subscriptions:remove'
 } as const
+
+export interface YoutubeAccountState {
+  signedIn: boolean
+  name: string | null
+  avatarUrl: string | null
+  persistent: boolean
+  error: string | null
+  syncError: string | null
+}
+
+export interface SignInBrowserState {
+  browsers: { id: string; name: string }[]
+  selectedId: string | null
+}
+
+export interface ProtectionState {
+  enabled: boolean
+  blocked: number
+  updatedAt: string
+  lists: string[]
+}
+
+export interface PlaybackProgress {
+  token: string
+  position: number
+  ended: boolean
+}
+
+export interface YoutubeHistoryPage {
+  videos: YoutubeHistoryVideo[]
+  continuation: string | null
+  paused: boolean
+}
+
+export interface YoutubeHistoryVideo extends SearchResultItem {
+  isShort?: boolean
+  historyId: string
+  canRemove: boolean
+}
+
+export interface VideoComment {
+  id: string
+  author: string
+  authorAvatarUrl: string | null
+  text: string
+  publishedText: string | null
+  likeCountText: string | null
+  isPinned: boolean
+  replyCountText: string | null
+}
+
+export interface VideoCommentsPage {
+  comments: VideoComment[]
+  nextCursor: string | null
+}
+
+export type VideoCommentsResponse =
+  | { ok: true; data: VideoCommentsPage }
+  | { ok: false; error: string }
 
 export interface UpdateState {
   status: 'development' | 'idle' | 'checking' | 'available' | 'current' | 'downloading' | 'downloaded' | 'error'
@@ -73,7 +157,25 @@ export interface UserProfile {
 
 export type LibraryKind = 'video' | 'music'
 
+export interface LibraryVideosPage {
+  videos: SavedVideo[]
+  continuation: string | null
+}
+
+export interface LibrarySaveOptions {
+  looseError?: string
+  playlists: SavedPlaylist[]
+  selectedPlaylistIds: string[]
+  looseSaved: boolean
+  canSaveLoose: boolean
+}
+
 export interface SavedPlaylist {
+  source?: 'youtube'
+  canEdit?: boolean
+  kind?: 'playlist' | 'album'
+  thumbnailUrl?: string | null
+  itemCount?: string | null
   id: string
   profileId: string
   name: string
@@ -84,6 +186,7 @@ export interface SavedPlaylist {
 }
 
 export interface SavedVideo {
+  canRemove?: boolean
   id: string
   profileId: string
   videoId: string
@@ -403,6 +506,7 @@ export interface CaptionTrack {
 }
 
 export interface VideoInfoResult {
+  playbackToken: string
   videoId: string
   title: string
   channelId: string | null

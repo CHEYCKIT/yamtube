@@ -7,6 +7,7 @@ import {
   type CSSProperties,
   type ChangeEvent,
   type FormEvent,
+  type ReactNode,
   type MouseEvent as ReactMouseEvent,
 } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
@@ -24,6 +25,9 @@ import {
   Search as SearchIcon,
   UserRound,
   Volume2,
+  Minus,
+  Square,
+  Copy,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -31,7 +35,7 @@ import { GlobalPlayerProvider, useGlobalPlayer } from './player/GlobalPlayerCont
 import { GlobalPlayerHost, MINI_SLOT_ID } from './player/GlobalPlayerHost'
 import { MusicMiniPlayer } from './player/MusicPlayer'
 import { ShortsModal } from './player/ShortsModal'
-import { PLAYER_COMMAND_EVENT, PLAYER_STATE_EVENT, type PlayerCommandDetail, type PlayerStateDetail } from './player/events'
+import { PLAYER_COMMAND_EVENT, PLAYER_STATE_EVENT, MINI_PLAYER_OPEN_EVENT, type PlayerCommandDetail, type PlayerStateDetail } from './player/events'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ChannelAvatar } from './components/ChannelAvatar'
 import { BrandMark } from './components/BrandMark'
@@ -51,9 +55,10 @@ import { Saved } from './pages/Saved'
 import { Search } from './pages/Search'
 import { Subscriptions } from './pages/Subscriptions'
 import { Watch } from './pages/Watch'
-import { TabBar, TabPages, TabLinkHandler } from './tabs/AppTabs'
+import { TabBar, TabPages, TabRoutePages, TabLinkHandler } from './tabs/AppTabs'
 import { useAppTabs, usePageTab } from './tabs/AppTabs'
 import { PlayerWorkspaceProvider, RegisterTabPlayer, usePlayerWorkspace } from './player/PlayerWorkspace'
+import { TheaterModeProvider, useTheaterMode, useTheaterHeaderReveal } from './player/TheaterMode'
 import type { SearchHistoryEntry, Subscription, UserProfile } from '../../shared/ipc'
 
 type IconName =
@@ -97,201 +102,14 @@ function Icon({ name, className = 'h-5 w-5' }: { name: IconName; className?: str
   return <SelectedIcon aria-hidden="true" className={className} strokeWidth={1.8} />
 }
 
-function profileInitial(profile: UserProfile): string {
-  return profile.name.trim().slice(0, 1).toUpperCase() || 'P'
-}
-
-function getProfileTextColor(color: string): string {
-  const normalized = /^#[0-9a-f]{6}$/i.test(color) ? color : '#525252'
-  const red = parseInt(normalized.slice(1, 3), 16)
-  const green = parseInt(normalized.slice(3, 5), 16)
-  const blue = parseInt(normalized.slice(5, 7), 16)
-  return (red * 299 + green * 587 + blue * 114) / 1000 > 145 ? '#111111' : '#ffffff'
-}
-
-function ProfileAvatar({ profile, className = 'h-7 w-7' }: { profile: UserProfile; className?: string }) {
-  useLocale()
-  if (profile.avatarDataUrl) {
-    return <img src={profile.avatarDataUrl} alt="" className={`${className} shrink-0 rounded object-cover`} />
-  }
-
-  return (
-    <span
-      className={`${className} grid shrink-0 place-items-center rounded text-xs font-bold`}
-      style={{ backgroundColor: profile.color, color: profile.textColor }}
-    >
-      {profileInitial(profile)}
-    </span>
-  )
-}
-
 function ProfileMenu() {
-  useLocale()
-  const { profiles, activeUser, activeProfile, activeProfileId, setActiveProfile, updateProfile, logoutLocalUser } = useProfiles()
-  const [isOpen, setIsOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement | null>(null)
-  const [editProfileName, setEditProfileName] = useState(activeProfile.name)
-  const [editProfileColor, setEditProfileColor] = useState(activeProfile.color)
-  const [editProfileAvatar, setEditProfileAvatar] = useState<string | null>(activeProfile.avatarDataUrl)
-  const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!isOpen) return
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setIsOpen(false)
-    }
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      setIsOpen(false)
-      menuRef.current?.querySelector('button')?.focus()
-    }
-    window.addEventListener('pointerdown', closeOnOutsidePointer)
-    window.addEventListener('keydown', closeOnEscape)
-    return () => {
-      window.removeEventListener('pointerdown', closeOnOutsidePointer)
-      window.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [isOpen])
-
-  useEffect(() => {
-    setEditProfileName(activeProfile.name)
-    setEditProfileColor(activeProfile.color)
-    setEditProfileAvatar(activeProfile.avatarDataUrl)
-    setMessage(null)
-    setError(null)
-  }, [activeProfile])
-
-  async function handleSelect(profileId: string) {
-    if (profileId !== activeProfileId) {
-      await setActiveProfile(profileId)
-    }
-    setMessage(null)
-    setError(null)
-    setIsOpen(false)
-  }
-
-  async function handleSaveProfile(event: FormEvent) {
-    event.preventDefault()
-    try {
-      await updateProfile({
-        id: activeProfile.id,
-        name: editProfileName,
-        color: editProfileColor,
-        avatarDataUrl: editProfileAvatar
-      })
-      setMessage(t("Perfil guardado"))
-      setError(null)
-      setIsOpen(false)
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : String(saveError))
-    }
-  }
-
-  function handleAvatarFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
-    if (!file.type.startsWith('image/')) {
-      setError(t("Elegí una imagen válida."))
-      return
-    }
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      setEditProfileAvatar(typeof reader.result === 'string' ? reader.result : null)
-      setError(null)
-    }
-    reader.onerror = () => setError(t("No se pudo leer la imagen."))
-    reader.readAsDataURL(file)
-  }
-
-  const previewProfile: UserProfile = {
-    ...activeProfile,
-    name: editProfileName || activeProfile.name,
-    color: editProfileColor,
-    textColor: getProfileTextColor(editProfileColor),
-    avatarDataUrl: editProfileAvatar
-  }
-
-  return (
-    <div ref={menuRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setIsOpen((value) => !value)}
-        aria-expanded={isOpen}
-        aria-label={t("Perfiles")}
-        title={activeProfile.name}
-        className="flex h-10 min-w-0 items-center gap-2 rounded px-2 text-sm text-neutral-200 hover:bg-neutral-800"
-      >
-        <ProfileAvatar profile={activeProfile} />
-        <span className="max-w-24 truncate max-[860px]:hidden">{activeProfile.name}</span>
-      </button>
-
-      {isOpen && (
-        <div className="absolute right-0 top-12 z-50 w-72 border border-neutral-800 bg-neutral-900 p-2 shadow-2xl shadow-black/40">
-          <form onSubmit={handleSaveProfile} className="mb-2 grid gap-2 border-b border-neutral-800 px-2 pb-2">
-            <div className="flex min-w-0 items-center gap-3">
-              <ProfileAvatar profile={previewProfile} className="h-10 w-10" />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-neutral-100">{editProfileName || activeProfile.name}</p>
-                <p className="truncate text-xs text-neutral-500">{t("Usuario local:")} {activeUser.name}</p>
-              </div>
-            </div>
-            <input
-              value={editProfileName}
-              onChange={(event) => setEditProfileName(event.target.value)}
-              aria-label={t("Nombre del perfil")}
-              className="h-9 rounded border border-neutral-700 bg-neutral-950 px-2 text-sm outline-none focus:border-neutral-500"
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                value={editProfileColor}
-                onChange={(event) => setEditProfileColor(event.target.value)}
-                type="color"
-                aria-label={t("Color del perfil")}
-                className="h-9 w-11 rounded border border-neutral-700 bg-neutral-950 p-1"
-              />
-              <label className="cursor-pointer rounded bg-neutral-800 px-2 py-2 text-sm text-neutral-100 hover:bg-neutral-700">
-                {t("Foto")}<input type="file" accept="image/*" onChange={handleAvatarFile} className="hidden" />
-              </label>
-              {editProfileAvatar && (
-                <button type="button" onClick={() => setEditProfileAvatar(null)} className="rounded px-2 py-2 text-sm text-neutral-400 hover:bg-neutral-800">
-                  {t("Quitar")}</button>
-              )}
-              <button type="submit" className="wt-action ml-auto rounded px-2 py-2 text-sm font-medium">
-                {t("Guardar")}</button>
-            </div>
-            {(message || error) && <p className={['text-xs', error ? 'text-red-400' : 'text-neutral-400'].join(' ')}>{t(error ?? message ?? '')}</p>}
-          </form>
-          <div className="grid gap-1">
-            {profiles.map((profile) => (
-              <button
-                key={profile.id}
-                type="button"
-                onClick={() => handleSelect(profile.id)}
-                className={[
-                  'flex min-w-0 items-center gap-2 rounded px-2 py-2 text-left text-sm hover:bg-neutral-800',
-                  profile.id === activeProfileId ? 'wt-selected' : 'text-neutral-300'
-                ].join(' ')}
-              >
-                <ProfileAvatar profile={profile} />
-                <span className="truncate">{profile.name}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-2 grid gap-2 border-t border-neutral-800 pt-2">
-            <button
-              type="button"
-              onClick={logoutLocalUser}
-              className="h-9 rounded px-2 text-sm text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
-            >
-              {t("Cerrar sesión")}</button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  const { youtubeAccount } = useProfiles()
+  return <Link to="/account" aria-label="YouTube account" title={youtubeAccount.name ?? 'Sign in to YouTube'}
+    className="flex h-10 min-w-0 items-center gap-2 rounded px-2 text-sm text-neutral-200 hover:bg-neutral-800">
+    {youtubeAccount.avatarUrl ? <img src={youtubeAccount.avatarUrl} alt="" className="h-7 w-7 rounded-full" />
+      : <UserRound className="h-5 w-5" aria-hidden="true" />}
+    <span className="max-w-32 truncate max-[860px]:hidden">{youtubeAccount.name ?? 'Sign in to YouTube'}</span>
+  </Link>
 }
 
 function SearchBar() {
@@ -407,7 +225,8 @@ function SearchBar() {
             setIsDropdownOpen(true)
           }}
           onFocus={() => setIsDropdownOpen(true)}
-          placeholder={t("Buscar / Ir a URL")}
+          placeholder={t("Search / Go to URL")}
+          aria-label={t('Search')}
           className="wt-search-input min-w-0 flex-1 bg-transparent outline-none"
         />
       </label>
@@ -447,6 +266,23 @@ function SearchBar() {
   )
 }
 
+function WindowControls() {
+  const [maximized, setMaximized] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    void window.api.getWindowState().then((state) => { if (!cancelled) setMaximized(state.maximized) }).catch(() => undefined)
+    const unsubscribe = window.api.onWindowState((state) => setMaximized(state.maximized))
+    return () => { cancelled = true; unsubscribe() }
+  }, [])
+  return <div className="wt-window-controls flex shrink-0 items-center" role="group" aria-label={t('Window controls')}>
+    <button type="button" onClick={() => void window.api.minimizeWindow()} aria-label={t('Minimize window')} title={t('Minimize window')} className="grid h-10 w-9 place-items-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-white"><Minus aria-hidden="true" className="h-4 w-4" /></button>
+    <button type="button" onClick={() => void window.api.toggleMaximizeWindow()} aria-label={t(maximized ? 'Restore window' : 'Maximize window')} title={t(maximized ? 'Restore window' : 'Maximize window')} className="grid h-10 w-9 place-items-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-white">
+      {maximized ? <Copy aria-hidden="true" className="h-3.5 w-3.5" /> : <Square aria-hidden="true" className="h-3.5 w-3.5" />}
+    </button>
+    <button type="button" onClick={() => void window.api.closeWindow()} aria-label={t('Close window')} title={t('Close window')} className="grid h-10 w-9 place-items-center rounded text-neutral-400 hover:bg-red-600 hover:text-white"><X aria-hidden="true" className="h-4 w-4" /></button>
+  </div>
+}
+
 function TopNav() {
   useLocale()
   const navigate = useNavigate()
@@ -473,19 +309,18 @@ function TopNav() {
     <>
       <header className="wt-topbar sticky top-0 z-40 grid h-[60px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-2 shadow-lg shadow-black/20 max-[680px]:fixed max-[680px]:inset-x-0 max-[680px]:top-0 max-[680px]:grid-cols-[1fr_auto]">
         <div className="flex min-w-0 items-center gap-1">
-          <Link
-            to="/"
-            className="flex h-10 min-w-0 items-center gap-2 rounded px-2 text-lg font-semibold text-neutral-100 hover:bg-neutral-800"
-            title="WorldTube"
+          <div
+            className="wt-window-drag flex h-10 min-w-0 items-center gap-2 rounded px-2 text-lg font-semibold text-neutral-100"
+            title="LokTube"
           >
             <BrandMark />
-            <span className="truncate max-[680px]:hidden">WorldTube</span>
-          </Link>
+            <span className="truncate max-[680px]:hidden">LokTube</span>
+          </div>
           <button
             type="button"
             onClick={() => navigate(-1)}
-            aria-label={t("Volver")}
-            title={t("Volver")}
+            aria-label={t("Back")}
+            title={t("Back")}
             className="grid h-10 w-10 place-items-center rounded-full text-neutral-300 hover:bg-neutral-800 hover:text-white max-[680px]:hidden"
           >
             <Icon name="back" />
@@ -493,8 +328,8 @@ function TopNav() {
           <button
             type="button"
             onClick={() => navigate(1)}
-            aria-label={t('Avanzar')}
-            title={t('Avanzar')}
+            aria-label={t("Forward")}
+            title={t("Forward")}
             className="grid h-10 w-10 place-items-center rounded-full text-neutral-300 hover:bg-neutral-800 hover:text-white max-[680px]:hidden"
           >
             <Icon name="forward" />
@@ -517,11 +352,12 @@ function TopNav() {
 
         <div className="flex justify-end gap-1">
           <ProfileMenu />
+          <WindowControls />
           <button
             type="button"
             onClick={() => setIsMobileSearchOpen((value) => !value)}
-            aria-label={t("Buscar")}
-            title={t("Buscar")}
+            aria-label={t("Search")}
+            title={t("Search")}
             className="grid h-10 w-10 place-items-center rounded-full text-neutral-300 hover:bg-neutral-800 hover:text-white min-[681px]:hidden"
           >
             <Icon name="search" />
@@ -529,7 +365,7 @@ function TopNav() {
         </div>
       </header>
       {isMobileSearchOpen && (
-        <div className="wt-topbar fixed inset-x-0 top-[60px] z-40 border-b border-neutral-800 bg-neutral-900 p-2 min-[681px]:hidden">
+        <div className="wt-topbar wt-mobile-search fixed inset-x-0 top-[60px] z-40 border-b border-neutral-800 bg-neutral-900 p-2 min-[681px]:hidden">
           <SearchBar />
         </div>
       )}
@@ -539,8 +375,8 @@ function TopNav() {
 
 function navClass(isOpen: boolean, isActive: boolean): string {
   return [
-    'group flex min-h-[45px] items-center px-3 py-2 text-neutral-300 no-underline transition-colors hover:bg-neutral-800 hover:text-white max-[680px]:min-h-0 max-[680px]:flex-1 max-[680px]:flex-col max-[680px]:justify-center max-[680px]:gap-0 max-[680px]:px-1',
-    isOpen ? 'justify-start gap-3' : 'flex-col justify-center gap-0 text-center',
+    'group flex min-h-[45px] shrink-0 items-center py-2 text-neutral-300 no-underline transition-colors hover:bg-neutral-800 hover:text-white max-[680px]:min-h-0 max-[680px]:flex-1 max-[680px]:flex-col max-[680px]:justify-center max-[680px]:gap-0 max-[680px]:px-1 max-[680px]:py-0',
+    isOpen ? 'justify-start gap-3 px-3' : 'flex-col justify-center gap-0 px-1 text-center',
     isActive ? 'wt-selected' : ''
   ].join(' ')
 }
@@ -548,7 +384,7 @@ function navClass(isOpen: boolean, isActive: boolean): string {
 function SideNav({ isOpen }: { isOpen: boolean }) {
   useLocale()
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
-  const { activeProfileId } = useProfiles()
+  const { activeProfileId, youtubeAccount } = useProfiles()
 
   useEffect(() => {
     let cancelled = false
@@ -569,48 +405,48 @@ function SideNav({ isOpen }: { isOpen: boolean }) {
 
   return (
     <nav
-      aria-label={t('Secciones')}
+      aria-label={t("Sections")}
       className={[
         'wt-sidebar sticky top-[60px] z-30 h-[calc(100vh-60px)] shrink-0 overflow-hidden border-r border-neutral-800 bg-neutral-900 transition-[width] duration-150 ease-in-out max-[680px]:fixed max-[680px]:inset-x-0 max-[680px]:bottom-0 max-[680px]:top-auto max-[680px]:h-[60px] max-[680px]:w-full max-[680px]:border-r-0 max-[680px]:border-t',
-        isOpen ? 'w-[200px]' : 'w-20'
+        isOpen ? 'w-[200px]' : 'w-28'
       ].join(' ')}
     >
       <div className="flex h-full flex-col overflow-y-auto overflow-x-hidden py-3 max-[680px]:flex-row max-[680px]:items-stretch max-[680px]:overflow-hidden max-[680px]:py-0">
-        <NavLink to="/" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Inicio")}>
+        <NavLink to="/" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Home")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
             <NavigationIcon name="home" />
           </span>
-          <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("Inicio")}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("Home")}</span>
         </NavLink>
-        <NavLink to="/subscriptions" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Suscripciones")}>
+        <NavLink to="/subscriptions" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Subscriptions")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
             <NavigationIcon name="subscriptions" />
           </span>
-          <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("Suscripciones")}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("Subscriptions")}</span>
         </NavLink>
-        <NavLink to="/history" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Historial")}>
+        <NavLink to="/history" className={({ isActive }) => navClass(isOpen, isActive)} title={t("History")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
             <NavigationIcon name="history" />
           </span>
-          <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("Historial")}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("History")}</span>
         </NavLink>
-        <NavLink to="/saved" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Guardados")}>
+        <NavLink to="/saved" className={({ isActive }) => navClass(isOpen, isActive)} title={youtubeAccount.signedIn ? t("Watch Later") : t("Saved")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
             <NavigationIcon name="saved" />
           </span>
-          <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("Guardados")}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{youtubeAccount.signedIn ? t("Watch Later") : t("Saved")}</span>
         </NavLink>
         <NavLink to="/playlists" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Playlists")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
             <NavigationIcon name="playlists" />
           </span>
-          <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("Playlists")}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("Playlists")}</span>
         </NavLink>
         <NavLink to="/music" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Music")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">
             <NavigationIcon name="music" />
           </span>
-          <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("Music")}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("Music")}</span>
         </NavLink>
 
         {subscriptions.length > 0 && (
@@ -632,11 +468,11 @@ function SideNav({ isOpen }: { isOpen: boolean }) {
           </>
         )}
         <div className="mt-auto border-t border-neutral-800 pt-3 max-[680px]:mt-0 max-[680px]:flex-1 max-[680px]:border-t-0 max-[680px]:pt-0">
-          <NavLink to="/account" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Cuenta")}>
+          <NavLink to="/account" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Account")}>
             <span className="grid h-9 w-9 shrink-0 place-items-center">
               <NavigationIcon name="account" />
             </span>
-            <span className={isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}>{t("Cuenta")}</span>
+            <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t("Account")}</span>
           </NavLink>
         </div>
       </div>
@@ -670,6 +506,12 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
   const { videoId, title, channelName, closePlayer, playbackMode, shorts, ownerTabId, status } = useGlobalPlayer()
   const { activeId, select, navigatorFor, tabs: tabsForMini } = useAppTabs()
   function returnToWatch() {
+    const pip = document.pictureInPictureElement
+    if (pip?.closest<HTMLElement>('[data-player-tab-id]')?.dataset.playerTabId === ownerTabId) {
+      // The native leave event restores the owning tab and watch page once.
+      void document.exitPictureInPicture().catch((error) => console.warn('[player] Could not return from picture in picture', error))
+      return
+    }
     select(ownerTabId)
     const owner = tabsForMini.find((tab) => tab.id === ownerTabId)
     if (owner?.entries[owner.index] !== `/watch/${videoId}`) navigatorFor(ownerTabId).push(`/watch/${videoId}`)
@@ -704,6 +546,19 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
   } | null>(null)
   const lastDragEndAtRef = useRef(Number.NEGATIVE_INFINITY)
   const isWatchRoute = activeId === ownerTabId && location.pathname === `/watch/${videoId}`
+
+  useEffect(() => {
+    const restore = (event: Event) => {
+      const { tabId } = (event as CustomEvent<{ tabId: string }>).detail
+      if (tabId !== activeId && tabId !== ownerTabId) return
+      setIsMinimized(false)
+      setIsMinimizePreview(false)
+      setIsRestorePreview(false)
+      setMiniPosition(null)
+    }
+    window.addEventListener(MINI_PLAYER_OPEN_EVENT, restore)
+    return () => window.removeEventListener(MINI_PLAYER_OPEN_EVENT, restore)
+  }, [activeId, ownerTabId])
 
   useEffect(() => {
     setIsMinimized(false)
@@ -901,7 +756,7 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
     // The video is portaled into the mini slot, so listen on the real DOM
     // surface to receive pointer events from the video as well as its header.
     const handleMiniPointerDown = (event: PointerEvent) => handleDragStart(event)
-    const handleMinimizedPointerDown = (event: PointerEvent) => handleRestoreDragStart(event)
+    const handleMinimizedPointerDown = (event: PointerEvent) => { if (!playerState.pictureInPicture) handleRestoreDragStart(event) }
     miniSurface?.addEventListener('pointerdown', handleMiniPointerDown)
     minimizedSurface?.addEventListener('pointerdown', handleMinimizedPointerDown)
 
@@ -909,12 +764,12 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
       miniSurface?.removeEventListener('pointerdown', handleMiniPointerDown)
       minimizedSurface?.removeEventListener('pointerdown', handleMinimizedPointerDown)
     }
-  }, [videoId, isMinimized, isWatchRoute, shorts.length, activeId, ownerTabId])
+  }, [videoId, isMinimized, isWatchRoute, shorts.length, activeId, ownerTabId, playerState.pictureInPicture])
 
   if (videoId === null || playbackMode === 'music' || activeId !== ownerTabId || isWatchRoute || shorts.length > 0) return null
 
-  const showBar = (isMinimized || isMinimizePreview) && !isRestorePreview
-  const hideMini = (isMinimized || isMinimizePreview) && !isRestorePreview
+  const showBar = !!playerState.pictureInPicture || ((isMinimized || isMinimizePreview) && !isRestorePreview)
+  const hideMini = showBar
   const dragCursorClass = isDragPointerActive
     ? 'cursor-grabbing [&_[role=button]]:cursor-grabbing [&_button]:cursor-grabbing'
     : 'cursor-grab [&_[role=button]]:cursor-pointer [&_button]:cursor-pointer'
@@ -931,11 +786,12 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
       <aside
         ref={minimizedBarRef}
         onClickCapture={handleDraggedClickCapture}
+        onClick={(event) => { if (!(event.target as Element).closest('[data-player-control]')) returnToWatch() }}
         className={[
           'wt-player-bar fixed bottom-0 right-0 z-50 touch-none select-none border-t border-neutral-800 bg-neutral-900 shadow-2xl shadow-black/40 transition-opacity max-[680px]:bottom-[60px] max-[680px]:left-0',
           dragCursorClass,
           isMinimizePreview && !isMinimized ? 'pointer-events-none opacity-45' : 'opacity-100',
-          isSideNavOpen ? 'min-[681px]:left-[200px]' : 'min-[681px]:left-20'
+          isSideNavOpen ? 'min-[681px]:left-[200px]' : 'min-[681px]:left-28'
         ].join(' ')}
       >
         <div className="grid min-h-[58px] min-w-0 grid-cols-[minmax(120px,1fr)_minmax(220px,520px)_auto] items-center gap-4 px-4 max-[840px]:grid-cols-[minmax(0,1fr)_auto]">
@@ -958,7 +814,7 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
               value={timelineValue}
               onChange={handleTimelineChange}
               disabled={!hasTimeline}
-              aria-label={t("Buscar en reproducción")}
+              aria-label={t("Seek")}
               className="wt-media-range min-w-0 flex-1 cursor-pointer disabled:cursor-default disabled:opacity-50"
               style={timelineRangeStyle}
             />
@@ -968,8 +824,8 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
             <button
               type="button"
               onClick={() => sendPlayerCommand({ action: 'seek-relative', seconds: -10 })}
-              aria-label={t("Retroceder 10 segundos")}
-              title={t("Retroceder 10 segundos")}
+              aria-label={t("Rewind 10 seconds")}
+              title={t("Rewind 10 seconds")}
               className="grid h-9 w-9 cursor-pointer place-items-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
               data-player-control="true"
             >
@@ -979,8 +835,8 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
               type="button"
               disabled={playerStarting}
               onClick={() => sendPlayerCommand({ action: 'toggle-play' })}
-              aria-label={playerStarting ? t('Cargando…') : playerState.paused ? t("Reproducir") : t("Pausar")}
-              title={playerStarting ? t('Cargando…') : playerState.paused ? t("Reproducir") : t("Pausar")}
+              aria-label={playerStarting ? t("Loading...") : playerState.paused ? t("Play") : t("Pause")}
+              title={playerStarting ? t("Loading...") : playerState.paused ? t("Play") : t("Pause")}
               className={`${playerStarting ? 'bg-transparent text-neutral-300' : 'wt-player-active-control'} grid h-9 w-9 cursor-pointer place-items-center rounded disabled:cursor-wait`}
               data-player-control="true"
             >
@@ -989,8 +845,8 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
             <button
               type="button"
               onClick={() => sendPlayerCommand({ action: 'seek-relative', seconds: 10 })}
-              aria-label={t('Avanzar 10 segundos')}
-              title={t('Avanzar 10 segundos')}
+              aria-label={t("Forward 10 seconds")}
+              title={t("Forward 10 seconds")}
               className="grid h-9 w-9 cursor-pointer place-items-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
               data-player-control="true"
             >
@@ -1005,7 +861,7 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
                 step={0.01}
                 value={volumeValue}
                 onChange={handleVolumeChange}
-                aria-label={t("Volumen")}
+                aria-label={t("Volume")}
                 className="wt-media-range min-w-0 flex-1 cursor-pointer"
                 style={volumeRangeStyle}
               />
@@ -1013,13 +869,14 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
             <button
               type="button"
               onClick={() => {
+                if (playerState.pictureInPicture) { returnToWatch(); return }
                 setIsMinimized(false)
                 setIsMinimizePreview(false)
                 setIsRestorePreview(false)
                 setMiniPosition(null)
               }}
-              aria-label={t("Restaurar mini reproductor")}
-              title={t("Restaurar mini reproductor")}
+              aria-label={t(playerState.pictureInPicture ? 'Return to video' : 'Restore mini player')}
+              title={t(playerState.pictureInPicture ? 'Return to video' : 'Restore mini player')}
               className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
               data-player-control="true"
             >
@@ -1028,8 +885,8 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
             <button
               type="button"
               onClick={closePlayer}
-              aria-label={t("Cerrar reproductor")}
-              title={t("Cerrar reproductor")}
+              aria-label={t("Close player")}
+              title={t("Close player")}
               className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
               data-player-control="true"
             >
@@ -1071,11 +928,15 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
             <span className="block truncate text-xs text-neutral-400">{channelName}</span>
           </button>
           <div className="flex items-center pr-2">
+            <button type="button" onClick={returnToWatch} aria-label={t('Return to video')} title={t('Return to video')}
+              className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100" data-player-control="true">
+              <Icon name="arrowUpRight" className="h-4 w-4" />
+            </button>
             <button
               type="button"
               onClick={() => sendPlayerCommand({ action: 'toggle-picture-in-picture' })}
-              aria-label={t("Imagen en imagen")}
-              title={t("Imagen en imagen")}
+              aria-label={t("Picture in picture")}
+              title={t("Picture in picture")}
               className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
               data-player-control="true"
             >
@@ -1089,8 +950,8 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
                 setIsRestorePreview(false)
                 setMiniPosition(null)
               }}
-              aria-label={t("Minimizar reproductor")}
-              title={t("Minimizar reproductor")}
+              aria-label={t("Minimize player")}
+              title={t("Minimize player")}
               className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
               data-player-control="true"
             >
@@ -1099,8 +960,8 @@ function MiniPlayer({ isSideNavOpen }: { isSideNavOpen: boolean }) {
             <button
               type="button"
               onClick={closePlayer}
-              aria-label={t("Cerrar reproductor")}
-              title={t("Cerrar reproductor")}
+              aria-label={t("Close player")}
+              title={t("Close player")}
               className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
               data-player-control="true"
             >
@@ -1139,29 +1000,49 @@ function AppRoutes() {
 }
 
 export default function App() {
-  useLocale()
-  const isSideNavOpen = false
-
   return (
     <ProfileProvider>
       <PlayerWorkspaceProvider>
-        <TabLinkHandler><div className="wt-app-shell min-h-screen text-neutral-100">
+        <TheaterModeProvider><AppShell /></TheaterModeProvider>
+      </PlayerWorkspaceProvider>
+    </ProfileProvider>
+  )
+}
+
+function AppShell() {
+  useLocale()
+  const { active: theater } = useTheaterMode()
+  const headerVisible = useTheaterHeaderReveal(theater)
+  const isSideNavOpen = false
+  return <AppNavigation><div className={`wt-app-shell min-h-screen text-neutral-100 ${theater ? 'wt-theater' : ''} ${headerVisible ? 'wt-theater-header-visible' : ''}`}>
+          {theater && <>
+            <button className="wt-theater-edge wt-theater-top-edge" aria-label={t('Show search and tabs')}
+              onClick={() => {
+                const input = document.querySelector<HTMLInputElement>('.wt-topbar input')
+                if (input?.getClientRects().length) input.focus()
+                else document.querySelector<HTMLButtonElement>('.wt-topbar button[aria-label="' + t('Search') + '"]')?.click()
+              }} />
+            <button className="wt-theater-edge wt-theater-side-edge" aria-label={t('Show sidebar')}
+              onClick={() => document.querySelector<HTMLAnchorElement>('.wt-sidebar a')?.focus()} />
+          </>}
           <TopNav />
-          <div className="flex min-h-[calc(100vh-60px)] max-[680px]:block max-[680px]:pb-[72px] max-[680px]:pt-[60px]">
+          <div className="wt-workspace flex min-h-[calc(100vh-60px)] max-[680px]:block max-[680px]:pb-[72px] max-[680px]:pt-[60px]">
             <SideNav isOpen={isSideNavOpen} />
             <main className="min-w-0 flex-1">
               <PlayerTabBar />
-              <div className="p-4 max-[680px]:p-3"><TabPages><TabPlayer /></TabPages></div>
+              <div className="wt-page-content p-4 max-[680px]:p-3"><TabPages><TabPlayer /></TabPages></div>
             </main>
           </div>
           <MiniPlayer isSideNavOpen={isSideNavOpen} />
           <MusicMiniPlayer isSideNavOpen={isSideNavOpen} />
           <ShortsModal />
           <UpdateNotice />
-        </div></TabLinkHandler>
-      </PlayerWorkspaceProvider>
-    </ProfileProvider>
-  )
+        </div></AppNavigation>
+}
+
+function AppNavigation({ children }: { children: ReactNode }) {
+  const { playInMiniPlayer } = usePlayerWorkspace()
+  return <TabLinkHandler onPlayInMiniPlayer={playInMiniPlayer}>{children}</TabLinkHandler>
 }
 
 function PlayerTabBar() {
@@ -1171,13 +1052,15 @@ function PlayerTabBar() {
 }
 
 function TabPlayer() {
-  useLocale()
+  const { language } = useLocale()
   const { id } = usePageTab()
+  const { activeProfileId, youtubeAccount } = useProfiles()
+  const pageScope = `${activeProfileId}:${youtubeAccount.signedIn}:${youtubeAccount.name}:${language}`
   const { requestPlayback } = usePlayerWorkspace()
   const startShort = useCallback(() => requestPlayback(id), [requestPlayback, id])
   return <GlobalPlayerProvider tabId={id} onOpenShort={startShort}>
     <RegisterTabPlayer />
-    <AppRoutes />
+    <TabRoutePages key={pageScope}><AppRoutes /></TabRoutePages>
     <TabPlayerMedia />
   </GlobalPlayerProvider>
 }

@@ -1,5 +1,6 @@
 import { t, useLocale } from '../i18n/LocaleContext'
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { VideoCard } from '../components/VideoCard'
 import { PageLoader } from '../components/PageLoader'
 import { useProfiles } from '../profiles/ProfileContext'
@@ -10,7 +11,7 @@ type FeedStatus = 'loading' | 'ready' | 'error'
 
 export function Home() {
   useLocale()
-  const { activeProfileId } = useProfiles()
+  const { activeProfileId, youtubeAccount } = useProfiles()
   const [feedStatus, setFeedStatus] = useState<FeedStatus>('loading')
   const [feed, setFeed] = useState<SearchResultItem[]>([])
   const [feedError, setFeedError] = useState<string | null>(null)
@@ -52,8 +53,13 @@ export function Home() {
     meta={[video.viewCountText, video.publishedText].filter(Boolean).join(' · ')} />
 
   return (
-    <section aria-label={t('Inicio')} aria-busy={feedStatus === 'loading'}>
-      <h1 className="mb-4 text-xl font-semibold">{t('Inicio')}</h1>
+    <section aria-label={t("Home")} aria-busy={feedStatus === 'loading'}>
+      <h1 className="mb-4 text-xl font-semibold">{t("Home")}</h1>
+      {!youtubeAccount.signedIn && <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded border border-neutral-800 bg-neutral-900/50 p-4">
+        <p className="text-sm text-neutral-300">Connect YouTube for your recommendations, subscriptions and watch history.</p>
+        <Link to="/account" className="wt-action-important rounded px-4 py-2 text-sm font-medium">Sign in to YouTube</Link>
+      </div>}
+      {youtubeAccount.syncError && <p role="status" className="mb-4 text-sm text-amber-300">{youtubeAccount.syncError}</p>}
       {feedStatus === 'loading' && <PageLoader />}
       {feedStatus === 'error' && <div role="alert" className="border-y border-neutral-800 py-6">
         <p className="mb-3 text-sm text-red-400">{feedError}</p>
