@@ -17,7 +17,7 @@ module.exports=async({app,page,profile})=>{
 
   await page.locator('a[href="#/"]').first().click()
   await page.getByRole('heading',{name:'Home',exact:true}).waitFor()
-  const card=page.locator('[data-video-id="jNQXAC9IVRw"]').first()
+  const card=page.locator('[data-video-id="jNQXAC9IVRw"]:visible').first()
   await card.waitFor()
   const count=await page.getByRole('tab').count()
   await card.click({button:'right'})
@@ -74,7 +74,7 @@ module.exports=async({app,page,profile})=>{
   },blob)
   await page.locator('a[href="#/"]').first().click()
   await page.getByRole('heading',{name:'Home',exact:true}).waitFor()
-  await page.locator('[data-video-id="jNQXAC9IVRw"]').first().click({button:'right'})
+  await page.locator('[data-video-id="jNQXAC9IVRw"]:visible').first().click({button:'right'})
   await page.getByRole('menuitem',{name:'Play in mini player',exact:true}).click()
   await page.waitForFunction(()=>[...document.querySelectorAll('video')].some(video=>!video.paused&&video.currentTime>0.05))
   await page.getByRole('heading',{name:'Home',exact:true}).waitFor()
