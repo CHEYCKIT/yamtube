@@ -11,6 +11,8 @@ import { mapRecommendedShorts, interleaveShorts, selectDiverseShorts, shortsTopi
 import { mapMusicPlaylistTracks } from '../src/main/musicPlaylistItems'
 import { ratingFromInfo } from '../src/main/videoRatingState'
 import { youtubeUrlToAppRoute, loktubeProtocolToRoute } from '../src/main/externalYoutubeLinks'
+import { decodeTabSession, encodeTabSession, TAB_SESSION_KEY } from '../src/renderer/src/tabs/tabSession'
+import { dropIndexAt } from '../src/renderer/src/tabs/pointerReorder'
 import { removeHomeNewsShelves, isNewsShelfHeading, isNewsBroadcaster, excludeHomeNewsBroadcasters } from '../src/main/homeNewsFilter'
 import { assertPlayableVideo, getPlayableResponse } from '../src/main/playbackAvailability'
 
@@ -666,4 +668,59 @@ test('external protocol ingress rejects arbitrary websites and unsafe link struc
     'loktube://open?path=%2Faccount',
     'http://www.youtube.com/watch?v=jNQXAC9IVRw'
   ]) assert.equal(loktubeProtocolToRoute(uri),null,uri)
+})
+
+
+test('tab sessions round trip selected tab, order, navigation history, and titles', () => {
+  assert.equal(TAB_SESSION_KEY, 'loktube.tabs.v1')
+  const original = [
+    { id: 'home', entries: ['/','/history'], index: 1, title: '' },
+    { id: 'video', entries: ['/','/watch/jNQXAC9IVRw','/search?q=some%20music'], index: 1, title: 'A YouTube video' },
+    { id: 'music', entries: ['/music'], index: 0, title: '' }
+  ]
+  const encoded = encodeTabSession(original, 'video')
+  assert.deepEqual(decodeTabSession(encoded), {
+    version: 1, tabs: original, activeId: 'video'
+  })
+  const reordered = [original[2], original[0], original[1]]
+  assert.deepEqual(decodeTabSession(encodeTabSession(reordered,'home'))?.tabs.map(t => t.id),
+    ['music','home','video'])
+  assert.equal(decodeTabSession(encodeTabSession([{id:'new',entries:['/'],index:0,title:''}],'new'))?.tabs.length,1)
+})
+
+test('tab sessions ignore malformed data and reject unsafe restored routes', () => {
+  for (const raw of [null, '', '{invalid', '{}', '[]','{"version":99,"tabs":[]}', '{"version":1,"tabs":[]}'])
+    assert.equal(decodeTabSession(raw),null)
+  const data = { version: 1, activeId: 'gone', tabs: [
+    { id: 'good', entries: ['/','/search?q=rock','javascript:alert(1)', '//evil.test','/watch/jNQXAC9IVRw'], index: 99, title: 'Good' },
+    { id: 'good', entries: ['/other'], index: 0, title:'Duplicate' },
+    { id: 'bad', entries: ['https://evil.test'], index: 0, title:'Invalid' },
+    { id: 'second', entries: ['/music'], index: -20, title:'Music' }
+  ]}
+  assert.deepEqual(decodeTabSession(JSON.stringify(data)), {
+    version: 1, activeId:'good',
+    tabs: [
+      { id:'good', entries:['/','/search?q=rock','/watch/jNQXAC9IVRw'], index:2, title:'Good' },
+      { id:'second', entries:['/music'], index:0, title:'Music' }
+    ]
+  })
+  assert.equal(decodeTabSession(JSON.stringify({version:1,tabs:[{id:'one',entries:['//evil'],index:0}]})),null)
+})
+
+test('saved tab-session history caps entries without losing current navigation', () => {
+  const entries=Array.from({length:60},(_,i)=>'/search?q='+i)
+  const data=decodeTabSession(encodeTabSession([{id:'one',entries,index:59,title:''}],'one'))
+  assert.equal(data?.tabs[0].entries.length,50)
+  assert.equal(data?.tabs[0].entries[49],'/search?q=59')
+  assert.equal(data?.tabs[0].index,49)
+})
+
+
+test('pointer tab insertion follows neighboring centers without jumping during drag', () => {
+  const centers=[100,300,500,700]
+  assert.equal(dropIndexAt(500,3,centers),2)
+  assert.equal(dropIndexAt(85,3,centers),0)
+  assert.equal(dropIndexAt(301,3,centers),2)
+  assert.equal(dropIndexAt(550,0,centers),2)
+  assert.equal(dropIndexAt(750,0,centers),3)
 })

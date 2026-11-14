@@ -25,10 +25,10 @@ module.exports = async ({app,page}) => {
   await page.locator('a[href="#/"]:visible').first().click()
   await page.getByRole('heading',{name:'More to explore',exact:true}).waitFor()
 
-  const sectionTitles=await page.locator('section[aria-label="Home"] h2').allTextContents()
+  const sectionTitles=await page.locator('section[aria-label="Home"]:visible h2').allTextContents()
   assert.deepEqual(sectionTitles,['For you','More to explore','Shorts'])
-  assert.equal(await page.locator('[data-home-shorts-strip] [data-video-id]').count(),2)
-  const strip=page.locator('[data-home-shorts-strip]')
+  assert.equal(await page.locator('[data-home-shorts-strip]:visible [data-video-id]').count(),2)
+  const strip=page.locator('[data-home-shorts-strip]:visible')
   const layout=await strip.evaluate(element=>({
     display:getComputedStyle(element).display,
     wrap:getComputedStyle(element).flexWrap,

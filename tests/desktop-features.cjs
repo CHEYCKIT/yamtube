@@ -27,6 +27,7 @@ module.exports=async({app,page,profile})=>{
     name:'LokTube', executed:'LokTube', newNativeWindows:0, changedFocus:false
   })
   console.log('PASS: background renderer executes JS without native windows or focus changes')
+  await require('./desktop-tabs.cjs')({page})
   const parser=await app.evaluate(({app})=>{
     const require=process.getBuiltinModule('node:module').createRequire(app.getAppPath()+'/package.json')
     const {Parser}=require('youtubei.js')
@@ -51,7 +52,7 @@ module.exports=async({app,page,profile})=>{
   const tabBarLayout=await page.evaluate(()=>{
     const strip=document.querySelector('[role="tablist"]')
     const plus=strip?.querySelector('button[aria-label="New tab"]')
-    const tabs=[...strip.querySelectorAll('[draggable="true"]')]
+    const tabs=[...strip.querySelectorAll('[data-tab-id]')]
     const last=tabs.at(-1)
     return { afterLast:plus?.previousElementSibling===last,
       gap:plus.getBoundingClientRect().left-last.getBoundingClientRect().right,
