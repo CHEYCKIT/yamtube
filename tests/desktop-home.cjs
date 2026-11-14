@@ -47,7 +47,9 @@ module.exports = async ({app,page}) => {
   assert.ok(firstSizes.every(width=>Math.abs(width-firstSizes[0])<2),JSON.stringify(firstSizes))
   const showMore=page.getByRole('button',{name:'Show more',exact:true})
   await showMore.click()
-  await page.waitForFunction(()=>document.querySelectorAll('section[aria-label="Home"] [data-home-video-grid] [data-video-id]').length===8)
+  await page.waitForFunction(()=>[...document.querySelectorAll('section[aria-label="Home"]')]
+    .some(section=>section.getClientRects().length > 0 &&
+      section.querySelectorAll('[data-home-video-grid] [data-video-id]').length===8))
   assert.equal(await firstRow.count(),3)
   assert.equal(await regularGrid.count(),8,'continuation should append unique videos below the first row')
   assert.equal(await showMore.count(),0,'Show more must disappear after YouTube has no continuation')
