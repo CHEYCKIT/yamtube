@@ -46,6 +46,18 @@ module.exports=async({app,page,profile})=>{
   assert.equal(await page.getByRole('menu',{name:'Video options'}).count(),0)
   console.log('PASS: video context menu opens a background tab and dismisses with Escape')
 
+  // Simulate an OS protocol activation. The already-open LokTube window must
+  // receive the link in a new tab without destroying the original Home tab.
+  await app.evaluate(({app}) => app.emit('second-instance', {},
+    ['LokTube.exe', 'loktube://open?url=' + encodeURIComponent('https://www.youtube.com/results?search_query=external%20link')], ''))
+  await page.waitForFunction(n => document.querySelectorAll('[role="tab"]').length === n, count + 2)
+  assert.match(await page.locator('[role="tab"][aria-selected="true"]').textContent(), /external link/)
+  await page.getByRole('button',{name:'Close external link'}).click()
+  await page.getByRole('tab',{name:'Home',exact:true}).click()
+  await page.getByRole('heading',{name:'Home',exact:true}).waitFor()
+  assert.equal(await page.getByRole('tab').count(),count+1)
+  console.log('PASS: external YouTube protocol opens a new internal tab without replacing Home')
+
   // Send the actual Windows BrowserWindow event through main/preload IPC.
   await page.locator('a[href="#/music"]:visible').first().click()
   await page.getByRole('heading',{name:'YouTube Music',exact:true}).waitFor()

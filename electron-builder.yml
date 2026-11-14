@@ -1,5 +1,9 @@
 appId: com.riberojuanca.worldtube
 productName: LokTube
+protocols:
+  - name: LokTube links
+    schemes:
+      - loktube
 artifactName: LokTube-${version}-${os}-${arch}.${ext}
 beforePack: ./scripts/prepare-third-party-notices.cjs
 directories:

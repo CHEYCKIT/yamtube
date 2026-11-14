@@ -104,6 +104,11 @@ export function AppTabsProvider({ children }: { children: ReactNode }) {
     }
   }, [tabs, activeId, rename])
 
+  // A validated YouTube link always gets a new tab, never replaces playback.
+  const externalOpen = useRef(value.open)
+  externalOpen.current = value.open
+  useEffect(() => window.api.onExternalYoutubeRoute((route) => externalOpen.current(route)), [])
+
   useLayoutEffect(() => {
     window.history.replaceState(null, '', `#${path}`)
     const top = scrolls.current.get(`${activeId}:${path}`) ?? 0

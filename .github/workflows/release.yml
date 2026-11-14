@@ -162,5 +162,6 @@ jobs:
           TAG: ${{ needs.prepare.outputs.tag }}
         run: |
           git archive --format=tar.gz --prefix="LokTube-$TAG/" HEAD -o "LokTube-$TAG-source.tar.gz"
+          gh release upload "$TAG" "browser-integration/loktube-zen.user.js" --clobber
           gh release upload "$TAG" "LokTube-$TAG-source.tar.gz" --clobber
           gh release edit "$TAG" --draft=false
