@@ -479,7 +479,96 @@ export async function getSearchSuggestions(query: string): Promise<string[]> {
   return Array.isArray(suggestions) ? suggestions.filter((suggestion): suggestion is string => typeof suggestion === 'string') : []
 }
 
-export async function getHomeFeed(sections: HomeSection[] = []): Promise<SearchResultItem[]> {
+
+interface HomeFeedPage {
+  videos: SearchResultItem[]
+  topics: string[]
+  sessionId: string | null
+  hasMore: boolean
+}
+interface HomeFeedSession {
+  root: YT.HomeFeed
+  current: YT.HomeFeed
+  revision: number
+  expiresAt: number
+  seen: Set<string>
+  pending?: Promise<HomeFeedPage>
+}
+const homeFeedSessions = new Map<string, HomeFeedSession>()
+const HOME_SESSION_TTL = 30 * 60 * 1000
+const HOME_SESSION_LIMIT = 8
+
+function homeSession(id: string): HomeFeedSession {
+  const state = homeFeedSessions.get(id)
+  if (!state || state.revision !== accountRevision() || Date.now() > state.expiresAt) {
+    homeFeedSessions.delete(id)
+    throw new Error('Home recommendations expired. Refresh Home to load more.')
+  }
+  state.expiresAt = Date.now() + HOME_SESSION_TTL
+  return state
+}
+
+function homePage(videos: SearchResultItem[], current: YT.HomeFeed | null = null,
+  root: YT.HomeFeed | null = current, revision = accountRevision()): HomeFeedPage {
+  if (!current || !root) return { videos, topics: [], sessionId: null, hasMore: false }
+  if (revision !== accountRevision()) throw new Error('Your YouTube account changed. Refresh Home.')
+  const id = randomUUID()
+  const state: HomeFeedSession = {
+    root, current, revision, expiresAt: Date.now() + HOME_SESSION_TTL,
+    seen: new Set(videos.map(video => video.videoId))
+  }
+  // Keep only a bounded number of active per-tab pages, and discard pages
+  // from a previous YouTube account rather than leaking personalized results.
+  for (const [key, value] of homeFeedSessions) {
+    if (value.revision !== revision || value.expiresAt < Date.now())
+      homeFeedSessions.delete(key)
+  }
+  homeFeedSessions.set(id, state)
+  while (homeFeedSessions.size > HOME_SESSION_LIMIT)
+    homeFeedSessions.delete(homeFeedSessions.keys().next().value!)
+  return { videos, topics: root.filters.filter((topic) => topic.trim()).slice(0, 24),
+    sessionId: id, hasMore: current.has_continuation }
+}
+
+export async function getHomeTopic(sessionId: string, topic: string): Promise<HomeFeedPage> {
+  const state = homeSession(sessionId)
+  if (typeof topic !== 'string' || topic.length > 100 ||
+    (topic && !state.root.filters.includes(topic))) throw new Error('This Home topic is unavailable. Refresh Home.')
+  const filtered = topic ? await state.root.applyFilter(topic) : state.root
+  if (state.revision !== accountRevision()) throw new Error('Your YouTube account changed. Refresh Home.')
+  const videos = await resolveChannelNames(excludeHomeNewsBroadcasters(mapSearchResultNodes(filtered.videos)))
+  return homePage(videos, filtered, state.root, state.revision)
+}
+
+export async function getHomeMore(sessionId: string): Promise<HomeFeedPage> {
+  const state = homeSession(sessionId)
+  if (state.pending) return state.pending
+  if (!state.current.has_continuation) return {
+    videos: [], topics: [], sessionId, hasMore: false
+  }
+  // Serialize duplicate clicks; each invocation must advance the same
+  // continuation chain once, without generating repeated video cards.
+  const pending = (async (): Promise<HomeFeedPage> => {
+    const added: SearchResultItem[] = []
+    for (let attempt = 0; attempt < 3 && state.current.has_continuation && added.length === 0; attempt++) {
+      const next = await state.current.getContinuation()
+      if (state.revision !== accountRevision()) throw new Error('Your YouTube account changed. Refresh Home.')
+      state.current = next
+      const mapped = excludeHomeNewsBroadcasters(mapSearchResultNodes(next.videos))
+      for (const video of mapped) {
+        if (state.seen.has(video.videoId)) continue
+        state.seen.add(video.videoId)
+        added.push(video)
+      }
+    }
+    return { videos: await resolveChannelNames(added), topics: [], sessionId,
+      hasMore: state.current.has_continuation }
+  })()
+  state.pending = pending
+  try { return await pending } finally { if (state.pending === pending) state.pending = undefined }
+}
+
+export async function getHomeFeed(sections: HomeSection[] = []): Promise<HomeFeedPage> {
   console.log('[youtube] getHomeFeed()')
   const expectedRevision = accountRevision()
   const yt = await getClient()
@@ -506,7 +595,7 @@ export async function getHomeFeed(sections: HomeSection[] = []): Promise<SearchR
   const allVideos = feed ? mapSearchResultNodes(feed.videos) : []
   const videos = excludeHomeNewsBroadcasters(allVideos)
   console.log(`[youtube] home: ${feed?.videos.length ?? 0} video nodes, ${videos.length} recommendations after excluding ${allVideos.length - videos.length} standalone news broadcaster videos`)
-  if (videos.length || hasYoutubeAccount()) return videos
+  if (videos.length || hasYoutubeAccount()) return homePage(videos, feed, feed, expectedRevision)
 
   // Anonymous home responses can have no recommendations. Use this profile's
   // own recent viewing as seeds, without minting tokens or recording a watch.
@@ -534,14 +623,14 @@ export async function getHomeFeed(sections: HomeSection[] = []): Promise<SearchR
   }
   if (unique.size) {
     console.log(`[youtube] home: ${unique.size} recommendations from local history`)
-    return [...unique.values()]
+    return homePage([...unique.values()])
   }
 
   const subscriptions = await listActiveSubscriptions()
   if (subscriptions.length) {
     const subscribedVideos = await getSubscriptionsFeed(subscriptions.slice(0, 6).map((channel) => channel.channelId))
     console.log(`[youtube] home: ${subscribedVideos.length} videos from local subscriptions`)
-    if (subscribedVideos.length) return subscribedVideos
+    if (subscribedVideos.length) return homePage(subscribedVideos)
   }
 
   // A fresh local profile has no recommendation seeds. Fetch real discovery
@@ -566,11 +655,12 @@ export async function getHomeFeed(sections: HomeSection[] = []): Promise<SearchR
     }
   }
   console.log(`[youtube] home: ${discovery.size} initial discovery videos`)
-  return [...discovery.values()]
+  return homePage([...discovery.values()])
 }
 
 export async function getHomeDiscovery(): Promise<{ videos: SearchResultItem[]; home: HomeDiscovery }> {
-  const videos = await resolveChannelNames(await getHomeFeed())
+  const initial = await getHomeFeed()
+  const videos = await resolveChannelNames(initial.videos)
   // Search using subjects from diverse recommendations, never channel names.
   // Searching recent creators verbatim returned an almost single-channel strip.
   const topics = [videos[0], videos[Math.floor(videos.length / 2)], videos[videos.length - 1]]
@@ -609,7 +699,8 @@ export async function getHomeDiscovery(): Promise<{ videos: SearchResultItem[]; 
   }
   const shorts = selectDiverseShorts(verified)
   console.log(`[youtube] home: ${videos.length} regular recommendations, ${shorts.length} Shorts from ${new Set(shorts.map((item) => item.channelId).filter(Boolean)).size} verified channels`)
-  return { videos, home: { shorts } }
+  return { videos, home: { shorts, topics: initial.topics,
+    sessionId: initial.sessionId, hasMore: initial.hasMore } }
 }
 export async function getChannelInfo(channelId: string, includeVideos = true): Promise<ChannelInfoResult> {
   console.log(`[youtube] getChannelInfo(${channelId})`)
