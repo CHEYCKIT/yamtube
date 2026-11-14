@@ -51,12 +51,15 @@ const api = {
     ipcRenderer.on(IPC_CHANNELS.NAVIGATE_HISTORY, receive)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.NAVIGATE_HISTORY, receive)
   },
-  onExternalYoutubeRoute: (listener: (path: string) => void): (() => void) => {
-    const receive = (_event: Electron.IpcRendererEvent, path: string) => listener(path)
+  // Subscribe first, then announce readiness. Signals are not the payload;
+  // the renderer always pulls queued routes (also covering cold starts).
+  onExternalYoutubeRoute: (listener: () => void): (() => void) => {
+    const receive = () => listener()
     ipcRenderer.on(IPC_CHANNELS.EXTERNAL_YOUTUBE_ROUTE, receive)
     ipcRenderer.send(IPC_CHANNELS.EXTERNAL_YOUTUBE_READY)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.EXTERNAL_YOUTUBE_ROUTE, receive)
   },
+  takeExternalYoutubeRoutes: (): Promise<string[]> => ipcRenderer.invoke(IPC_CHANNELS.EXTERNAL_YOUTUBE_TAKE),
   getYoutubeAccount: (): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_ACCOUNT_STATE),
   signInYoutube: (): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_IN),
   signInYoutubeWithBrowser: (browserId?: string): Promise<import('../shared/ipc').YoutubeAccountState> => ipcRenderer.invoke(IPC_CHANNELS.YOUTUBE_SIGN_IN_BROWSER, browserId),

@@ -10,6 +10,7 @@ export const IPC_CHANNELS = {
   NAVIGATE_HISTORY: 'navigation:history',
   EXTERNAL_YOUTUBE_READY: 'navigation:external-youtube-ready',
   EXTERNAL_YOUTUBE_ROUTE: 'navigation:external-youtube-route',
+  EXTERNAL_YOUTUBE_TAKE: 'navigation:external-youtube-take',
   YOUTUBE_ACCOUNT_STATE: 'youtube:account-state',
   YOUTUBE_SIGN_IN: 'youtube:sign-in',
   YOUTUBE_SIGN_IN_BROWSER: 'youtube:sign-in-browser',
