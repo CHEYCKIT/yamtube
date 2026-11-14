@@ -26,6 +26,29 @@ async function account({app,page,profile}){
   await card(page,ids.short).waitFor()
   assert.deepEqual(await page.getByRole('region',{name:'Shorts',exact:true}).locator('[data-history-video-id]').evaluateAll(nodes=>nodes.map(node=>node.dataset.historyVideoId)),[ids.short,ids.reel])
   assert.deepEqual(await page.locator('[data-history-videos] [data-history-video-id]').evaluateAll(nodes=>nodes.map(node=>node.dataset.historyVideoId)),[ids.regular,ids.lockup])
+  const historyCarousel=page.getByRole('region',{name:'Shorts',exact:true}).locator('[data-shorts-carousel="history"]')
+  assert.equal(await page.getByRole('button',{name:'Next Shorts',exact:true}).count(),0,
+    'short rows without overflow must not show unnecessary arrows')
+  await historyCarousel.evaluate(node=>{node.style.width='210px'})
+  const historyNext=historyCarousel.getByRole('button',{name:'Next Shorts',exact:true})
+  await historyNext.waitFor()
+  const [historyBox,historyArrow]=await Promise.all([historyCarousel.boundingBox(),historyNext.boundingBox()])
+  assert.ok(Math.abs(historyBox.x+historyBox.width-historyArrow.x-historyArrow.width)<3,
+    'History next arrow must sit at the far right edge')
+  await historyNext.click()
+  await page.waitForFunction(() => {
+    const node=document.querySelector('[data-history-shorts-strip]')
+    return node && node.scrollLeft>20
+  })
+  const historyPrevious=historyCarousel.getByRole('button',{name:'Previous Shorts',exact:true})
+  await historyPrevious.waitFor()
+  await historyPrevious.click()
+  await page.waitForFunction(() => {
+    const node=document.querySelector('[data-history-shorts-strip]')
+    return node && node.scrollLeft<2
+  })
+  assert.equal(await historyPrevious.count(),0)
+  console.log('PASS: Shorts History shares edge-mounted arrows, hides them without overflow, and pages both ways')
   await page.getByRole('button',{name:'Hide Shorts',exact:true}).click()
   await page.getByRole('button',{name:'Show Shorts',exact:true}).waitFor()
   assert.equal(await page.getByRole('region',{name:'Shorts',exact:true}).locator('[data-history-video-id]').count(),0)
