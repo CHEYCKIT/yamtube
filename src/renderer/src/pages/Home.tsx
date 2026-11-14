@@ -72,6 +72,7 @@ export function Home() {
     const root = rootSessionRef.current
     if (!root) return
     const generation = ++generationRef.current
+    const previousTopic = selectedTopic
     setSelectedTopic(topic)
     setTopicLoading(true)
     setTopicError(null)
@@ -87,8 +88,10 @@ export function Home() {
       // Shorts are a separate shelf; switching the regular Home topic must
       // not refetch or clear them.
     } catch (error) {
-      if (generation === generationRef.current)
+      if (generation === generationRef.current) {
+        setSelectedTopic(previousTopic)
         setTopicError(error instanceof Error ? error.message : String(error))
+      }
     } finally {
       if (generation === generationRef.current) setTopicLoading(false)
     }

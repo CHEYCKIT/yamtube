@@ -526,8 +526,12 @@ function homePage(videos: SearchResultItem[], current: YT.HomeFeed | null = null
   homeFeedSessions.set(id, state)
   while (homeFeedSessions.size > HOME_SESSION_LIMIT)
     homeFeedSessions.delete(homeFeedSessions.keys().next().value!)
-  return { videos, topics: root.filters.filter((topic) => topic.trim()).slice(0, 24),
-    sessionId: id, hasMore: current.has_continuation }
+  // A transient YouTube layout change must not break the primary Home feed
+  // merely because optional filter-chip parsing is unavailable.
+  let topics: string[] = []
+  try { topics = root.filters.filter((topic) => topic.trim()).slice(0, 24) }
+  catch (error) { console.warn('[youtube] native Home topic chips unavailable:', error instanceof Error ? error.message : String(error)) }
+  return { videos, topics, sessionId: id, hasMore: current.has_continuation }
 }
 
 export async function getHomeTopic(sessionId: string, topic: string): Promise<HomeFeedPage> {
