@@ -222,8 +222,8 @@ export function TabBar({ playingIds = [] }: { playingIds?: string[] }) {
           <button type="button" onClick={() => close(tab.id)} title={t("Close tab")} aria-label={t("Close {title}", { title: label })} className="grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded hover:bg-neutral-700"><X aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={1.8} /></button>
         </div>
       })}
+      <button type="button" onClick={() => open()} title={t("New tab")} aria-label={t("New tab")} className="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded text-xl text-neutral-400 hover:bg-neutral-800">+</button>
     </div>
-    <button type="button" onClick={() => open()} title={t("New tab")} aria-label={t("New tab")} className="ml-1 grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded text-xl text-neutral-400 hover:bg-neutral-800">+</button>
   </div>
 }
 

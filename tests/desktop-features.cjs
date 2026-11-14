@@ -23,6 +23,23 @@ module.exports=async({app,page,profile})=>{
   await card.click({button:'right'})
   await page.getByRole('menuitem',{name:'Open in new tab',exact:true}).click()
   assert.equal(await page.getByRole('tab').count(),count+1)
+  // The + action belongs to the scrollable tab strip and follows the final
+  // tab, rather than being pinned to the far-right edge of the entire bar.
+  const tabBarLayout=await page.evaluate(()=>{
+    const strip=document.querySelector('[role="tablist"]')
+    const plus=strip?.querySelector('button[aria-label="New tab"]')
+    const tabs=[...strip.querySelectorAll('[draggable="true"]')]
+    const last=tabs.at(-1)
+    return { afterLast:plus?.previousElementSibling===last,
+      gap:plus.getBoundingClientRect().left-last.getBoundingClientRect().right,
+      freeSpace:strip.getBoundingClientRect().right-plus.getBoundingClientRect().right,
+      scrollable:strip.scrollWidth>=strip.clientWidth }
+  })
+  assert.equal(tabBarLayout.afterLast,true)
+  assert.ok(tabBarLayout.gap>=0&&tabBarLayout.gap<=8,JSON.stringify(tabBarLayout))
+  assert.ok(tabBarLayout.freeSpace>16,JSON.stringify(tabBarLayout))
+  assert.equal(tabBarLayout.scrollable,true)
+  console.log('PASS: new-tab button follows the last tab inside the scrolling tab strip')
   await page.getByRole('heading',{name:'Home',exact:true}).waitFor()
   await card.click({button:'right'})
   await page.keyboard.press('Escape')
