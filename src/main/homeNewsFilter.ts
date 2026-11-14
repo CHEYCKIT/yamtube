@@ -30,7 +30,7 @@ export function isNewsShelfHeading(title: string): boolean {
   // shelf headings avoids hiding arbitrary videos about current events.
   const heading = title.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase()
     .replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, ' ').trim()
-  return /^(?:breaking news|top news|latest news|live news|news|news for you|news headlines|headlines|top stories|today's news|world news|local news|actualites|dernieres actualites|actualites a la une|infos du jour|a la une|noticias|ultimas noticias|noticias de ultima hora|noticias destacadas|nachrichten|aktuelle nachrichten|eilnachrichten|notizie|ultime notizie)(?:\s*[:\u2013\u2014-]\s*.+)?$/u.test(heading)
+  return /^(?:breaking news|top news|latest news|live news|news|news for you|news from .+|news in .+|news and politics|news headlines|headlines|top stories|today's news|world news|local news|actualites|dernieres actualites|actualites a la une|infos du jour|a la une|noticias|ultimas noticias|noticias de ultima hora|noticias destacadas|nachrichten|aktuelle nachrichten|eilnachrichten|notizie|ultime notizie)(?:\s*[:\u2013\u2014-]\s*.+)?$/u.test(heading)
 }
 
 function isEditorialNewsShelf(value: unknown): boolean {
