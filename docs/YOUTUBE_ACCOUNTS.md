@@ -238,3 +238,25 @@ for backups; this release does not migrate or merge them into YouTube. Local
 backups do not include the remote account library. Live account-library
 requests cannot be verified in the build environment because YouTube access
 is blocked there.
+
+
+## 1.4.0 personalized home
+
+A signed-in YouTube home needs the same channel-selection context as the
+browser sign-in, not only its cookie header. Earlier versions lost the selected
+SESSION_INDEX, DELEGATED_SESSION_ID, VISITOR_DATA and geographic context;
+YouTube.js then defaulted to a random visitor, account index 0 and US locale.
+This could appear as an unrelated generic US news feed despite being signed in.
+
+1.4.0 captures those fields at native/Electron sign-in, scopes them to the
+main-process encrypted credential, and supplies them to YouTube.js for browse,
+account and personalized Home requests. Older encrypted sessions first try
+recovering the selected context from the authenticated youtube.com homepage
+using a bounded HTTPS request that never follows redirects. If unavailable,
+reconnecting Google sign-in records the context again. No session secrets or
+visitor identifiers are sent to the renderer or diagnostics.
+
+Home also inspects the raw YouTube browse response. If YouTube explicitly
+reports a signed-out response, it displays an actionable reconnect error rather
+than claiming a generic feed is personal. Guest discovery remains supported.
+No channel-name blacklist or artificial news filtering is used.

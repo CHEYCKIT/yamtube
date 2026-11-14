@@ -88,12 +88,16 @@ namespace LokTubeSignIn
         private const string ContextScript = @"(() => {
   const config = window.ytcfg;
   if (!config || typeof config.get !== 'function') return {};
-  const names = { 'x-goog-authuser': 'SESSION_INDEX', 'x-goog-pageid': 'DELEGATED_SESSION_ID', 'x-goog-visitor-id': 'VISITOR_DATA', 'x-youtube-client-version': 'INNERTUBE_CLIENT_VERSION' };
-  const out = {};
+  const names = { 'x-goog-authuser': 'SESSION_INDEX', 'x-goog-pageid': 'DELEGATED_SESSION_ID', 'x-goog-visitor-id': 'VISITOR_DATA' };
+  const out = { loggedIn: config.get('LOGGED_IN') === true, userAgent: navigator.userAgent };
   for (const [header, key] of Object.entries(names)) {
     const value = config.get(key);
     if (typeof value === 'string' || typeof value === 'number') out[header] = String(value);
   }
+  const client = config.get('INNERTUBE_CONTEXT')?.client || {};
+  if (typeof client.hl === 'string') out.hl = client.hl;
+  if (typeof client.gl === 'string') out.gl = client.gl;
+  if (!out['x-goog-visitor-id'] && typeof client.visitorData === 'string') out['x-goog-visitor-id'] = client.visitorData;
   return out;
 })()";
 

@@ -6,6 +6,7 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { youtubeCookieHeader, type YoutubeCookie } from './youtubeCookies'
 import { connectYoutubeAccount } from './youtubeAccount'
+import { parseYoutubeWebContext, type YoutubeWebContext } from './youtubeSessionContext'
 import type { YoutubeAccountState } from '../shared/ipc'
 
 /**
@@ -24,8 +25,9 @@ const login = new URL('https://accounts.google.com/ServiceLogin')
 login.searchParams.set('service', 'youtube')
 login.searchParams.set('continue', handoff.toString())
 const LOGIN_URL = login.toString()
+const YOUTUBE_CONTEXT_PROBE = "(() => {\n  const config = window.ytcfg;\n  if (!config || typeof config.get !== 'function') return null;\n  const get = (name) => config.get(name);\n  const client = get('INNERTUBE_CONTEXT')?.client || {};\n  return {\n    loggedIn: get('LOGGED_IN') === true,\n    'x-goog-authuser': get('SESSION_INDEX'),\n    'x-goog-pageid': get('DELEGATED_SESSION_ID'),\n    'x-goog-visitor-id': get('VISITOR_DATA') || client.visitorData,\n    hl: client.hl,\n    gl: client.gl,\n    userAgent: navigator.userAgent\n  };\n})()"
 
-interface Snapshot { url: string; cookies: YoutubeCookie[] }
+interface Snapshot { url: string; cookies: YoutubeCookie[]; context?: YoutubeWebContext | null }
 interface LoginWindow { read(): Promise<Snapshot>; close(): Promise<void> }
 let cancelActive: (() => void) | null = null
 
@@ -98,8 +100,14 @@ function openElectronLogin(changed: () => void, closed: () => void): LoginWindow
   return {
     async read() {
       if (window.isDestroyed()) throw new Error('The sign-in window was closed.')
+      const url = contents.getURL()
       const cookies = await isolatedSession.cookies.get({ url: YOUTUBE })
-      return { url: contents.getURL(), cookies: normalizeCookies(cookies.map(cookie => ({
+      let context: YoutubeWebContext | null = null
+      if (youtubePage(url)) {
+        try { context = parseYoutubeWebContext(await contents.executeJavaScript(YOUTUBE_CONTEXT_PROBE)) }
+        catch { /* Page navigation may have invalidated the probe. */ }
+      }
+      return { url, context, cookies: normalizeCookies(cookies.map(cookie => ({
         ...cookie, expires: cookie.expirationDate ?? 0
       }))) }
     },
@@ -172,7 +180,8 @@ async function openWebView2Login(changed: () => void, closed: () => void, signal
         if (!request) continue
         pending.delete(data.id)
         clearTimeout(request.timer)
-        request.resolve({ url: String(data.url || ''), cookies: normalizeCookies(data.cookies) })
+        request.resolve({ url: String(data.url || ''), cookies: normalizeCookies(data.cookies),
+          context: parseYoutubeWebContext({ ...((data.context && typeof data.context === 'object' && !Array.isArray(data.context)) ? data.context : {}), userAgent: data.userAgent }) })
       } else if (data.type === 'error') {
         const message = typeof data.message === 'string' ? data.message : 'The WebView2 sign-in failed.'
         if (!started) rejectReady?.(new Error(message))
@@ -249,14 +258,14 @@ export async function signInYoutubeInApp(): Promise<YoutubeAccountState> {
     checking = true
     try {
       const snapshot = await window.read()
-      if (!active || !youtubePage(snapshot.url)) return
+      if (!active || !youtubePage(snapshot.url) || snapshot.context?.loggedIn !== true) return
       let header: string
       try { header = youtubeCookieHeader(snapshot.cookies) } catch { return }
       if (header === attemptedHeader && Date.now() - attemptedAt < 7000) return
       attemptedHeader = header
       attemptedAt = Date.now()
       try {
-        const account = await connectYoutubeAccount(header, () => active)
+        const account = await connectYoutubeAccount(header, () => active, snapshot.context)
         finish(account)
       } catch (error) {
         if (active) lastError = error instanceof Error ? error.message : String(error)

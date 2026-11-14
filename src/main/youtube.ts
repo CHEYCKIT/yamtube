@@ -1,4 +1,4 @@
-import { Innertube, Platform, YTNodes } from 'youtubei.js'
+import { Innertube, Platform, YT, YTNodes } from 'youtubei.js'
 import { randomUUID } from 'node:crypto'
 import { generatePoToken } from './poToken'
 import { buildSabrPayload } from './sabrManifest'
@@ -10,6 +10,7 @@ import { getAccountClient, getAccountPlaybackClient, hasYoutubeAccount, accountR
 import { ratingFromInfo } from './videoRatingState'
 import { getPlayableResponse, playbackStatus } from './playbackAvailability'
 import { protectedFetch } from './adBlock'
+import { isGuestYoutubeHome } from './youtubeSessionContext'
 import { PlaybackHistory } from './playbackHistory'
 import { translateFor } from '../shared/locale'
 import type { CaptionTrack, ChannelInfoResult, HomeDiscovery, HomeSection, RecommendedChannel, SearchCollectionItem, SearchFilters, SearchResultItem, VideoCommentsPage, VideoInfoResult, VideoPreview } from '../shared/ipc'
@@ -479,15 +480,26 @@ export async function getSearchSuggestions(query: string): Promise<string[]> {
 
 export async function getHomeFeed(sections: HomeSection[] = []): Promise<SearchResultItem[]> {
   console.log('[youtube] getHomeFeed()')
+  const expectedRevision = accountRevision()
   const yt = await getClient()
-  const feed = await yt.getHomeFeed().catch((error) => {
-    if (hasYoutubeAccount()) {
-      console.warn('[youtube] home request failed:', error instanceof Error ? error.message : 'Unknown request error')
-      throw new Error('Your YouTube home feed could not be loaded. Try again. If other account pages also fail, reconnect your account.')
+  const feed = await (async () => {
+    try {
+      const response = await yt.actions.execute('/browse', { browseId: 'FEwhat_to_watch', client: 'WEB' })
+      if (expectedRevision !== accountRevision()) throw new Error('Your YouTube account changed. Refresh Home.')
+      if (hasYoutubeAccount() && isGuestYoutubeHome(response.data)) {
+        throw new Error('YouTube returned a signed-out home feed. Reconnect your YouTube account to restore personalized recommendations.')
+      }
+      return new YT.HomeFeed(yt.actions, response)
+    } catch (error) {
+      if (hasYoutubeAccount()) {
+        console.warn('[youtube] home request failed:', error instanceof Error ? error.message : 'Unknown request error')
+        throw error instanceof Error && /signed-out home feed|account changed/.test(error.message)
+          ? error : new Error('Your YouTube home feed could not be loaded. Reconnect your YouTube account if this continues.')
+      }
+      console.warn('[youtube] anonymous home failed, using discovery:', error instanceof Error ? error.message : String(error))
+      return null
     }
-    console.warn('[youtube] anonymous home failed, using discovery:', error instanceof Error ? error.message : String(error))
-    return null
-  })
+  })()
   const videos = feed ? mapSearchResultNodes(feed.videos) : []
   console.log(`[youtube] home: ${feed?.videos.length ?? 0} video nodes, ${videos.length} mapped videos`)
   if (videos.length || hasYoutubeAccount()) return videos

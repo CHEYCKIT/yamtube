@@ -1,4 +1,4 @@
-import { app, BrowserWindow, safeStorage } from 'electron'
+import { app, BrowserWindow, safeStorage, net } from 'electron'
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -7,12 +7,14 @@ import { inspectAccountResponse, type YoutubeIdentity } from './youtubeIdentity'
 import { protectedFetch } from './adBlock'
 import { IPC_CHANNELS, type YoutubeAccountState } from '../shared/ipc'
 import { activateLibraryOwner, getAppLanguage } from './localDb'
+import { extractYoutubePageContext, parseYoutubeWebContext, type YoutubeWebContext } from './youtubeSessionContext'
 
 interface Credentials {
   cookie: string
   libraryKey: string
   name: string
   avatarUrl: string | null
+  context?: YoutubeWebContext | null
 }
 
 let credentials: Credentials | null = null
@@ -40,15 +42,74 @@ function canPersist(): boolean {
     (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text')
 }
 
-function createClient(cookie?: string, playback = false): Promise<Innertube> {
-  return Innertube.create({ cookie, lang: getAppLanguage(), generate_session_locally: true,
-    retrieve_player: playback, retrieve_innertube_config: false, fetch: protectedFetch })
+function createClient(cookie?: string, playback = false, context?: YoutubeWebContext | null): Promise<Innertube> {
+  // YouTube.js otherwise generates a random visitor and assumes US/index 0.
+  // A Google login may be on a different selected profile/Brand Account.
+  return Innertube.create({
+    cookie,
+    lang: context?.language ?? getAppLanguage(),
+    location: context?.region ?? app.getLocaleCountryCode() ?? 'US',
+    account_index: context?.accountIndex ?? 0,
+    on_behalf_of_user: context?.pageId,
+    visitor_data: context?.visitorData,
+    user_agent: context?.userAgent,
+    generate_session_locally: true, retrieve_player: playback,
+    retrieve_innertube_config: false, fetch: protectedFetch
+  })
+}
+
+/**
+ * Recover YouTube's selected channel and locale for encrypted sessions saved
+ * by 1.3.0, which retained cookies but discarded the browser page context.
+ * Only the hardcoded first-party HTTPS URL receives a cookie; redirects are
+ * never followed and no HTML or credentials are logged or exported.
+ */
+async function recoverLegacyContext(cookie: string): Promise<YoutubeWebContext | null> {
+  try {
+    const response = await net.fetch('https://www.youtube.com/', {
+      headers: { Cookie: cookie, Accept: 'text/html' },
+      credentials: 'omit', redirect: 'manual', signal: AbortSignal.timeout(6000)
+    })
+    if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) return null
+    if (Number(response.headers.get('content-length')) > 4_000_000) return null
+    const reader = response.body?.getReader()
+    if (!reader) return null
+    const chunks: Uint8Array[] = []
+    let length = 0
+    try {
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        length += value.length
+        if (length > 4_000_000) return null
+        chunks.push(value)
+      }
+    } finally { await reader.cancel().catch(() => undefined) }
+    return extractYoutubePageContext(Buffer.concat(chunks).toString('utf8'))
+  } catch { return null }
+}
+
+async function activeBrowsingContext(): Promise<YoutubeWebContext | null> {
+  const current = credentials
+  if (!current) return null
+  if (current.context) return current.context
+  const restored = await recoverLegacyContext(current.cookie)
+  if (!restored || credentials !== current) return null
+  credentials = { ...current, context: restored }
+  if (canPersist()) {
+    try {
+      const path = credentialPath()
+      await writeFile(path + '.tmp', safeStorage.encryptString(JSON.stringify(credentials)), { mode: 0o600 })
+      if (credentials?.cookie === current.cookie) await rename(path + '.tmp', path)
+    } catch { /* Session still works until logout, even without persistence. */ }
+  }
+  return restored
 }
 
 export function getAccountClient(): Promise<Innertube> {
   if (clientLanguage !== getAppLanguage()) { client = null; playbackClient = null; clientLanguage = getAppLanguage() }
   if (!client) {
-    const pending = createClient(credentials?.cookie).catch((error) => {
+    const pending = activeBrowsingContext().then((context) => createClient(credentials?.cookie, false, context)).catch((error) => {
       if (client === pending) client = null
       throw error
     })
@@ -67,7 +128,7 @@ export function getAccountPlaybackClient(): Promise<Innertube> {
   if (clientLanguage !== getAppLanguage()) { client = null; playbackClient = null; clientLanguage = getAppLanguage() }
   if (!playbackClient) {
     const expectedRevision = revision
-    const pending = createClient(credentials.cookie, true).then((yt) => {
+    const pending = createClient(credentials.cookie, true, credentials.context).then((yt) => {
       if (revision !== expectedRevision) throw new Error('YouTube account changed during playback authorization')
       return yt
     }).catch((error) => {
@@ -87,7 +148,7 @@ export async function initializeYoutubeAccount(): Promise<void> {
     } else {
       const saved = JSON.parse(safeStorage.decryptString(encrypted)) as Credentials
       if (typeof saved.cookie !== 'string' || typeof saved.libraryKey !== 'string' || typeof saved.name !== 'string') throw new Error('Invalid session')
-      credentials = saved
+      credentials = { ...saved, context: parseYoutubeWebContext(saved.context) }
       revision++
       publish({ signedIn: true, name: saved.name, avatarUrl: saved.avatarUrl, persistent: true })
     }
@@ -99,8 +160,9 @@ export async function initializeYoutubeAccount(): Promise<void> {
 
 // Validate against an authenticated endpoint before accepting any cookie jar.
 // Never expose cookies to the preload or renderer, data export, or logs.
-export async function connectYoutubeAccount(cookie: string, canCommit: () => boolean = () => true): Promise<YoutubeAccountState> {
-  const candidate = await createClient(cookie)
+export async function connectYoutubeAccount(cookie: string, canCommit: () => boolean = () => true, probe?: unknown): Promise<YoutubeAccountState> {
+  const context = parseYoutubeWebContext(probe)
+  const candidate = await createClient(cookie, false, context)
   let selected: YoutubeIdentity | null = null
   const probes = [
     { endpoint: '/account/accounts_list', arguments: { requestType: 'ACCOUNTS_LIST_REQUEST_TYPE_CHANNEL_SWITCHER', callCircumstance: 'SWITCHING_USERS_FULL', client: 'WEB' } },
@@ -126,7 +188,7 @@ export async function connectYoutubeAccount(cookie: string, canCommit: () => boo
   const identity = selected.handle || selected.byline || cookie.match(/(?:^|; )SID=([^;]+)/)?.[1] || createHash('sha256').update(cookie).digest('hex')
   const next: Credentials = {
     cookie, libraryKey: `youtube:${createHash('sha256').update(identity).digest('hex')}`,
-    name: selected.name, avatarUrl: selected.avatarUrl
+    name: selected.name, avatarUrl: selected.avatarUrl, context
   }
   if (!canCommit()) throw new Error('YouTube sign-in cancelled.')
   const persistent = canPersist()
