@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { loktubeProtocolToRoute } from './externalYoutubeLinks'
 import { readFile, writeFile } from 'node:fs/promises'
 import { initializeDiagnostics, getDiagnostics } from './diagnosticLog'
 import { join } from 'node:path'
@@ -80,9 +81,43 @@ if (process.platform === 'win32') app.setAppUserModelId('com.riberojuanca.worldt
 app.setPath('userData', join(app.getPath('appData'), 'worldtube'))
 const primaryInstance = app.requestSingleInstanceLock()
 if (!primaryInstance) app.quit()
-app.on('second-instance', () => {
-  const window = BrowserWindow.getAllWindows().find((candidate) => candidate.isVisible())
-  if (window) { if (window.isMinimized()) window.restore(); window.focus() }
+
+const pendingExternalRoutes: string[] = []
+let externalRouteReceiver: Electron.WebContents | null = null
+function focusMainWindow(): void {
+  const window = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed())
+  if (!window) return
+  if (window.isMinimized()) window.restore()
+  window.show()
+  window.focus()
+}
+function deliverExternalRoutes(): void {
+  if (!externalRouteReceiver || externalRouteReceiver.isDestroyed() || externalRouteReceiver.isLoading()) return
+  while (pendingExternalRoutes.length) {
+    externalRouteReceiver.send(IPC_CHANNELS.EXTERNAL_YOUTUBE_ROUTE, pendingExternalRoutes.shift()!)
+  }
+}
+function acceptExternalLink(link: unknown): void {
+  const route = loktubeProtocolToRoute(link)
+  if (!route) return
+  pendingExternalRoutes.push(route)
+  if (pendingExternalRoutes.length > 20) pendingExternalRoutes.shift()
+  focusMainWindow()
+  deliverExternalRoutes()
+}
+app.on('second-instance', (_event, argv) => {
+  for (const arg of argv) acceptExternalLink(arg)
+  focusMainWindow()
+})
+app.on('open-url', (event, url) => {
+  event.preventDefault()
+  acceptExternalLink(url)
+})
+ipcMain.on(IPC_CHANNELS.EXTERNAL_YOUTUBE_READY, (event) => {
+  const owner = BrowserWindow.fromWebContents(event.sender)
+  if (!owner || owner.isDestroyed()) return
+  externalRouteReceiver = event.sender
+  deliverExternalRoutes()
 })
 if (process.platform === 'linux') {
   app.setDesktopName(app.isPackaged ? 'com.riberojuanca.worldtube.desktop' : 'com.riberojuanca.worldtube.dev.desktop')
@@ -176,6 +211,12 @@ function createWindow(): void {
     }
   })
 
+  mainWindow.webContents.on('did-start-loading', () => {
+    if (externalRouteReceiver === mainWindow.webContents) externalRouteReceiver = null
+  })
+  mainWindow.on('closed', () => {
+    if (externalRouteReceiver === mainWindow.webContents) externalRouteReceiver = null
+  })
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
@@ -415,6 +456,13 @@ ipcMain.handle(IPC_CHANNELS.SUBSCRIPTIONS_REMOVE, (_event, channelId: string) =>
 
 app.whenReady().then(async () => {
   if (!primaryInstance) return
+  // Developer checkouts must not replace the installed protocol handler.
+  if (app.isPackaged) {
+    try {
+      if (!app.setAsDefaultProtocolClient('loktube'))
+        console.warn('[deep-link] OS protocol registration unavailable')
+    } catch { console.warn('[deep-link] OS protocol registration failed') }
+  }
   await initializeDiagnostics(join(app.getPath('userData'), 'logs'))
   console.info(`LokTube ${app.getVersion()} starting on ${process.platform} ${process.arch}`)
   await initializeProtection()
@@ -424,6 +472,7 @@ app.whenReady().then(async () => {
     app.dock?.setIcon(app.isPackaged ? join(process.resourcesPath, 'icon.png') : join(app.getAppPath(), 'resources/icon.png'))
   }
   createWindow()
+  for (const arg of process.argv.slice(1)) acceptExternalLink(arg)
   void checkForUpdatesOnStartup()
 
   app.on('activate', function () {

@@ -154,6 +154,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+      AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - name: Include corresponding source and publish
@@ -162,5 +165,31 @@ jobs:
           TAG: ${{ needs.prepare.outputs.tag }}
         run: |
           git archive --format=tar.gz --prefix="LokTube-$TAG/" HEAD -o "LokTube-$TAG-source.tar.gz"
+          python3 - <<'PY'
+          from zipfile import ZipFile, ZIP_DEFLATED
+          from pathlib import Path
+          with ZipFile('LokTube-Zen-UNSIGNED.xpi', 'w', ZIP_DEFLATED) as archive:
+              for file in sorted(Path('browser-extension').iterdir()):
+                  if file.is_file():
+                      archive.write(file, file.name)
+          PY
+          gh release upload "$TAG" "LokTube-Zen-UNSIGNED.xpi" --clobber
           gh release upload "$TAG" "LokTube-$TAG-source.tar.gz" --clobber
-          gh release edit "$TAG" --draft=false
+      - name: Sign Zen extension with Mozilla AMO (optional)
+        if: ${{ env.AMO_JWT_ISSUER != '' && env.AMO_JWT_SECRET != '' }}
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          npm install --global web-ext@8
+          web-ext sign --source-dir browser-extension --artifacts-dir firefox-signed --channel unlisted --api-key "$AMO_JWT_ISSUER" --api-secret "$AMO_JWT_SECRET"
+          find firefox-signed -name '*.xpi' -type f -print -quit | xargs -r -I {} cp '{}' 'LokTube-Zen-signed.xpi'
+          test -s 'LokTube-Zen-signed.xpi'
+          gh release upload "$TAG" "LokTube-Zen-signed.xpi" --clobber
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false

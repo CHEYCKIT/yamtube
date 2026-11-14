@@ -1,5 +1,9 @@
 appId: com.riberojuanca.worldtube
 productName: LokTube
+protocols:
+  - name: LokTube links
+    schemes:
+      - loktube
 artifactName: LokTube-${version}-${os}-${arch}.${ext}
 beforePack: ./scripts/prepare-third-party-notices.cjs
 directories:
@@ -23,6 +27,8 @@ extraResources:
     to: botguard-preload.cjs
   - from: resources/icon.png
     to: icon.png
+  - from: browser-extension
+    to: browser-extension
   - from: build/botguard.js
     to: botguard.js
   - from: resources/filters

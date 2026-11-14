@@ -10,6 +10,7 @@ import { PlaybackHistory } from '../src/main/playbackHistory'
 import { mapRecommendedShorts, interleaveShorts, selectDiverseShorts, shortsTopicQuery } from '../src/main/shortsRecommendations'
 import { mapMusicPlaylistTracks } from '../src/main/musicPlaylistItems'
 import { ratingFromInfo } from '../src/main/videoRatingState'
+import { youtubeUrlToAppRoute, loktubeProtocolToRoute } from '../src/main/externalYoutubeLinks'
 import { removeHomeNewsShelves, isNewsShelfHeading, isNewsBroadcaster, excludeHomeNewsBroadcasters } from '../src/main/homeNewsFilter'
 import { assertPlayableVideo, getPlayableResponse } from '../src/main/playbackAvailability'
 
@@ -625,4 +626,44 @@ test('Home hides explicitly identified news broadcasters but keeps unrelated FOX
     { channelName: '8 News Now', videoId: 'C' },
     { channelName: 'ABC Music', videoId: 'D' }]
   assert.deepEqual(excludeHomeNewsBroadcasters(items).map((item) => item.videoId), ['A', 'D'])
+})
+
+
+test('browser-to-LokTube links resolve YouTube URLs to local internal routes', () => {
+  const cases: [string,string][] = [
+    ['https://www.youtube.com/watch?v=jNQXAC9IVRw&t=27','/watch/jNQXAC9IVRw'],
+    ['https://youtu.be/jNQXAC9IVRw','/watch/jNQXAC9IVRw'],
+    ['https://m.youtube.com/shorts/jNQXAC9IVRw','/watch/jNQXAC9IVRw'],
+    ['https://www.youtube.com/live/jNQXAC9IVRw','/watch/jNQXAC9IVRw'],
+    ['https://music.youtube.com/watch?v=jNQXAC9IVRw','/watch/jNQXAC9IVRw'],
+    ['https://www.youtube.com/playlist?list=PLabcDEFghi123','/collection/playlist/PLabcDEFghi123'],
+    ['https://www.youtube.com/results?search_query=music%20video','/search?q=music%20video'],
+    ['https://www.youtube.com/feed/subscriptions','/subscriptions'],
+    ['https://www.youtube.com/feed/history','/history'],
+    ['https://youtube.com/','/'],
+    ['https://www.youtube.com/@somecreator','/search?q=%40somecreator'],
+    ['https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv','/channel/UCabcdefghijklmnopqrstuv']
+  ]
+  for (const [url,expected] of cases) {
+    assert.equal(youtubeUrlToAppRoute(url),expected,url)
+    assert.equal(loktubeProtocolToRoute('loktube://open?url='+encodeURIComponent(url)),expected,url)
+  }
+})
+
+test('external protocol ingress rejects arbitrary websites and unsafe link structures', () => {
+  const invalid = [
+    'javascript:alert(1)','file:///etc/passwd','https://www.youtube.com.evil.test/watch?v=jNQXAC9IVRw',
+    'https://evil.test/watch?v=jNQXAC9IVRw','https://user:pass@www.youtube.com/watch?v=jNQXAC9IVRw',
+    'https://www.youtube.com:1337/watch?v=jNQXAC9IVRw','https://www.youtube.com/watch?v=bad',
+    'https://www.youtube.com/redirect?q=https%3A%2F%2Fevil.test'
+  ]
+  for (const url of invalid) assert.equal(youtubeUrlToAppRoute(url),null,url)
+  for (const uri of [
+    'loktube://evil?url=https%3A%2F%2Fyoutube.com%2F',
+    'loktube://open?url=javascript%3Aalert(1)',
+    'loktube://open?url=https%3A%2F%2Fwww.youtube.com%2F&url=https%3A%2F%2Fwww.youtube.com%2F',
+    'loktube://open?url=https%3A%2F%2Fyoutube.com%2F#fragment',
+    'loktube://open?path=%2Faccount',
+    'http://www.youtube.com/watch?v=jNQXAC9IVRw'
+  ]) assert.equal(loktubeProtocolToRoute(uri),null,uri)
 })

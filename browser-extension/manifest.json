@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Open YouTube links in LokTube",
+  "version": "1.5.1",
+  "description": "Open YouTube links clicked in Zen and Firefox in a new tab in the installed LokTube app.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "youtube-links@lokal-music.github.io",
+      "strict_min_version": "128.0"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ]
+}
