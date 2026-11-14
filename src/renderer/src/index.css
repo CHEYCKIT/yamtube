@@ -726,7 +726,13 @@ input[type='checkbox'] {
  * actual page width for additional, reasonably sized tiles on ultrawide
  * monitors. auto-fill prevents a short result set from growing huge cards. */
 @media (min-width: 1600px) {
-  .wt-fluid-video-grid {
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, clamp(255px, 15vw, 340px)), 1fr));
+  /* Use greater specificity than Tailwind's fixed lg/xl column utilities. */
+  .grid.wt-fluid-video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+@media (min-width: 2560px) {
+  .grid.wt-fluid-video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   }
 }
