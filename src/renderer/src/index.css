@@ -727,6 +727,6 @@ input[type='checkbox'] {
  * monitors. auto-fill prevents a short result set from growing huge cards. */
 @media (min-width: 1600px) {
   .wt-fluid-video-grid {
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, clamp(255px, 15vw, 340px)), minmax(0, 1fr)));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, clamp(255px, 15vw, 340px)), 1fr));
   }
 }
