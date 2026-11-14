@@ -28,6 +28,8 @@ The source under `browser-extension/` is ready for Mozilla AMO **unlisted
 signing**. For maintainers, configure GitHub Actions secrets
 `AMO_JWT_ISSUER` and `AMO_JWT_SECRET`. The release workflow uses Mozilla's
 signing service and attaches the signed XPI when credentials are available.
+For a previously published release, use Actions → **Sign Zen / Firefox add-on**
+→ Run workflow → `v1.5.1` to attach the signed XPI afterward.
 Without these credentials it cannot produce an installable file.
 
 ## Behavior

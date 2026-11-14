@@ -1,0 +1,45 @@
+name: Sign Zen / Firefox add-on
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing LokTube release tag to attach a signed XPI to"
+        required: true
+        type: string
+        default: "v1.5.1"
+
+permissions:
+  contents: write
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Require Mozilla signing credentials
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          test -n "$WEB_EXT_API_KEY" && test -n "$WEB_EXT_API_SECRET" ||
+            { echo "Configure AMO_JWT_ISSUER and AMO_JWT_SECRET in GitHub Actions secrets."; exit 1; }
+      - name: Submit for Mozilla unlisted signing and upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          npm install --global web-ext@8
+          web-ext sign --source-dir browser-extension --artifacts-dir firefox-signed --channel unlisted
+          SIGNED=$(find firefox-signed -type f -name '*.xpi' -print -quit)
+          test -n "$SIGNED" && test -s "$SIGNED"
+          cp "$SIGNED" "LokTube-Zen-signed.xpi"
+          gh release view "$TAG" --json isDraft --jq .isDraft
+          gh release upload "$TAG" "LokTube-Zen-signed.xpi" --clobber
