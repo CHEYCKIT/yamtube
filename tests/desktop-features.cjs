@@ -50,7 +50,7 @@ module.exports=async({app,page,profile})=>{
   // receive the link in a new tab without destroying the original Home tab.
   await app.evaluate(({app}) => app.emit('second-instance', {},
     ['LokTube.exe', 'loktube://open?url=' + encodeURIComponent('https://www.youtube.com/results?search_query=external%20link')], ''))
-  await page.waitForFunction(n => document.querySelectorAll('[role="tab"]').length === n, count + 2)
+  await page.waitForFunction(n => document.querySelectorAll('[role="tab"]').length === n, count + 2, { timeout: 15_000 })
   assert.match(await page.locator('[role="tab"][aria-selected="true"]').textContent(), /external link/)
   await page.getByRole('button',{name:'Close external link'}).click()
   await page.getByRole('tab',{name:'Home',exact:true}).click()
