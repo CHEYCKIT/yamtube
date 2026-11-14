@@ -49,17 +49,9 @@ module.exports=async({app,page,profile})=>{
   // Emulate a link delivered by Zen via Windows' loktube:// protocol. The
   // app must acknowledge it only after React can add an internal watch tab.
   const protocolLink='loktube://open?url='+encodeURIComponent('https://www.youtube.com/watch?v=jNQXAC9IVRw')
-  const activation = await app.evaluate(({app}, link) => ({
-    listeners: app.listenerCount('second-instance'),
-    emitted: app.emit('second-instance', {}, ['LokTube.exe', link], '')
-  }), protocolLink)
-  console.log('DEBUG deep-link activation',activation)
-  await page.waitForTimeout(750)
-  console.log('DEBUG deep-link tab state',await page.evaluate(() => ({
-    count:document.querySelectorAll('[role="tab"]').length,
-    selected:document.querySelector('[role="tab"][aria-selected="true"]')?.textContent,
-    location:location.hash
-  })))
+  const activation = await app.evaluate(({app}, link) =>
+    app.emit('second-instance', {}, ['LokTube.exe', link], ''), protocolLink)
+  assert.equal(activation,true,'OS second-instance protocol listener must be present')
   await page.waitForFunction(n => document.querySelectorAll('[role="tab"]').length === n+2, count, {timeout:12_000})
   await page.waitForFunction(() => location.hash === '#/watch/jNQXAC9IVRw', null, {timeout:12_000})
   assert.equal(await page.getByRole('tab').count(), count+2)
