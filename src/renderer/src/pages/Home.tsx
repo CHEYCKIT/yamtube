@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { VideoCard } from '../components/VideoCard'
 import { PageLoader } from '../components/PageLoader'
+import { ShortsScroller } from '../components/ShortsScroller'
 import { useProfiles } from '../profiles/ProfileContext'
 import type { HomeDiscovery, SearchResultItem } from '../../../shared/ipc'
 
@@ -72,14 +73,13 @@ export function Home() {
         </section>}
         {discovery && discovery.shorts.length > 0 && <section aria-label={t('Shorts')} className="border-t border-neutral-800 pt-6">
           <h2 className="mb-3 text-lg font-semibold">{t('Shorts')}</h2>
-          <div data-home-shorts-strip tabIndex={0} aria-label={t('Recommended Shorts')}
-            className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2">
+          <ShortsScroller kind="home" label={t('Recommended Shorts')}>
             {discovery.shorts.map((short) =>
               <div key={short.videoId} className="w-32 shrink-0 snap-start sm:w-36">
                 <VideoCard {...short} portrait shorts={discovery.shorts} meta={short.viewCountText} />
               </div>
             )}
-          </div>
+          </ShortsScroller>
         </section>}
       </div>}
     </section>
