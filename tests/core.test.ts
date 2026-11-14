@@ -12,6 +12,7 @@ import { mapMusicPlaylistTracks } from '../src/main/musicPlaylistItems'
 import { ratingFromInfo } from '../src/main/videoRatingState'
 import { youtubeUrlToAppRoute, loktubeProtocolToRoute } from '../src/main/externalYoutubeLinks'
 import { decodeTabSession, encodeTabSession, TAB_SESSION_KEY } from '../src/renderer/src/tabs/tabSession'
+import { dropIndexAt } from '../src/renderer/src/tabs/pointerReorder'
 import { removeHomeNewsShelves, isNewsShelfHeading, isNewsBroadcaster, excludeHomeNewsBroadcasters } from '../src/main/homeNewsFilter'
 import { assertPlayableVideo, getPlayableResponse } from '../src/main/playbackAvailability'
 
@@ -712,4 +713,14 @@ test('saved tab-session history caps entries without losing current navigation',
   assert.equal(data?.tabs[0].entries.length,50)
   assert.equal(data?.tabs[0].entries[49],'/search?q=59')
   assert.equal(data?.tabs[0].index,49)
+})
+
+
+test('pointer tab insertion follows neighboring centers without jumping during drag', () => {
+  const centers=[100,300,500,700]
+  assert.equal(dropIndexAt(500,3,centers),2)
+  assert.equal(dropIndexAt(85,3,centers),0)
+  assert.equal(dropIndexAt(301,3,centers),2)
+  assert.equal(dropIndexAt(550,0,centers),2)
+  assert.equal(dropIndexAt(750,0,centers),3)
 })
