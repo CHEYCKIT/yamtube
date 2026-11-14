@@ -55,7 +55,7 @@ export function ShortsScroller({ children, label, kind }: ShortsScrollerProps) {
     })
   }
 
-  const arrowClass = 'absolute top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 cursor-pointer place-items-center rounded-full border border-white/10 bg-neutral-900/95 text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-neutral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
+  const arrowClass = 'absolute top-[40%] z-10 grid h-11 w-11 -translate-y-1/2 cursor-pointer place-items-center rounded-full border border-white/10 bg-neutral-900/95 text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-neutral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
 
   return <div className="relative min-w-0" data-shorts-carousel={kind}>
     <div ref={viewport} data-home-shorts-strip={kind === 'home' ? '' : undefined}
