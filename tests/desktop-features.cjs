@@ -4,6 +4,29 @@ const {join}=require('node:path')
 module.exports=async({app,page,profile})=>{
   assert.equal(await page.title(),'LokTube')
   assert.equal(await page.getByText('LokTube',{exact:true}).count()>0,true)
+  const nativeWindowCheck = await app.evaluate(async ({ app, BrowserWindow, WebContentsView }) => {
+    const before = BrowserWindow.getAllWindows().length
+    const active = BrowserWindow.getFocusedWindow()?.id
+    const view = new WebContentsView({
+      webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false,
+        backgroundThrottling: false }
+    })
+    try {
+      await view.webContents.loadURL('data:text/html,<html><body><span id="probe">LokTube</span></body></html>')
+      const executed = await view.webContents.executeJavaScript('document.querySelector("#probe").textContent')
+      return {
+        name: app.getName(), executed,
+        newNativeWindows: BrowserWindow.getAllWindows().length - before,
+        changedFocus: (BrowserWindow.getFocusedWindow()?.id ?? null) !== (active ?? null)
+      }
+    } finally {
+      view.webContents.close()
+    }
+  })
+  assert.deepEqual(nativeWindowCheck, {
+    name:'LokTube', executed:'LokTube', newNativeWindows:0, changedFocus:false
+  })
+  console.log('PASS: background renderer executes JS without native windows or focus changes')
   const parser=await app.evaluate(({app})=>{
     const require=process.getBuiltinModule('node:module').createRequire(app.getAppPath()+'/package.json')
     const {Parser}=require('youtubei.js')
