@@ -39,7 +39,8 @@ declare global {
       getDiagnostics: () => Promise<{ path: string; contents: string }>
       exportDiagnostics: () => Promise<string | null>
       onHistoryNavigation: (listener: (direction: 'back' | 'forward') => void) => () => void
-      onExternalYoutubeRoute: (listener: (path: string) => void) => () => void
+      onExternalYoutubeRoute: (listener: () => void) => () => void
+      takeExternalYoutubeRoutes: () => Promise<string[]>
       getYoutubeAccount: () => Promise<import('../../shared/ipc').YoutubeAccountState>
       signInYoutube: () => Promise<import('../../shared/ipc').YoutubeAccountState>
       signInYoutubeWithBrowser: (browserId?: string) => Promise<import('../../shared/ipc').YoutubeAccountState>

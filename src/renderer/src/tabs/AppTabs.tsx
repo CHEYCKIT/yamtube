@@ -104,10 +104,36 @@ export function AppTabsProvider({ children }: { children: ReactNode }) {
     }
   }, [tabs, activeId, rename])
 
-  // A validated YouTube link always gets a new tab, never replaces playback.
+  // A validated YouTube link always gets a new tab. Pull pending URLs only
+  // after React has mounted its tab manager so cold-start messages cannot be
+  // lost if the renderer loads later than the OS activation.
   const externalOpen = useRef(value.open)
   externalOpen.current = value.open
-  useEffect(() => window.api.onExternalYoutubeRoute((route) => externalOpen.current(route)), [])
+  useEffect(() => {
+    let disposed = false
+    let draining = false
+    let again = false
+    async function drain() {
+      if (disposed) return
+      if (draining) { again = true; return }
+      draining = true
+      try {
+        do {
+          again = false
+          const routes = await window.api.takeExternalYoutubeRoutes()
+          if (disposed) break
+          for (const route of routes) externalOpen.current(route)
+        } while (again && !disposed)
+      } catch (error) {
+        console.error('[deep-link] unable to collect pending YouTube routes', error)
+      } finally {
+        draining = false
+      }
+    }
+    const unsubscribe = window.api.onExternalYoutubeRoute(() => { void drain() })
+    void drain()
+    return () => { disposed = true; unsubscribe() }
+  }, [])
 
   useLayoutEffect(() => {
     window.history.replaceState(null, '', `#${path}`)

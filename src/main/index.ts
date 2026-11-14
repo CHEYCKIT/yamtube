@@ -93,15 +93,22 @@ function focusMainWindow(): void {
 }
 function deliverExternalRoutes(): void {
   if (!externalRouteReceiver || externalRouteReceiver.isDestroyed() || externalRouteReceiver.isLoading()) return
-  while (pendingExternalRoutes.length) {
-    externalRouteReceiver.send(IPC_CHANNELS.EXTERNAL_YOUTUBE_ROUTE, pendingExternalRoutes.shift()!)
+  if (pendingExternalRoutes.length) {
+    // A notification is only a wake-up signal: routes stay in the main-process
+    // queue until the renderer explicitly collects them after its tab UI mounts.
+    externalRouteReceiver.send(IPC_CHANNELS.EXTERNAL_YOUTUBE_ROUTE)
   }
 }
 function acceptExternalLink(link: unknown): void {
   const route = loktubeProtocolToRoute(link)
-  if (!route) return
+  if (!route) {
+    if (typeof link === 'string' && /^loktube:/i.test(link))
+      console.warn('[deep-link] rejected invalid or unsupported YouTube link')
+    return
+  }
   pendingExternalRoutes.push(route)
   if (pendingExternalRoutes.length > 20) pendingExternalRoutes.shift()
+  console.info('[deep-link] queued', route.split('/')[1] || 'home', 'pending:', pendingExternalRoutes.length)
   focusMainWindow()
   deliverExternalRoutes()
 }
@@ -118,6 +125,13 @@ ipcMain.on(IPC_CHANNELS.EXTERNAL_YOUTUBE_READY, (event) => {
   if (!owner || owner.isDestroyed()) return
   externalRouteReceiver = event.sender
   deliverExternalRoutes()
+})
+ipcMain.handle(IPC_CHANNELS.EXTERNAL_YOUTUBE_TAKE, (event): string[] => {
+  const owner = BrowserWindow.fromWebContents(event.sender)
+  if (!owner || owner.isDestroyed()) return []
+  const routes = pendingExternalRoutes.splice(0)
+  if (routes.length) console.info('[deep-link] renderer collected', routes.length, 'pending routes')
+  return routes
 })
 if (process.platform === 'linux') {
   app.setDesktopName(app.isPackaged ? 'com.riberojuanca.worldtube.desktop' : 'com.riberojuanca.worldtube.dev.desktop')
@@ -211,11 +225,14 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.webContents.on('did-start-loading', () => {
-    if (externalRouteReceiver === mainWindow.webContents) externalRouteReceiver = null
+  // Capture webContents before close. Accessing mainWindow.webContents inside
+  // BrowserWindow's 'closed' event throws "Object has been destroyed" on Windows.
+  const mainContents = mainWindow.webContents
+  mainContents.on('did-start-loading', () => {
+    if (externalRouteReceiver === mainContents) externalRouteReceiver = null
   })
   mainWindow.on('closed', () => {
-    if (externalRouteReceiver === mainWindow.webContents) externalRouteReceiver = null
+    if (externalRouteReceiver === mainContents) externalRouteReceiver = null
   })
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
