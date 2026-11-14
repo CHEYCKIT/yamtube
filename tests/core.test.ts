@@ -574,16 +574,17 @@ test('YouTube editorial news shelves are removed before the HomeFeed videos memo
       video('organic-one'), shelf('Breaking news', 'fox-news'),
       shelf('Latest news', 'abc-news'), shelf('Top news', 'eight-news'),
       shelf('Live music', 'music-rec'), video('organic-two'),
-      shelf('News from around the world', 'not-explicitly-a-shelf-label')
+      shelf('News from around the world', 'global-news'),
+      shelf('Recommended live music', 'other-recommendation')
     ] } } } }
   ] } } }
   const original = JSON.stringify(home)
   const { value: filtered, removed } = removeHomeNewsShelves(home)
   const items = filtered.contents.twoColumnBrowseResultsRenderer.tabs[0]
     .tabRenderer.content.richGridRenderer.contents
-  assert.equal(removed, 3)
-  assert.deepEqual(items.map((item) => JSON.stringify(item).match(/(?:organic-one|music-rec|organic-two|not-explicitly-a-shelf-label)/)?.[0]),
-    ['organic-one', 'music-rec', 'organic-two', 'not-explicitly-a-shelf-label'])
+  assert.equal(removed, 4)
+  assert.deepEqual(items.map((item) => JSON.stringify(item).match(/(?:organic-one|music-rec|organic-two|other-recommendation)/)?.[0]),
+    ['organic-one', 'music-rec', 'organic-two', 'other-recommendation'])
   assert.equal(JSON.stringify(home), original, 'filtering a Home response must not modify the original payload')
 })
 
@@ -606,7 +607,7 @@ test('YouTube news shelves are removed from continuation and localized home sect
   assert.equal(isNewsShelfHeading('Breaking News'), true)
   assert.equal(isNewsShelfHeading('Top Stories'), true)
   assert.equal(isNewsShelfHeading('Tech news analysis'), false)
-  assert.equal(isNewsShelfHeading('News from around the world'), false)
+  assert.equal(isNewsShelfHeading('News from around the world'), true)
   assert.equal(isNewsShelfHeading('Live music'), false)
 })
 
