@@ -171,7 +171,7 @@ export function Home() {
             {feed.slice(0, 3).map(videoTile)}
           </div>
           {feed.length > 3 && <div data-home-video-grid
-            className="mt-4 grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            className="mt-4 grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {feed.slice(3).map(videoTile)}
           </div>}
           {hasMore && <div className="mt-6 flex justify-center">
