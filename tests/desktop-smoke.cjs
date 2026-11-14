@@ -215,7 +215,21 @@ const historyFixture = require('./fixtures/history.cjs')
     assert.deepEqual(errors,[])
     console.log('Desktop smoke tests passed.')
   } finally {
-    await app.close()
+    // Electron's normal close should be attempted first. In CI, an orphaned
+    // Chromium child can leave Playwright's close promise unresolved even after
+    // all functional tests passed. Bound teardown and terminate its own
+    // launched child process rather than hanging the entire workflow.
+    let closeTimeout
+    const closed=app.close().then(()=>true,(error)=>{console.warn('Electron test teardown:',error.message);return false})
+    const timeout=new Promise(resolve=>{
+      closeTimeout=setTimeout(()=>resolve(false),8000)
+    })
+    const gracefullyClosed=await Promise.race([closed,timeout])
+    clearTimeout(closeTimeout)
+    if(!gracefullyClosed){
+      console.warn('Electron smoke teardown timed out; terminating isolated test process')
+      app.process()?.kill('SIGKILL')
+    }
     await rm(directory,{recursive:true,force:true})
   }
 })().catch(error=>{console.error(error);process.exitCode=1})
