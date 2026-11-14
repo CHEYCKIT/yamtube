@@ -198,11 +198,11 @@ module.exports = async ({app,page}) => {
   await subscriptionGrid.locator('[data-video-id]').first().waitFor()
   await page.setViewportSize({width:1300,height:Math.max(720,originalViewport.height)})
   assert.equal(await subscriptionGrid.evaluate(node =>
-    getComputedStyle(node).gridTemplateColumns.trim().split(/\\s+/).length),4,
+    getComputedStyle(node).gridTemplateColumns.trim().split(/\s+/).length),4,
     'standard desktops retain the existing four-column Subscriptions layout')
   await page.setViewportSize({width:1920,height:Math.max(720,originalViewport.height)})
   const wideSubs=await subscriptionGrid.evaluate(node => ({
-    columns:getComputedStyle(node).gridTemplateColumns.trim().split(/\\s+/).length,
+    columns:getComputedStyle(node).gridTemplateColumns.trim().split(/\s+/).length,
     widths:[...node.querySelectorAll('[data-video-id]')].map(card=>card.getBoundingClientRect().width)
   }))
   assert.ok(wideSubs.columns>=5,'ultrawide Subscriptions must show more than four columns')
