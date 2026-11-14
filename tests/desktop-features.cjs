@@ -52,7 +52,7 @@ module.exports=async({app,page,profile})=>{
   const tabBarLayout=await page.evaluate(()=>{
     const strip=document.querySelector('[role="tablist"]')
     const plus=strip?.querySelector('button[aria-label="New tab"]')
-    const tabs=[...strip.querySelectorAll('[draggable="true"]')]
+    const tabs=[...strip.querySelectorAll('[data-tab-id]')]
     const last=tabs.at(-1)
     return { afterLast:plus?.previousElementSibling===last,
       gap:plus.getBoundingClientRect().left-last.getBoundingClientRect().right,
