@@ -90,7 +90,11 @@ function openElectronLogin(changed: () => void, closed: () => void): LoginWindow
   contents.on('did-navigate-in-page', changed)
   contents.on('did-finish-load', changed)
   window.on('closed', closed)
-  void window.loadURL(LOGIN_URL).catch(() => { if (!window.isDestroyed()) window.destroy() })
+  void window.loadURL(LOGIN_URL).catch((error: NodeJS.ErrnoException) => {
+    // Google's redirects can abort an earlier navigation without failing sign-in.
+    if (error.code === 'ERR_ABORTED' || error.errno === -3) return
+    if (!window.isDestroyed()) window.destroy()
+  })
   return {
     async read() {
       if (window.isDestroyed()) throw new Error('The sign-in window was closed.')
