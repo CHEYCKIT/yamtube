@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Open YouTube links in LokTube",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Open YouTube links clicked in Zen and Firefox in a new tab in the installed LokTube app.",
   "browser_specific_settings": {
     "gecko": {
