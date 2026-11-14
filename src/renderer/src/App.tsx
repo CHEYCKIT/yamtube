@@ -439,9 +439,9 @@ function SideNav({ isOpen }: { isOpen: boolean }) {
           </span>
           <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{youtubeAccount.signedIn ? t("Watch Later") : t("Saved")}</span>
         </NavLink>
-        <NavLink to="/liked" className={({ isActive }) => navClass(isOpen, isActive)} title={t('Liked videos')}>
+        <NavLink to="/liked" className={({ isActive }) => navClass(isOpen, isActive)} title={t('Likes')}>
           <span className="grid h-9 w-9 shrink-0 place-items-center"><NavigationIcon name="liked" /></span>
-          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t('Liked videos')}</span>
+          <span className={`wt-nav-label ${isOpen ? 'text-sm max-[680px]:text-[11px]' : 'text-[11px]'}`}>{t('Likes')}</span>
         </NavLink>
         <NavLink to="/playlists" className={({ isActive }) => navClass(isOpen, isActive)} title={t("Playlists")}>
           <span className="grid h-9 w-9 shrink-0 place-items-center">

@@ -202,7 +202,7 @@ export function TabRoutePages({ children }: { children: ReactNode }) {
 
 function routeTitle(path: string) {
   if (path.startsWith('/search')) return new URLSearchParams(parsePath(path).search).get('q') || t("Search")
-  const labels: Record<string, string> = { '/': t("Home"), '/saved': t("Saved"), '/liked': t('Liked videos'), '/playlists': t("Playlists"), '/music': t("Music"), '/account': t("Account"), '/history': t("History"), '/subscriptions': t("Subscriptions") }
+  const labels: Record<string, string> = { '/': t("Home"), '/saved': t("Saved"), '/liked': t('Likes'), '/playlists': t("Playlists"), '/music': t("Music"), '/account': t("Account"), '/history': t("History"), '/subscriptions': t("Subscriptions") }
   return labels[path] || (path.startsWith('/channel') ? t("Channel") : path.startsWith('/collection') ? t("Collection") : 'Video')
 }
 

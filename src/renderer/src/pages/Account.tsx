@@ -14,12 +14,11 @@ export function Account() {
   const [message, setMessage] = useState<string | null>(null)
   const [protection, setProtection] = useState<ProtectionState | null>(null)
   const [browsers, setBrowsers] = useState<SignInBrowserState | null>(null)
-  const browserName = browsers?.browsers.find(({ id }) => id === browsers.selectedId)?.name ?? 'browser'
-  useEffect(() => {
+    useEffect(() => {
     let cancelled = false
     const refresh = () => window.api.getProtection().then((next) => { if (!cancelled) setProtection(next) }).catch(() => undefined)
     void refresh()
-    void window.api.getSignInBrowsers().then((next) => { if (!cancelled) setBrowsers(next) }).catch(() => { if (!cancelled) setError('Sign-in browsers could not be detected. Try Refresh browsers or import YouTube cookies.') })
+    void window.api.getSignInBrowsers().then((next) => { if (!cancelled) setBrowsers(next) }).catch(() => { if (!cancelled) setBrowsers({ browsers: [], selectedId: null }) })
     const timer = window.setInterval(refresh, 5_000)
     return () => { cancelled = true; window.clearInterval(timer) }
   }, [])
@@ -46,27 +45,51 @@ export function Account() {
           <p className="text-sm text-neutral-400">{account.signedIn ? 'Connected to your YouTube account' : 'Your recommendations, subscriptions and watch history'}</p></div>
       </div>
       {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
-      <p className="text-sm leading-relaxed text-neutral-400">Sign in with Google in your selected browser, then close that sign-in window to finish connecting. Zen, Firefox, LibreWolf, Waterfox and Floorp are supported. Your existing browser profiles are kept separate.</p>
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="grid gap-1 text-sm text-neutral-300"><label htmlFor="youtube-signin-browser">Sign-in browser</label>
-          <select id="youtube-signin-browser" className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2" value={browsers?.selectedId ?? ''} disabled={!!busy || !browsers?.browsers.length}
-            onChange={(event) => { const id = event.target.value; void run('browser', async () => setBrowsers(await window.api.selectSignInBrowser(id))) }}>
-            {!browsers?.browsers.length && <option value="">{browsers ? 'No supported browser detected' : 'Detecting browsers…'}</option>}
-            {browsers?.browsers.map((browser, index, all) => <option key={browser.id} value={browser.id}>{browser.name}{all.filter(({ name }) => name === browser.name).length > 1 ? ` (${all.slice(0, index + 1).filter(({ name }) => name === browser.name).length})` : ''}</option>)}
-          </select>
-        </div>
-        <button disabled={!!busy} className={button} onClick={() => void run('detect', async () => setBrowsers(await window.api.getSignInBrowsers(true)))}>Refresh browsers</button>
-        <button disabled={!!busy} className={button} onClick={() => void run('addbrowser', async () => setBrowsers(await window.api.addSignInBrowser()))}>Add portable browser…</button>
-      </div>
-      {browsers && !browsers.browsers.length && <p className="text-sm text-neutral-400">Install Zen or Firefox and refresh, or add a portable installation once. You can also import cookies from any browser.</p>}
+      <p className="text-sm leading-relaxed text-neutral-400">Sign in with your Google account in a separate secure sign-in window. On Windows, LokTube uses Microsoft Edge WebView2 for Google sign-in and Windows Hello passkeys, as in Lokal. Your account is only connected after YouTube verifies the session.</p>
       <div className="flex flex-wrap gap-2">
-        <button disabled={!!busy || !browsers?.selectedId} onClick={() => void run('signin', () => window.api.signInYoutube(browsers?.selectedId ?? undefined), true)} className="wt-action-important rounded px-4 py-2 text-sm font-medium disabled:opacity-50">
-          {busy === 'signin' ? `Waiting for ${browserName}…` : `${account.signedIn ? 'Reconnect' : 'Sign in'} with ${browserName}`}</button>
-        <button disabled={!!busy} onClick={() => void run('cookies', window.api.importYoutubeCookies, true)} className={button}>Import YouTube cookies</button>
-        {account.signedIn && <button disabled={!!busy} onClick={() => void run('signout', window.api.signOutYoutube, true)} className={button}>Sign out</button>}
-        {busy === 'signin' && <button onClick={() => void window.api.cancelYoutubeSignIn()} className={button}>Cancel sign-in</button>}
+        <button disabled={!!busy} onClick={() => void run('signin', window.api.signInYoutube, true)}
+          className="wt-action-important rounded px-4 py-2 text-sm font-medium disabled:opacity-50">
+          {busy === 'signin' ? 'Waiting for Google sign-in…' : account.signedIn ? 'Reconnect with Google' : 'Sign in with Google'}
+        </button>
+        <button disabled={!!busy} onClick={() => void run('cookies', window.api.importYoutubeCookies, true)}
+          className={button}>Import YouTube cookies</button>
+        {account.signedIn && <button disabled={!!busy} onClick={() => void run('signout', window.api.signOutYoutube, true)}
+          className={button}>Sign out</button>}
+        {(busy === 'signin' || busy === 'browserSignin') &&
+          <button className={button} onClick={() => void window.api.cancelYoutubeSignIn()}>Cancel sign-in</button>}
       </div>
-      {busy === 'signin' && <p role="status" className="text-sm text-neutral-300">Complete sign-in on youtube.com in {browserName}. Close that sign-in window when YouTube shows your account avatar. This app never asks for your Google password.</p>}
+      {(busy === 'signin' || busy === 'browserSignin') && <p role="status" className="text-sm text-neutral-300">
+        Complete sign-in in the separate window. The app never asks you to enter your Google password into LokTube itself.
+      </p>}
+      <details className="text-sm text-neutral-400">
+        <summary className="cursor-pointer">Other sign-in methods</summary>
+        <div className="mt-3 grid gap-3">
+          <p>If Google blocks embedded sign-in, use an external Firefox-family browser or import cookies from an already signed-in browser.</p>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="grid gap-1">
+              <label htmlFor="youtube-signin-browser">External sign-in browser</label>
+              <select id="youtube-signin-browser" className="rounded border border-neutral-700 bg-neutral-900 px-3 py-2"
+                value={browsers?.selectedId ?? ''} disabled={!!busy || !browsers?.browsers.length}
+                onChange={(event) => { const id = event.target.value; void run('browser', async () => setBrowsers(await window.api.selectSignInBrowser(id))) }}>
+                {!browsers?.browsers.length && <option value="">{browsers ? 'No supported browser detected' : 'Detecting browsers…'}</option>}
+                {browsers?.browsers.map((browser, index, all) =>
+                  <option key={browser.id} value={browser.id}>{browser.name}{all.filter(({ name }) => name === browser.name).length > 1
+                    ? ' (' + all.slice(0, index + 1).filter(({ name }) => name === browser.name).length + ')' : ''}</option>)}
+              </select>
+            </div>
+            <button disabled={!!busy} className={button} onClick={() =>
+              void run('detect', async () => setBrowsers(await window.api.getSignInBrowsers(true)))}>Refresh browsers</button>
+            <button disabled={!!busy} className={button} onClick={() =>
+              void run('addbrowser', async () => setBrowsers(await window.api.addSignInBrowser()))}>Add portable browser…</button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button disabled={!!busy || !browsers?.selectedId} onClick={() =>
+              void run('browserSignin', () => window.api.signInYoutubeWithBrowser(browsers?.selectedId ?? undefined), true)}
+              className={button}>{busy === 'browserSignin' ? 'Waiting for browser…' : 'Sign in with external browser'}</button>
+          </div>
+          <p>External browser sign-in uses a fresh temporary profile, not your existing browser's stored credentials. Cookie files contain session credentials and should be deleted after importing.</p>
+        </div>
+      </details>
       {account.signedIn && <p className="text-sm text-neutral-400">{account.persistent ? 'Your session is encrypted using your system keyring.' : 'Session only: secure system storage is unavailable. You will need to sign in again after quitting.'} Signing out disconnects this app.</p>}
       {!account.signedIn && <p className="text-sm text-neutral-500">You can keep browsing as a guest. No local account or password is required.</p>}
       {account.error && <p role="alert" className="text-sm text-amber-300">{account.error}</p>}

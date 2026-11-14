@@ -30,6 +30,10 @@ jobs:
           if git log -1 --format=%B | grep -Fq '[skip tests]'; then
             echo "SKIP_TESTS=true" >> "$GITHUB_ENV"
           fi
+      - uses: actions/setup-dotnet@v4
+        if: runner.os == 'Windows'
+        with:
+          dotnet-version: '8.0.x'
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
