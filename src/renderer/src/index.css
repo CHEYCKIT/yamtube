@@ -717,3 +717,7 @@ input[type='checkbox'] {
 /* YouTube-style Shorts shelf: navigation is provided by edge overlay arrows. */
 .wt-shorts-scroll { scrollbar-width: none; }
 .wt-shorts-scroll::-webkit-scrollbar { display: none; }
+
+/* Home account-topic chips share the header row; keep horizontal scrolling clean. */
+.wt-home-topics { scrollbar-width: none; }
+.wt-home-topics::-webkit-scrollbar { display: none; }
