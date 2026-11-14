@@ -33,7 +33,7 @@ function mergeUnique<T>(previous: T[], incoming: T[], key: (item: T) => string):
 
 function VideoGrid({ videos, portrait = false }: { videos: SearchResultItem[]; portrait?: boolean }) {
   useLocale()
-  return <div className={`grid gap-4 ${portrait ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
+  return <div className={`grid gap-4 ${portrait ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6' : 'wt-fluid-video-grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
     {videos.map((video) => <VideoCard key={video.videoId} {...video} portrait={portrait} shorts={portrait ? videos : undefined} badge={video.durationText}
       meta={[video.viewCountText, video.publishedText].filter(Boolean).join(' · ')} />)}
   </div>
@@ -180,7 +180,7 @@ export function Channel() {
   }
   function openPlaylist(playlist: ChannelPlaylistItem) { setParams({ tab, playlist: playlist.playlistId, title: playlist.title }) }
   function renderPlaylists(playlists: ChannelPlaylistItem[]) {
-    return <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    return <div className="wt-fluid-video-grid grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {playlists.map((playlist) => <PlaylistTile key={playlist.playlistId} playlist={playlist} onOpen={() => openPlaylist(playlist)} />)}
     </div>
   }
