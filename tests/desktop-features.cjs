@@ -27,6 +27,7 @@ module.exports=async({app,page,profile})=>{
     name:'LokTube', executed:'LokTube', newNativeWindows:0, changedFocus:false
   })
   console.log('PASS: background renderer executes JS without native windows or focus changes')
+  await require('./desktop-tabs.cjs')({page})
   const parser=await app.evaluate(({app})=>{
     const require=process.getBuiltinModule('node:module').createRequire(app.getAppPath()+'/package.json')
     const {Parser}=require('youtubei.js')
