@@ -151,7 +151,7 @@ export function Playlists() {
             <option value="updated">{youtubeAccount.signedIn ? t('YouTube order') : t('Recently updated')}</option><option value="name">{t('Name')}</option><option value="count">{t('Video count')}</option>
           </select>
         </div>
-        <div className="grid grid-cols-1 gap-x-5 gap-y-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="wt-fluid-video-grid grid grid-cols-1 gap-x-5 gap-y-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((playlist) => {
             const items = grouped.get(playlist.id) ?? []
             return <button key={playlist.id} type="button" onClick={() => setParams({ playlist: playlist.id })} className="group min-w-0 cursor-pointer rounded text-left">
