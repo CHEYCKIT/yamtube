@@ -203,7 +203,7 @@ jobs:
           TAG: ${{ needs.prepare.outputs.tag }}
         run: |
           npm install --global web-ext@8
-          node -e "const fs=require('node:fs');const p='browser-extension/manifest.json';const m=JSON.parse(fs.readFileSync(p,'utf8'));m.version=require('./package.json').version;fs.writeFileSync(p,JSON.stringify(m,null,2)+'\\n');"
+          node -e "const fs=require('node:fs');const p='browser-extension/manifest.json';const m=JSON.parse(fs.readFileSync(p,'utf8'));m.version=require('./package.json').version;fs.writeFileSync(p,JSON.stringify(m,null,2));"
           web-ext sign --source-dir browser-extension --artifacts-dir firefox-signed --channel unlisted --api-key "$AMO_JWT_ISSUER" --api-secret "$AMO_JWT_SECRET"
           find firefox-signed -name '*.xpi' -type f -print -quit | xargs -r -I {} cp '{}' 'LokTube-Zen-signed.xpi'
           test -s 'LokTube-Zen-signed.xpi'
