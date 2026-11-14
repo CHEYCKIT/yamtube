@@ -44,7 +44,7 @@ export function Liked() {
     </p>}
     {loading && !videos.length ? <PageLoader /> : videos.length === 0 && !error
       ? <p className="text-sm text-neutral-400">{t('No liked videos yet.')}</p>
-      : <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      : <div className="wt-fluid-video-grid grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {videos.map((video) => <div key={video.id}>
           <VideoCard videoId={video.videoId} title={video.title} channelId={video.channelId}
             channelName={video.channelName} thumbnailUrl={video.thumbnailUrl} />

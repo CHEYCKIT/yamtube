@@ -721,3 +721,18 @@ input[type='checkbox'] {
 /* Home account-topic chips share the header row; keep horizontal scrolling clean. */
 .wt-home-topics { scrollbar-width: none; }
 .wt-home-topics::-webkit-scrollbar { display: none; }
+
+/* Keep existing 1/2/3/4-column layouts on ordinary windows, but use the
+ * actual page width for additional, reasonably sized tiles on ultrawide
+ * monitors. auto-fill prevents a short result set from growing huge cards. */
+@media (min-width: 1600px) {
+  /* Use greater specificity than Tailwind's fixed lg/xl column utilities. */
+  .grid.wt-fluid-video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+@media (min-width: 2560px) {
+  .grid.wt-fluid-video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+}

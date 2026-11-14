@@ -57,7 +57,22 @@ module.exports = async ({app,page}) => {
     'the first desktop row must have three columns')
   assert.equal(await columnCount('section[aria-label="Home"]:visible [data-home-video-grid]'),4,
     'following desktop rows must use four columns below xl width')
+  // On ultrawide screens the opening row must also expand beyond three rather
+  // than scaling just three cards into enormous thumbnails.
+  await page.setViewportSize({width:1920,height:Math.max(720,originalViewport.height)})
+  await page.waitForFunction(() => [...document.querySelectorAll('section[aria-label="Home"]')]
+    .some(section => section.getClientRects().length &&
+      section.querySelectorAll('[data-home-first-row] [data-video-id]').length >= 5))
+  const wideFirstCount=await firstRow.count()
+  const wideColumnCount=await columnCount('section[aria-label="Home"]:visible [data-home-first-row]')
+  assert.ok(wideColumnCount>=5,'wide Home should use at least five columns')
+  assert.equal(wideFirstCount,wideColumnCount,'Home first row must fill the responsive grid')
+  const wideCardWidths=await firstRow.evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().width))
+  assert.ok(wideCardWidths.every(width=>width<375),JSON.stringify(wideCardWidths))
   await page.setViewportSize(originalViewport)
+  await page.waitForFunction(() => [...document.querySelectorAll('section[aria-label="Home"]')]
+    .some(section => section.getClientRects().length &&
+      section.querySelectorAll('[data-home-first-row] [data-video-id]').length === 3))
   const showMore=page.getByRole('button',{name:'Show more',exact:true})
   await showMore.click()
   await page.waitForFunction(()=>[...document.querySelectorAll('section[aria-label="Home"]')]
@@ -163,4 +178,36 @@ module.exports = async ({app,page}) => {
   await page.getByRole('heading',{name:'Likes',exact:true}).waitFor()
   await page.getByText('Connect your YouTube account to see your liked videos.',{exact:false}).waitFor()
   console.log('PASS: Likes sidebar route requests a YouTube account when signed out')
+
+  // Subscriptions must not cap video cards at four columns on an ultrawide
+  // display. Exercise the actual renderer with a deterministic video feed.
+  await app.evaluate(({ipcMain}) => {
+    const feed=Array.from({length:24}, (_,index) => ({
+      videoId:String(index+1).padStart(11,'0'), title:'Subscription video '+(index+1),
+      channelId:'UCfixture', channelName:'Fixture channel', thumbnailUrl:null,
+      durationText:'1:00', viewCountText:'10 views', publishedText:'Today'
+    }))
+    ipcMain.removeHandler('subscriptions:list')
+    ipcMain.handle('subscriptions:list', () =>
+      [{channelId:'UCfixture',channelName:'Fixture channel',thumbnailUrl:null}])
+    ipcMain.removeHandler('subscriptions:feed')
+    ipcMain.handle('subscriptions:feed', () => ({ok:true,data:feed}))
+  })
+  await page.locator('a[href="#/subscriptions"]:visible').first().click()
+  const subscriptionGrid=page.locator('[data-subscriptions-video-grid]:visible')
+  await subscriptionGrid.locator('[data-video-id]').first().waitFor()
+  await page.setViewportSize({width:1300,height:Math.max(720,originalViewport.height)})
+  assert.equal(await subscriptionGrid.evaluate(node =>
+    getComputedStyle(node).gridTemplateColumns.trim().split(/\s+/).length),4,
+    'standard desktops retain the existing four-column Subscriptions layout')
+  await page.setViewportSize({width:1920,height:Math.max(720,originalViewport.height)})
+  const wideSubs=await subscriptionGrid.evaluate(node => ({
+    columns:getComputedStyle(node).gridTemplateColumns.trim().split(/\s+/).length,
+    widths:[...node.querySelectorAll('[data-video-id]')].map(card=>card.getBoundingClientRect().width)
+  }))
+  assert.ok(wideSubs.columns>=5,'ultrawide Subscriptions must show more than four columns')
+  assert.ok(wideSubs.widths.length===24 && wideSubs.widths.every(width=>width<375),
+    JSON.stringify(wideSubs))
+  await page.setViewportSize(originalViewport)
+  console.log('PASS: widescreen Subscriptions adapt column count without oversized cards')
 }
