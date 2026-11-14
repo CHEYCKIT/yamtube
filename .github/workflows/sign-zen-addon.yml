@@ -37,7 +37,7 @@ jobs:
           WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         run: |
           npm install --global web-ext@8
-          node -e "const fs=require('node:fs');const p='browser-extension/manifest.json';const m=JSON.parse(fs.readFileSync(p,'utf8'));m.version=process.env.TAG.replace(/^v/,'');fs.writeFileSync(p,JSON.stringify(m,null,2)+'\\n');"
+          node -e "const fs=require('node:fs');const p='browser-extension/manifest.json';const m=JSON.parse(fs.readFileSync(p,'utf8'));m.version=process.env.TAG.replace(/^v/,'');fs.writeFileSync(p,JSON.stringify(m,null,2));"
           web-ext sign --source-dir browser-extension --artifacts-dir firefox-signed --channel unlisted
           SIGNED=$(find firefox-signed -type f -name '*.xpi' -print -quit)
           test -n "$SIGNED" && test -s "$SIGNED"
