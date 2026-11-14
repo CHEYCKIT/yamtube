@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
 import { RequestPolicy, redirectHeaders, scopedCredentialHeaders } from '../src/main/requestPolicy'
 import { youtubeCookieHeader, parseNetscapeCookies, parseYoutubeCookies } from '../src/main/youtubeCookies'
 import { parseYoutubeWebContext, extractYoutubePageContext, isGuestYoutubeHome } from '../src/main/youtubeSessionContext'
@@ -638,13 +639,7 @@ test('browser-to-LokTube links resolve YouTube URLs to local internal routes', (
     ['https://m.youtube.com/shorts/jNQXAC9IVRw','/watch/jNQXAC9IVRw'],
     ['https://www.youtube.com/live/jNQXAC9IVRw','/watch/jNQXAC9IVRw'],
     ['https://music.youtube.com/watch?v=jNQXAC9IVRw','/watch/jNQXAC9IVRw'],
-    ['https://www.youtube.com/playlist?list=PLabcDEFghi123','/collection/playlist/PLabcDEFghi123'],
-    ['https://www.youtube.com/results?search_query=music%20video','/search?q=music%20video'],
-    ['https://www.youtube.com/feed/subscriptions','/subscriptions'],
-    ['https://www.youtube.com/feed/history','/history'],
-    ['https://youtube.com/','/'],
-    ['https://www.youtube.com/@somecreator','/search?q=%40somecreator'],
-    ['https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv','/channel/UCabcdefghijklmnopqrstuv']
+    ['https://www.youtube.com/embed/jNQXAC9IVRw','/watch/jNQXAC9IVRw']
   ]
   for (const [url,expected] of cases) {
     assert.equal(youtubeUrlToAppRoute(url),expected,url)
@@ -657,7 +652,15 @@ test('external protocol ingress rejects arbitrary websites and unsafe link struc
     'javascript:alert(1)','file:///etc/passwd','https://www.youtube.com.evil.test/watch?v=jNQXAC9IVRw',
     'https://evil.test/watch?v=jNQXAC9IVRw','https://user:pass@www.youtube.com/watch?v=jNQXAC9IVRw',
     'https://www.youtube.com:1337/watch?v=jNQXAC9IVRw','https://www.youtube.com/watch?v=bad',
-    'https://www.youtube.com/redirect?q=https%3A%2F%2Fevil.test'
+    'https://www.youtube.com/redirect?q=https%3A%2F%2Fevil.test',
+    'https://www.youtube.com/', 'https://www.youtube.com/feed/history',
+    'https://www.youtube.com/feed/subscriptions',
+    'https://www.youtube.com/playlist?list=PLabcDEFghi123',
+    'https://www.youtube.com/results?search_query=music%20video',
+    'https://www.youtube.com/@somecreator',
+    'https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv',
+    'https://music.youtube.com/', 'https://youtu.be/',
+    'https://www.youtube.com/watch?list=PLabcDEFghi123'
   ]
   for (const url of invalid) assert.equal(youtubeUrlToAppRoute(url),null,url)
   for (const uri of [
@@ -670,6 +673,53 @@ test('external protocol ingress rejects arbitrary websites and unsafe link struc
   ]) assert.equal(loktubeProtocolToRoute(uri),null,uri)
 })
 
+
+test('Zen extension intercepts only direct videos and leaves YouTube navigation inside Zen', () => {
+  const script = readFileSync('browser-extension/content.js', 'utf8')
+  const accepted = [
+    'https://www.youtube.com/watch?v=jNQXAC9IVRw',
+    'https://www.youtube.com/watch?v=jNQXAC9IVRw&list=PLabcDEFghi123',
+    'https://youtu.be/jNQXAC9IVRw',
+    'https://www.youtube.com/shorts/jNQXAC9IVRw',
+    'https://www.youtube.com/live/jNQXAC9IVRw',
+    'https://music.youtube.com/watch?v=jNQXAC9IVRw'
+  ]
+  const ignored = [
+    'https://www.youtube.com/', 'https://www.youtube.com/feed/history',
+    'https://www.youtube.com/feed/subscriptions',
+    'https://www.youtube.com/playlist?list=PLabcDEFghi123',
+    'https://www.youtube.com/results?search_query=hello',
+    'https://www.youtube.com/@somecreator',
+    'https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv',
+    'https://music.youtube.com/', 'https://www.youtube.com/watch?list=PLabcDEFghi123',
+    'https://evil.test/watch?v=jNQXAC9IVRw'
+  ]
+  for (const [href, expected] of [...accepted.map(url => [url, true] as const),
+    ...ignored.map(url => [url, false] as const)]) {
+    let click: ((event: Record<string, unknown>) => void) | undefined
+    const opened: string[] = []
+    const window = {
+      addEventListener: (type: string, fn: (event: Record<string, unknown>) => void) => {
+        if (type === 'click') click = fn
+      },
+      location: { assign: (url: string) => opened.push(url) }
+    }
+    runInNewContext(script, { window, URL, Set })
+    let prevented = false
+    const event = {
+      isTrusted: true, defaultPrevented: false, button: 0,
+      ctrlKey: false, shiftKey: false, altKey: false, metaKey: false,
+      target: { closest: () => ({ href, hasAttribute: () => false }) },
+      preventDefault: () => { prevented = true },
+      stopImmediatePropagation: () => {}
+    }
+    assert.ok(click)
+    click!(event)
+    assert.equal(opened.length, expected ? 1 : 0, href)
+    assert.equal(prevented, expected, href)
+    if (expected) assert.equal(loktubeProtocolToRoute(opened[0]), '/watch/jNQXAC9IVRw')
+  }
+})
 
 test('tab sessions round trip selected tab, order, navigation history, and titles', () => {
   assert.equal(TAB_SESSION_KEY, 'loktube.tabs.v1')

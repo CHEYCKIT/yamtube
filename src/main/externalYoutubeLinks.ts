@@ -3,8 +3,6 @@
  * app routes; raw URLs never enter the renderer as navigation targets.
  */
 const VIDEO = /^[A-Za-z0-9_-]{11}$/
-const CHANNEL = /^UC[A-Za-z0-9_-]{20,64}$/
-const PLAYLIST = /^[A-Za-z0-9_-]{6,120}$/
 const HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com',
   'music.youtube.com', 'youtu.be', 'www.youtu.be'])
 
@@ -17,31 +15,13 @@ export function youtubeUrlToAppRoute(value: string): string | null {
   const pieces = url.pathname.split('/').filter(Boolean)
   if (url.hostname.toLowerCase().endsWith('youtu.be'))
     return pieces.length === 1 && VIDEO.test(pieces[0]) ? '/watch/' + pieces[0] : null
-  if (!pieces.length) return '/'
-  if (pieces[0] === 'watch') {
+  if (pieces[0] === 'watch' && pieces.length === 1) {
     const id = url.searchParams.get('v')
     return id && VIDEO.test(id) ? '/watch/' + id : null
   }
   if (['shorts', 'live', 'embed'].includes(pieces[0]) && pieces.length === 2)
     return VIDEO.test(pieces[1]) ? '/watch/' + pieces[1] : null
-  if (pieces[0] === 'playlist') {
-    const id = url.searchParams.get('list')
-    return id && PLAYLIST.test(id) ? '/collection/playlist/' + id : null
-  }
-  if (pieces[0] === 'channel' && pieces.length === 2 && CHANNEL.test(pieces[1]))
-    return '/channel/' + pieces[1]
-  if (pieces[0] === 'results') {
-    const q = (url.searchParams.get('search_query') ?? '').trim()
-    return q && q.length <= 200 ? '/search?q=' + encodeURIComponent(q) : null
-  }
-  if (pieces.length === 2 && pieces[0] === 'feed') {
-    if (pieces[1] === 'subscriptions') return '/subscriptions'
-    if (pieces[1] === 'history') return '/history'
-  }
-  // @handles require channel ID resolution; open a handle search rather than
-  // invent an invalid /channel/:id URL.
-  if (pieces.length === 1 && /^@[A-Za-z0-9._-]{3,40}$/.test(pieces[0]))
-    return '/search?q=' + encodeURIComponent(pieces[0])
+  // Protocol ingress also stays restricted to individual video links.
   return null
 }
 
