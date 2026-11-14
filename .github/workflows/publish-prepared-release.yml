@@ -1,0 +1,41 @@
+name: Publish prepared stable LokTube release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release draft with complete installers"
+        required: true
+        type: string
+        default: "v1.5.2"
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[publish prepared]'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify existing installers and publish draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          if [ -n "$REQUESTED_TAG" ] && [ "$REQUESTED_TAG" != "$TAG" ]; then
+            echo "Tag mismatch: expected $TAG" >&2
+            exit 1
+          fi
+          DRAFT=$(gh release view "$TAG" --json isDraft --jq .isDraft)
+          test "$DRAFT" = true || { echo "Release is not a draft: $TAG" >&2; exit 1; }
+          ASSETS=$(gh release view "$TAG" --json assets --jq '.assets[].name')
+          for NAME in "LokTube-$VERSION-win-x64.exe" "LokTube-$VERSION-linux-x86_64.AppImage" "LokTube-$VERSION-linux-amd64.deb" "LokTube-v$VERSION-source.tar.gz"; do
+            printf '%s\n' "$ASSETS" | grep -Fxq "$NAME" || { echo "Missing release asset: $NAME" >&2; exit 1; }
+          done
+          gh release edit "$TAG" --draft=false --prerelease=false
+          echo "Published verified stable release $TAG"
