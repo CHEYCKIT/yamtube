@@ -13,7 +13,20 @@ module.exports = async ({app,page}) => {
     const shorts = 'hijklmnopqrs'.split('').map((letter,index) =>
       ({ ...video(letter.repeat(11), 'Recommended Short '+(index+1)), durationText:null }))
     ipcMain.removeHandler('youtube:get-home-feed')
-    ipcMain.handle('youtube:get-home-feed', () => ({ok:true,data:feed,home:{shorts}}))
+    ipcMain.handle('youtube:get-home-feed', () => ({ok:true,data:feed,home:{
+      shorts, topics:['All','Science','Music'], sessionId:'fixture-home', hasMore:true
+    }}))
+    const more = [video('bbbbbbbbbbb','Already loaded'),
+      ...['kkkkkkkkkkk','lllllllllll','mmmmmmmmmmm','nnnnnnnnnnn'].map((id,i)=>video(id,'More video '+(i+1)))]
+    ipcMain.removeHandler('youtube:get-home-more')
+    ipcMain.handle('youtube:get-home-more', (_event,sessionId) => sessionId === 'fixture-home'
+      ? {ok:true,data:more,home:{shorts:[],sessionId,hasMore:false}}
+      : {ok:false,error:'Bad continuation session'})
+    ipcMain.removeHandler('youtube:get-home-topic')
+    ipcMain.handle('youtube:get-home-topic', (_event,{sessionId,topic}) => sessionId !== 'fixture-home'
+      ? {ok:false,error:'Bad topic session'}
+      : {ok:true,data:topic ? [video('ooooooooooo','Science video')] : feed,
+        home:{shorts:[],topics:['All','Science','Music'],sessionId:'fixture-topic',hasMore:false}})
   })
   // TabRoutePages keeps previously visited Home pages mounted. A reload
   // discards the old feed and ensures Home picks up this deterministic fixture.
@@ -21,10 +34,26 @@ module.exports = async ({app,page}) => {
   // A reload preserves the current hash (often /account at the end of smoke).
   // Navigate to the now-fresh Home route after restoring the renderer.
   await page.locator('a[href="#/"]:visible').first().click()
-  await page.getByRole('heading',{name:'More to explore',exact:true}).waitFor()
+  await page.getByRole('heading',{name:'For you',exact:true}).waitFor()
 
   const sectionTitles=await page.locator('section[aria-label="Home"]:visible h2').allTextContents()
-  assert.deepEqual(sectionTitles,['For you','More to explore','Shorts'])
+  assert.deepEqual(sectionTitles,['For you','Shorts'])
+  assert.equal(await page.getByRole('heading',{name:'More to explore',exact:true}).count(),0)
+  const firstRow=page.locator('section[aria-label="Home"]:visible [data-home-first-row] [data-video-id]')
+  const regularGrid=page.locator('section[aria-label="Home"]:visible [data-home-video-grid] [data-video-id]')
+  assert.equal(await firstRow.count(),3,'first For you row must have three equally sized cards')
+  assert.equal(await regularGrid.count(),4,'the rest of For you continues in the normal grid')
+  const firstSizes=await firstRow.evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().width))
+  assert.ok(firstSizes.every(width=>Math.abs(width-firstSizes[0])<2),JSON.stringify(firstSizes))
+  const showMore=page.getByRole('button',{name:'Show more',exact:true})
+  await showMore.click()
+  await page.waitForFunction(()=>[...document.querySelectorAll('section[aria-label="Home"]')]
+    .some(section=>section.getClientRects().length > 0 &&
+      section.querySelectorAll('[data-home-video-grid] [data-video-id]').length===8))
+  assert.equal(await firstRow.count(),3)
+  assert.equal(await regularGrid.count(),8,'continuation should append unique videos below the first row')
+  assert.equal(await showMore.count(),0,'Show more must disappear after YouTube has no continuation')
+  console.log('PASS: Home uses one For you feed, three equal cards first, paginates without duplicates')
   assert.equal(await page.locator('[data-home-shorts-strip]:visible [data-video-id]').count(),12)
   const strip=page.locator('[data-home-shorts-strip]:visible')
   const layout=await strip.evaluate(element=>({
@@ -57,6 +86,43 @@ module.exports = async ({app,page}) => {
     .some(element => element.getClientRects().length && element.scrollLeft<2))
   assert.equal(await previous.count(),0)
   console.log('PASS: Home Shorts arrows overlay row edges, navigate both directions and hide at the start')
+  // Topic filters are optional and default to hidden; account-curated choices
+  // are shown only when a signed-in YouTube profile provides native chips.
+  assert.equal(await page.locator('[data-home-topics]:visible').count(),0)
+  const priorPreferences=await page.evaluate(()=>window.api.getAppPreferences())
+  const priorAccount=await page.evaluate(()=>window.api.getYoutubeAccount())
+  await page.evaluate(async () => {
+    const previous=await window.api.getAppPreferences()
+    await window.api.setAppPreferences({...previous,showHomeTopics:true})
+    window.dispatchEvent(new Event('worldtube:preferences-changed'))
+  })
+  await app.evaluate(({BrowserWindow}) => {
+    const account={signedIn:true,name:'Fixture YouTube',avatarUrl:null,persistent:true,error:null,syncError:null}
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send('youtube:account-state',account)
+    }
+  })
+  const chips=page.locator('section[aria-label="Home"]:visible [data-home-topics]')
+  await chips.getByRole('button',{name:'Science'}).waitFor()
+  assert.equal(await chips.getByRole('button',{name:'Gaming'}).count(),0,
+    'topic filter should not invent categories not supplied by the signed-in account')
+  await chips.getByRole('button',{name:'Science'}).click()
+  await page.getByText('Science video',{exact:true}).waitFor()
+  assert.equal(await firstRow.count(),1)
+  assert.equal(await chips.getByRole('button',{name:'Science'}).getAttribute('aria-pressed'),'true')
+  await chips.getByRole('button',{name:'All'}).click()
+  await page.locator('section[aria-label="Home"]:visible').getByText('Video 1',{exact:true}).first().waitFor()
+  assert.equal(await firstRow.count(),3)
+  await page.evaluate(async prefs => {
+    await window.api.setAppPreferences(prefs)
+    window.dispatchEvent(new Event('worldtube:preferences-changed'))
+  },priorPreferences)
+  await app.evaluate(({BrowserWindow},account) => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send('youtube:account-state',account)
+    }
+  },priorAccount)
+  console.log('PASS: optional Home chips use signed-in account topics and filter actual For you results')
   await page.locator('a[href="#/liked"]:visible').first().click()
   await page.getByRole('heading',{name:'Likes',exact:true}).waitFor()
   await page.getByText('Connect your YouTube account to see your liked videos.',{exact:false}).waitFor()

@@ -1,5 +1,24 @@
 # Home Discovery and Search
 
+## Home (LokTube 1.5.6)
+
+- Render one **For you** recommendation feed. The first row has three equally
+  sized video thumbnails; subsequent rows use the regular responsive grid.
+  The former "More to explore" label, split and separate featured tile are gone.
+- **Show more** uses the continuation exposed by YouTube's own HomeFeed;
+  results append without repeating videos already shown. The button disappears
+  when YouTube has no more pages. No separate search results are passed off as
+  recommendations.
+- **Show Home topic filters** is an optional Appearance/Application setting,
+  off by default. When the user is signed into YouTube, the topic chips are
+  exactly those returned by that account's YouTube HomeFeed filter endpoints
+  (plus "All"); selecting one applies the upstream filter and provides its own
+  continuation chain. Topics are not inferred from titles or fabricated.
+- Home continuation sessions are bounded and tied to the YouTube account
+  revision; an account switch invalidates all prior continuation cursors.
+  Shorts remain an independent shelf; switching video topics does not reload
+  the Shorts search.
+
 ## Home
 
 - Featured recommendation with double-column visual weight beside four videos.

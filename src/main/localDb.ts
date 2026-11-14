@@ -425,6 +425,7 @@ export async function getAppPreferences(): Promise<import('../shared/locale').Ap
     autoplayNext: preferences?.autoplayNext !== false,
     showVideoComments: preferences?.showVideoComments === true,
     showShortsHistory: preferences?.showShortsHistory !== false,
+    showHomeTopics: preferences?.showHomeTopics === true,
     subscriptionsExpanded: preferences?.subscriptionsExpanded === true }
 }
 
@@ -433,6 +434,7 @@ export async function setAppPreferences(preferences: import('../shared/locale').
     (preferences.autoplayNext !== undefined && typeof preferences.autoplayNext !== 'boolean') ||
     (preferences.showVideoComments !== undefined && typeof preferences.showVideoComments !== 'boolean') ||
     (preferences.showShortsHistory !== undefined && typeof preferences.showShortsHistory !== 'boolean') ||
+    (preferences.showHomeTopics !== undefined && typeof preferences.showHomeTopics !== 'boolean') ||
     (preferences.subscriptionsExpanded !== undefined && typeof preferences.subscriptionsExpanded !== 'boolean')) {
     throw new Error('Invalid application preferences')
   }
@@ -442,6 +444,7 @@ export async function setAppPreferences(preferences: import('../shared/locale').
     autoplayNext: preferences.autoplayNext ?? previous?.autoplayNext ?? true,
     showVideoComments: preferences.showVideoComments ?? previous?.showVideoComments ?? false,
     showShortsHistory: preferences.showShortsHistory ?? previous?.showShortsHistory ?? true,
+    showHomeTopics: preferences.showHomeTopics ?? previous?.showHomeTopics ?? false,
     subscriptionsExpanded: preferences.subscriptionsExpanded ?? previous?.subscriptionsExpanded ?? false }
   await persistDb(db)
   appLanguage = preferences.language

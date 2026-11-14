@@ -6,6 +6,7 @@ export interface AppPreferences {
   autoplayNext?: boolean
   showVideoComments?: boolean
   showShortsHistory?: boolean
+  showHomeTopics?: boolean
   subscriptionsExpanded?: boolean
 }
 
@@ -180,7 +181,11 @@ const spanish: Record<string, string> = {
   'Search results': 'Resultados de búsqueda',
   'All': 'Todo', 'Videos': 'Videos', 'Channels': 'Canales',
   'No channels found': 'No se encontraron canales',
-  'For you': 'Para ti', 'Live now': 'En vivo ahora',
+  'For you': 'Para ti', 'Home topics': 'Temas del inicio',
+  'Show Home topic filters': 'Mostrar filtros de temas en Inicio',
+  'Loading recommendations...': 'Cargando recomendaciones...',
+  'Could not load more recommendations': 'No se pudieron cargar más recomendaciones',
+  'Live now': 'En vivo ahora',
   'No related live streams right now': 'No hay directos relacionados ahora',
   'Channels to discover': 'Canales para descubrir',
   'Because you watched': 'Porque viste', 'More to explore': 'Más para explorar',
