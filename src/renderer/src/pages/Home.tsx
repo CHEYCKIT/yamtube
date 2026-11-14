@@ -39,7 +39,7 @@ export function Home() {
     if (!container) return
     const measure = () => {
       const viewportWidth = window.innerWidth
-      const minimumCardWidth = Math.max(255, Math.min(340, viewportWidth * 0.15))
+      const minimumCardWidth = viewportWidth >= 2560 ? 320 : 280
       const columns = viewportWidth >= 1600
         ? Math.max(1, Math.floor((container.clientWidth + 16) / (minimumCardWidth + 16)))
         : 3
