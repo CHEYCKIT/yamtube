@@ -1,9 +1,10 @@
 import { t, useLocale, locale } from '../i18n/LocaleContext'
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { VideoCard } from '../components/VideoCard'
 import { Link } from 'react-router-dom'
 import { PageLoader } from '../components/PageLoader'
+import { ShortsScroller } from '../components/ShortsScroller'
 import { useProfiles } from '../profiles/ProfileContext'
 import type { HistoryEntry, SearchResultItem, YoutubeHistoryVideo } from '../../../shared/ipc'
 
@@ -52,7 +53,6 @@ export function History() {
   const profile = useRef(activeProfileId)
   profile.current = activeProfileId
   const removed = useRef(new Set<string>())
-  const shortsStrip = useRef<HTMLDivElement>(null)
   const shorts = remote.filter((video) => video.isShort)
   const videos = remote.filter((video) => !video.isShort)
 
@@ -127,10 +127,6 @@ export function History() {
       <div className="mb-2 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">{t('Shorts')}</h2>
         <div className="flex items-center gap-1">
-          {showShortsHistory && <>
-            <button type="button" aria-label={t('Previous Shorts')} onClick={() => shortsStrip.current?.scrollBy({ left: -360, behavior: 'smooth' })} className="grid h-9 w-9 place-items-center rounded hover:bg-neutral-800"><ChevronLeft aria-hidden="true" className="h-5 w-5" /></button>
-            <button type="button" aria-label={t('Next Shorts')} onClick={() => shortsStrip.current?.scrollBy({ left: 360, behavior: 'smooth' })} className="grid h-9 w-9 place-items-center rounded hover:bg-neutral-800"><ChevronRight aria-hidden="true" className="h-5 w-5" /></button>
-          </>}
           <button type="button" aria-expanded={showShortsHistory} aria-controls="history-shorts-strip"
             onClick={() => void preferences.savePreferences({ ...preferences, showShortsHistory: !showShortsHistory })}
             className="flex h-9 items-center gap-1 rounded px-2 text-sm text-neutral-300 hover:bg-neutral-800 hover:text-white">
@@ -140,9 +136,9 @@ export function History() {
         </div>
       </div>
       <div id="history-shorts-strip" hidden={!showShortsHistory}>
-        {showShortsHistory && <div ref={shortsStrip} tabIndex={0} aria-label={t('Watched Shorts')} className="flex snap-x gap-3 overflow-x-auto pb-2">
+        {showShortsHistory && <ShortsScroller kind="history" label={t('Watched Shorts')}>
           {shorts.map((video) => <div key={video.historyId} className="w-40 shrink-0 snap-start sm:w-44"><HistoryCard video={video} portrait remote canRemove={video.canRemove} busy={deleting.has(video.videoId)} onRemove={() => void remove(video)} /></div>)}
-        </div>}
+        </ShortsScroller>}
       </div>
     </section>}
     {youtubeAccount.signedIn && shorts.length > 0 && videos.length > 0 && <h2 className="mb-3 text-lg font-semibold">{t('Videos')}</h2>}

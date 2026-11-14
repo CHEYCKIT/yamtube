@@ -34,12 +34,12 @@ Without these credentials it cannot produce an installable file.
 
 ## Behavior
 
-Only normal left-clicks on supported YouTube, youtu.be and YouTube Music
-links are redirected. Videos, Shorts, live videos, playlists, channel IDs,
-searches, Home and account history/subscriptions are supported. Channel
-@handles open a search until full ID lookup is available. Ctrl, Shift, Alt,
-Meta, and middle clicks, downloaded links, and URLs entered directly in
-Zen's address bar are not intercepted.
+Only normal left-clicks on direct video links from YouTube, youtu.be and
+YouTube Music are redirected: watch URLs, Shorts and individual live videos.
+YouTube Home, History, subscriptions, channels, playlists, search results and
+other navigation links remain in Zen. Ctrl, Shift, Alt, Meta, and middle
+clicks, downloaded links, and URLs entered directly in Zen's address bar
+are not intercepted.
 
 The add-on needs to read link destinations on sites where you click them.
 It does not read YouTube cookies, passwords or account history, and does not

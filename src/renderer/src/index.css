@@ -713,3 +713,7 @@ input[type='checkbox'] {
 @media (prefers-reduced-motion: reduce) {
   .wt-theater :is(.wt-topbar, .wt-tabbar, .wt-sidebar) { transition: none; }
 }
+
+/* YouTube-style Shorts shelf: navigation is provided by edge overlay arrows. */
+.wt-shorts-scroll { scrollbar-width: none; }
+.wt-shorts-scroll::-webkit-scrollbar { display: none; }

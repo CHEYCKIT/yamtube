@@ -13,15 +13,13 @@
     const parts = url.pathname.split('/').filter(Boolean)
     if (['youtu.be','www.youtu.be'].includes(url.hostname.toLowerCase()))
       return parts.length === 1 && video.test(parts[0])
-    if (!parts.length) return true
-    if (parts[0] === 'watch') return video.test(url.searchParams.get('v') || '')
+    if (parts[0] === 'watch')
+      return parts.length === 1 && video.test(url.searchParams.get('v') || '')
     if (['shorts','live','embed'].includes(parts[0]))
       return parts.length === 2 && video.test(parts[1])
-    if (parts[0] === 'playlist') return /^[A-Za-z0-9_-]{6,120}$/.test(url.searchParams.get('list') || '')
-    if (parts[0] === 'channel') return parts.length === 2 && /^UC[A-Za-z0-9_-]{20,64}$/.test(parts[1])
-    if (parts[0] === 'results') return !!(url.searchParams.get('search_query') || '').trim()
-    if (parts[0] === 'feed') return parts.length === 2 && ['subscriptions','history'].includes(parts[1])
-    return parts.length === 1 && /^@[A-Za-z0-9._-]{3,40}$/.test(parts[0])
+    // Other YouTube destinations stay in Zen: Home, History, subscriptions,
+    // playlists, channel pages, searches, settings and related navigation.
+    return false
   }
   window.addEventListener('click', event => {
     if (!event.isTrusted || event.defaultPrevented || event.button !== 0 ||
