@@ -4,12 +4,9 @@ import { NavigationType, Router, createPath, parsePath, UNSAFE_LocationContext, 
 import { Play, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { MouseHistoryNavigation } from './mouseNavigation'
+import { TAB_SESSION_KEY, decodeTabSession, encodeTabSession, type SavedTab } from './tabSession'
 
-interface Tab {
-  id: string
-  entries: string[]
-  index: number
-  title: string
+interface Tab extends SavedTab {
   scroll: number
   revision: number
 }
@@ -19,6 +16,7 @@ interface TabsValue {
   open: (path?: string, background?: boolean, title?: string) => void
   select: (id: string) => void
   close: (id: string) => void
+  closeAll: () => void
   rename: (id: string, title: string) => void
   reorder: (from: string, to: string) => void
   navigatorFor: (id: string) => Navigator
@@ -38,10 +36,38 @@ export const usePageTab = () => useContext(PageTabContext)
 
 export function AppTabsProvider({ children }: { children: ReactNode }) {
   useLocale()
-  const [tabs, setTabs] = useState<Tab[]>(() => [makeTab(window.location.hash.slice(1) || '/')])
-  const [activeId, setActiveId] = useState(() => tabs[0].id)
+  const [initial] = useState(() => {
+    let restored = null
+    try { restored = decodeTabSession(window.localStorage.getItem(TAB_SESSION_KEY)) } catch { /* storage unavailable */ }
+    if (restored) return {
+      tabs: restored.tabs.map((tab): Tab => ({ ...tab, scroll: 0, revision: 0 })),
+      activeId: restored.activeId
+    }
+    const home = makeTab(window.location.hash.slice(1) || '/')
+    return { tabs: [home], activeId: home.id }
+  })
+  const [tabs, setTabs] = useState<Tab[]>(initial.tabs)
+  const [activeId, setActiveId] = useState(initial.activeId)
   const tabsRef = useRef(tabs)
   tabsRef.current = tabs
+  const activeIdRef = useRef(activeId)
+  activeIdRef.current = activeId
+  const saveSession = () => {
+    try { window.localStorage.setItem(TAB_SESSION_KEY,
+      encodeTabSession(tabsRef.current, activeIdRef.current)) }
+    catch (error) { console.warn('[tabs] session storage unavailable', error) }
+  }
+  // Commit synchronously after every tab change. beforeunload catches app
+  // shutdown and pagehide; neither relies on waiting for a debounce timer.
+  useLayoutEffect(saveSession, [tabs, activeId])
+  useEffect(() => {
+    window.addEventListener('beforeunload', saveSession)
+    window.addEventListener('pagehide', saveSession)
+    return () => {
+      window.removeEventListener('beforeunload', saveSession)
+      window.removeEventListener('pagehide', saveSession)
+    }
+  }, [])
   const scrolls = useRef(new Map<string, number>())
   const active = tabs.find((tab) => tab.id === activeId) || tabs[0]
   const path = active.entries[active.index]
@@ -90,6 +116,12 @@ export function AppTabsProvider({ children }: { children: ReactNode }) {
         next.splice(destination, 0, tab)
         return next
       }),
+      closeAll: () => {
+        const home = makeTab()
+        setTabs([home])
+        setActiveId(home.id)
+        scrolls.current.clear()
+      },
       close: (id) => {
         const items = tabsRef.current
         const index = items.findIndex((tab) => tab.id === id)
@@ -239,13 +271,63 @@ function routeTitle(path: string) {
 
 export function TabBar({ playingIds = [] }: { playingIds?: string[] }) {
   useLocale()
-  const { tabs, activeId, open, select, close, reorder } = useAppTabs()
-  return <div className="wt-tabbar sticky top-[60px] z-30 flex h-10 min-w-0 items-center border-b border-neutral-800 bg-neutral-950 px-2">
+  const { tabs, activeId, open, select, close, closeAll, reorder } = useAppTabs()
+  const [menu, setMenu] = useState<{ x: number; y: number; tabId: string | null } | null>(null)
+  const [dragged, setDragged] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!menu) return
+    const dismiss = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenu(null)
+    }
+    const dismissKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenu(null)
+    }
+    const dismissBlur = () => setMenu(null)
+    document.addEventListener('pointerdown', dismiss, true)
+    document.addEventListener('keydown', dismissKey, true)
+    window.addEventListener('blur', dismissBlur)
+    return () => {
+      document.removeEventListener('pointerdown', dismiss, true)
+      document.removeEventListener('keydown', dismissKey, true)
+      window.removeEventListener('blur', dismissBlur)
+    }
+  }, [menu])
+  const move = (id: string, delta: number) => {
+    const index = tabs.findIndex((tab) => tab.id === id)
+    const target = tabs[index + delta]
+    if (index >= 0 && target) reorder(id, target.id)
+    setMenu(null)
+  }
+  const menuIndex = tabs.findIndex((tab) => tab.id === menu?.tabId)
+  return <div className="wt-tabbar sticky top-[60px] z-30 flex h-10 min-w-0 items-center border-b border-neutral-800 bg-neutral-950 px-2"
+    onContextMenu={(event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      const target = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-tab-id]') : null
+      setMenu({ x: Math.min(event.clientX, window.innerWidth - 224),
+        y: Math.min(event.clientY, window.innerHeight - 166), tabId: target?.dataset.tabId ?? null })
+    }}>
     <div role="tablist" aria-label={t("Tabs")} className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
       {tabs.map((tab) => {
         const path = tab.entries[tab.index]
         const label = path.startsWith('/watch/') && tab.title ? tab.title : routeTitle(path)
-        return <div key={tab.id} draggable onDragStart={(event) => event.dataTransfer.setData('application/worldtube-tab', tab.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); reorder(event.dataTransfer.getData('application/worldtube-tab'), tab.id) }} className={`flex h-8 w-48 min-w-28 max-w-48 shrink-0 items-center border-b-2 ${tab.id === activeId ? 'wt-tab-selected bg-white/5' : 'border-transparent text-neutral-400 hover:bg-neutral-900'}`}>
+        return <div key={tab.id} data-tab-id={tab.id} draggable
+          onDragStart={(event) => {
+            setMenu(null)
+            setDragged(tab.id)
+            event.dataTransfer.effectAllowed = 'move'
+            event.dataTransfer.setData('application/x-loktube-tab', tab.id)
+          }}
+          onDragEnd={() => setDragged(null)}
+          onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }}
+          onDrop={(event) => {
+            event.preventDefault()
+            const from = event.dataTransfer.getData('application/x-loktube-tab')
+            if (from && from !== tab.id) reorder(from, tab.id)
+            setDragged(null)
+          }}
+          className={`flex h-8 w-48 min-w-28 max-w-48 shrink-0 cursor-grab items-center border-b-2 active:cursor-grabbing ${dragged === tab.id ? 'opacity-40' : ''} ${tab.id === activeId ? 'wt-tab-selected bg-white/5' : 'border-transparent text-neutral-400 hover:bg-neutral-900'}`}>
           <button type="button" role="tab" aria-selected={tab.id === activeId} onClick={() => select(tab.id)} title={label} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-3 text-left text-xs">
             {playingIds.includes(tab.id) && <Play aria-label={t("Playing")} className="wt-accent-text h-3 w-3 shrink-0" fill="currentColor" strokeWidth={1.8} />}
             <span className="truncate">{label}</span>
@@ -255,6 +337,19 @@ export function TabBar({ playingIds = [] }: { playingIds?: string[] }) {
       })}
       <button type="button" onClick={() => open()} title={t("New tab")} aria-label={t("New tab")} className="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded text-xl text-neutral-400 hover:bg-neutral-800">+</button>
     </div>
+    {menu && createPortal(<div ref={menuRef} role="menu" aria-label="Tab options"
+      className="fixed z-[200] w-52 rounded border border-neutral-700 bg-neutral-900 p-1 shadow-xl"
+      style={{ left: Math.max(8, menu.x), top: Math.max(8, menu.y) }}>
+      {menu.tabId && <>
+        <button role="menuitem" disabled={menuIndex <= 0} onClick={() => move(menu.tabId!, -1)}
+          className="block w-full cursor-pointer rounded px-3 py-2 text-left text-sm hover:bg-neutral-800 disabled:cursor-default disabled:opacity-40">Move tab left</button>
+        <button role="menuitem" disabled={menuIndex >= tabs.length - 1} onClick={() => move(menu.tabId!, 1)}
+          className="block w-full cursor-pointer rounded px-3 py-2 text-left text-sm hover:bg-neutral-800 disabled:cursor-default disabled:opacity-40">Move tab right</button>
+        <div className="my-1 border-t border-neutral-700" />
+      </>}
+      <button role="menuitem" onClick={() => { closeAll(); setMenu(null) }}
+        className="block w-full cursor-pointer rounded px-3 py-2 text-left text-sm hover:bg-neutral-800">Close all tabs</button>
+    </div>, document.body)}
   </div>
 }
 
