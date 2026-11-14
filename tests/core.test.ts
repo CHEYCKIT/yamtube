@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { RequestPolicy, redirectHeaders, scopedCredentialHeaders } from '../src/main/requestPolicy'
 import { youtubeCookieHeader, parseNetscapeCookies, parseYoutubeCookies } from '../src/main/youtubeCookies'
+import { parseYoutubeWebContext, extractYoutubePageContext, isGuestYoutubeHome } from '../src/main/youtubeSessionContext'
 import { inspectAccountResponse } from '../src/main/youtubeIdentity'
 import { browserCandidates, browserFromExecutable, registryBrowserExecutables } from '../src/main/browserDiscovery'
 import { PlaybackHistory } from '../src/main/playbackHistory'
@@ -519,4 +520,42 @@ test('YouTube user rating state distinguishes likes, dislikes and neutral withou
   assert.equal(ratingFromInfo({basic_info:{is_liked:false,is_disliked:true}}),'dislike')
   assert.equal(ratingFromInfo({basic_info:{is_liked:false,is_disliked:false}}),'none')
   assert.equal(ratingFromInfo({}),'none')
+})
+
+
+test('YouTube sign-in preserves selected Google index, Brand Account and browser region', () => {
+  const context = parseYoutubeWebContext({
+    loggedIn: true, 'x-goog-authuser': '2', 'x-goog-pageid': 'UCabcdefghijklmnopqrstuv',
+    'x-goog-visitor-id': 'Cgtsb2t0dWJlLXRlc3Q=', hl: 'fr-FR', gl: 'FR',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123.0 Safari/537.36'
+  })
+  assert.deepEqual(context, {
+    loggedIn: true, accountIndex: 2, pageId: 'UCabcdefghijklmnopqrstuv',
+    visitorData: 'Cgtsb2t0dWJlLXRlc3Q=', language: 'fr-FR', region: 'FR',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123.0 Safari/537.36'
+  })
+  assert.deepEqual(parseYoutubeWebContext({ SESSION_INDEX: 0, LOGGED_IN: true, INNERTUBE_CONTEXT: {
+    client: { gl: 'GB', hl: 'en', visitorData: 'CgtnYnVua3g=' }
+  } }), { loggedIn: true, accountIndex: 0, visitorData: 'CgtnYnVua3g=', language: 'en', region: 'GB' })
+})
+
+test('legacy YouTube sign-ins recover account context from authenticated first-party HTML', () => {
+  const html = '<script>ytcfg.set({"LOGGED_IN":true,"SESSION_INDEX":"1","DELEGATED_SESSION_ID":"UCabcdefghijk",' +
+    '"INNERTUBE_CONTEXT":{"client":{"gl":"FR","hl":"fr","visitorData":"CgthY2NvdW50"}}});</script>'
+  assert.deepEqual(extractYoutubePageContext(html), {
+    loggedIn: true, accountIndex: 1, pageId: 'UCabcdefghijk', visitorData: 'CgthY2NvdW50',
+    language: 'fr', region: 'FR'
+  })
+  assert.equal(extractYoutubePageContext('<script>ytcfg.set({"LOGGED_IN":false,"SESSION_INDEX":"0"})</script>'), null)
+  assert.equal(extractYoutubePageContext('<script>ytcfg.set({"LOGGED_IN":true,"evil":{"x":"}"}});</script>')?.loggedIn, true)
+})
+
+test('signed-out YouTube home responses are rejected instead of posing as For you', () => {
+  assert.equal(isGuestYoutubeHome({ responseContext: { mainAppWebResponseContext: { loggedOut: true } } }), true)
+  assert.equal(isGuestYoutubeHome({ responseContext: { mainAppWebResponseContext: { loggedOut: false } } }), false)
+  assert.equal(isGuestYoutubeHome({ responseContext: {} }), false)
+  assert.equal(isGuestYoutubeHome(null), false)
+  const malicious = parseYoutubeWebContext({ loggedIn: true, 'x-goog-pageid': 'a\r\ncookie: secret', gl: 'US\n' })
+  assert.equal(malicious?.pageId, undefined)
+  assert.equal(malicious?.region, undefined)
 })
