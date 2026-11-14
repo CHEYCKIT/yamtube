@@ -5,6 +5,7 @@ import { Play, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { MouseHistoryNavigation } from './mouseNavigation'
 import { TAB_SESSION_KEY, decodeTabSession, encodeTabSession, type SavedTab } from './tabSession'
+import { beginPointerTabSort } from './pointerReorder'
 
 interface Tab extends SavedTab {
   scroll: number
@@ -273,8 +274,49 @@ export function TabBar({ playingIds = [] }: { playingIds?: string[] }) {
   useLocale()
   const { tabs, activeId, open, select, close, closeAll, reorder } = useAppTabs()
   const [menu, setMenu] = useState<{ x: number; y: number; tabId: string | null } | null>(null)
-  const [dragged, setDragged] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const stripRef = useRef<HTMLDivElement>(null)
+  const sortingRef = useRef<(() => void) | null>(null)
+  const flipRef = useRef<Map<string, DOMRect> | null>(null)
+  const ignoreClickRef = useRef(false)
+  useEffect(() => () => sortingRef.current?.(), [])
+  useLayoutEffect(() => {
+    const before = flipRef.current
+    if (!before || !stripRef.current) return
+    flipRef.current = null
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    for (const element of stripRef.current.querySelectorAll<HTMLElement>(':scope > [data-tab-id]')) {
+      const previous = before.get(element.dataset.tabId!)
+      if (!previous) continue
+      const next = element.getBoundingClientRect()
+      const dx = previous.left - next.left
+      if (Math.abs(dx) > 0.5) {
+        element.animate([{ transform: 'translate3d(' + dx + 'px,0,0)' },
+          { transform: 'translate3d(0,0,0)' }],
+          { duration: 150, easing: 'cubic-bezier(0.2,0.75,0.25,1)' })
+      }
+    }
+  }, [tabs])
+  const startSort = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary || event.button !== 0 || event.pointerType === 'touch' ||
+        (event.target instanceof Element && event.target.closest('[data-tab-close]'))) return
+    const strip = stripRef.current
+    if (!strip || tabs.length < 2) return
+    sortingRef.current?.()
+    sortingRef.current = beginPointerTabSort({
+      origin: event.currentTarget, strip, pointerId: event.pointerId,
+      startX: event.clientX, startY: event.clientY,
+      onDrop: (from, to, before) => { flipRef.current = before; reorder(from, to) },
+      onStart: () => setMenu(null),
+      onFinish: (moved) => {
+        sortingRef.current = null
+        if (moved) {
+          ignoreClickRef.current = true
+          window.setTimeout(() => { ignoreClickRef.current = false }, 0)
+        }
+      }
+    })
+  }
   useEffect(() => {
     if (!menu) return
     const dismiss = (event: PointerEvent) => {
@@ -301,6 +343,9 @@ export function TabBar({ playingIds = [] }: { playingIds?: string[] }) {
   }
   const menuIndex = tabs.findIndex((tab) => tab.id === menu?.tabId)
   return <div className="wt-tabbar sticky top-[60px] z-30 flex h-10 min-w-0 items-center border-b border-neutral-800 bg-neutral-950 px-2"
+    onClickCapture={(event) => {
+      if (ignoreClickRef.current) { event.preventDefault(); event.stopPropagation(); ignoreClickRef.current = false }
+    }}
     onContextMenu={(event) => {
       event.preventDefault()
       event.stopPropagation()
@@ -308,31 +353,18 @@ export function TabBar({ playingIds = [] }: { playingIds?: string[] }) {
       setMenu({ x: Math.min(event.clientX, window.innerWidth - 224),
         y: Math.min(event.clientY, window.innerHeight - 166), tabId: target?.dataset.tabId ?? null })
     }}>
-    <div role="tablist" aria-label={t("Tabs")} className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+    <div ref={stripRef} role="tablist" aria-label={t("Tabs")} className="flex min-w-0 flex-1 select-none gap-1 overflow-x-auto overscroll-x-contain">
       {tabs.map((tab) => {
         const path = tab.entries[tab.index]
         const label = path.startsWith('/watch/') && tab.title ? tab.title : routeTitle(path)
-        return <div key={tab.id} data-tab-id={tab.id} draggable
-          onDragStart={(event) => {
-            setMenu(null)
-            setDragged(tab.id)
-            event.dataTransfer.effectAllowed = 'move'
-            event.dataTransfer.setData('application/x-loktube-tab', tab.id)
-          }}
-          onDragEnd={() => setDragged(null)}
-          onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }}
-          onDrop={(event) => {
-            event.preventDefault()
-            const from = event.dataTransfer.getData('application/x-loktube-tab')
-            if (from && from !== tab.id) reorder(from, tab.id)
-            setDragged(null)
-          }}
-          className={`flex h-8 w-48 min-w-28 max-w-48 shrink-0 cursor-grab items-center border-b-2 active:cursor-grabbing ${dragged === tab.id ? 'opacity-40' : ''} ${tab.id === activeId ? 'wt-tab-selected bg-white/5' : 'border-transparent text-neutral-400 hover:bg-neutral-900'}`}>
+        return <div key={tab.id} data-tab-id={tab.id} onPointerDown={startSort}
+          onDragStart={(event) => event.preventDefault()}
+          className={`flex h-8 w-48 min-w-28 max-w-48 shrink-0 cursor-grab items-center border-b-2 active:cursor-grabbing ${tab.id === activeId ? 'wt-tab-selected bg-white/5' : 'border-transparent text-neutral-400 hover:bg-neutral-900'}`}>
           <button type="button" role="tab" aria-selected={tab.id === activeId} onClick={() => select(tab.id)} title={label} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-3 text-left text-xs">
             {playingIds.includes(tab.id) && <Play aria-label={t("Playing")} className="wt-accent-text h-3 w-3 shrink-0" fill="currentColor" strokeWidth={1.8} />}
             <span className="truncate">{label}</span>
           </button>
-          <button type="button" onClick={() => close(tab.id)} title={t("Close tab")} aria-label={t("Close {title}", { title: label })} className="grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded hover:bg-neutral-700"><X aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={1.8} /></button>
+          <button type="button" data-tab-close onClick={() => close(tab.id)} title={t("Close tab")} aria-label={t("Close {title}", { title: label })} className="grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded hover:bg-neutral-700"><X aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={1.8} /></button>
         </div>
       })}
       <button type="button" onClick={() => open()} title={t("New tab")} aria-label={t("New tab")} className="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded text-xl text-neutral-400 hover:bg-neutral-800">+</button>
