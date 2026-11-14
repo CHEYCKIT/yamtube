@@ -49,6 +49,8 @@ jobs:
       - name: Desktop integration tests
         if: runner.os == 'Linux' && env.SKIP_TESTS != 'true'
         run: timeout --signal=TERM --kill-after=5s 90s xvfb-run -a pnpm test:desktop
+        env:
+          SMOKE_VERBOSE: '1'
       - name: Package installers
         run: pnpm package --x64
       - name: Test packaged Linux application
