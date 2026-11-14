@@ -45,6 +45,17 @@ module.exports = async ({app,page}) => {
   assert.equal(await regularGrid.count(),4,'the rest of For you continues in the normal grid')
   const firstSizes=await firstRow.evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().width))
   assert.ok(firstSizes.every(width=>Math.abs(width-firstSizes[0])<2),JSON.stringify(firstSizes))
+  // At a common desktop width the opening row must stay at 3, while all
+  // following rows use 4 columns (not the old 3-until-xl breakpoint).
+  const originalViewport=await page.evaluate(()=>({width:innerWidth,height:innerHeight}))
+  await page.setViewportSize({width:1180,height:Math.max(720,originalViewport.height)})
+  const columnCount=async (selector)=>page.locator(selector).evaluate(element=>
+    getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length)
+  assert.equal(await columnCount('section[aria-label="Home"]:visible [data-home-first-row]'),3,
+    'the first desktop row must have three columns')
+  assert.equal(await columnCount('section[aria-label="Home"]:visible [data-home-video-grid]'),4,
+    'following desktop rows must use four columns below xl width')
+  await page.setViewportSize(originalViewport)
   const showMore=page.getByRole('button',{name:'Show more',exact:true})
   await showMore.click()
   await page.waitForFunction(()=>[...document.querySelectorAll('section[aria-label="Home"]')]
