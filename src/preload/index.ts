@@ -108,6 +108,10 @@ const api = {
   getChannel: (channelId: string): Promise<ChannelResponse> => ipcRenderer.invoke(IPC_CHANNELS.GET_CHANNEL, { channelId }),
   getChannelPage: (request: ChannelPageRequest): Promise<ChannelPageResponse> => ipcRenderer.invoke(IPC_CHANNELS.CHANNEL_PAGE, request),
   getHomeFeed: (): Promise<SearchResponse> => ipcRenderer.invoke(IPC_CHANNELS.GET_HOME_FEED),
+  getHomeTopic: (sessionId: string, topic: string): Promise<SearchResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_HOME_TOPIC, { sessionId, topic }),
+  getHomeMore: (sessionId: string): Promise<SearchResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_HOME_MORE, sessionId),
   getSessionState: (): Promise<LocalSessionState> => ipcRenderer.invoke(IPC_CHANNELS.SESSION_GET_STATE),
   createLocalUser: (request: CreateLocalUserRequest): Promise<LocalSessionState> =>
     ipcRenderer.invoke(IPC_CHANNELS.SESSION_CREATE_USER, request),

@@ -42,6 +42,8 @@ export const IPC_CHANNELS = {
   GET_CHANNEL: 'youtube:get-channel',
   CHANNEL_PAGE: 'youtube:channel-page',
   GET_HOME_FEED: 'youtube:get-home-feed',
+  GET_HOME_TOPIC: 'youtube:get-home-topic',
+  GET_HOME_MORE: 'youtube:get-home-more',
   PLAYER_AUDIO_GET: 'player:audio-get',
   PLAYER_AUDIO_SET: 'player:audio-set',
   SESSION_GET_STATE: 'session:get-state',
@@ -371,6 +373,9 @@ export interface HomeSection {
 
 export interface HomeDiscovery {
   shorts: SearchResultItem[]
+  topics?: string[]
+  sessionId?: string | null
+  hasMore?: boolean
 }
 
 export type SearchResponse = { ok: true; data: SearchResultItem[]; channels?: RecommendedChannel[]; collections?: SearchCollectionItem[]; home?: HomeDiscovery } | { ok: false; error: string }

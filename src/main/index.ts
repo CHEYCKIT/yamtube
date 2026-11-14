@@ -29,7 +29,7 @@ import type {
   VideoCommentsResponse
 } from '../shared/ipc'
 import { setYoutubeVideoRating } from './videoRatings'
-import { fetchVideoInfo, fetchVideoComments, getChannelInfo, getCollectionVideos, getHomeDiscovery, getSearchSuggestions, getSubscriptionsFeed, getVideoPreview, searchVideos, playbackHistory, getYoutubeSubscriptionsFeed } from './youtube'
+import { fetchVideoInfo, fetchVideoComments, getChannelInfo, getCollectionVideos, getHomeDiscovery, getHomeTopic, getHomeMore, getSearchSuggestions, getSubscriptionsFeed, getVideoPreview, searchVideos, playbackHistory, getYoutubeSubscriptionsFeed } from './youtube'
 import { initializeProtection, protectionState, updateProtection } from './adBlock'
 import { initializeYoutubeAccount, youtubeAccountState, connectYoutubeAccount, disconnectYoutubeAccount, hasYoutubeAccount, activateCurrentLibrary } from './youtubeAccount'
 import { signInWithBrowser, cancelBrowserLogin, removeAbandonedLoginProfiles, getSignInBrowsers, selectSignInBrowser, addSignInBrowser } from './browserLogin'
@@ -379,6 +379,28 @@ ipcMain.handle(IPC_CHANNELS.GET_HOME_FEED, async (): Promise<SearchResponse> => 
   try {
     const data = await getHomeDiscovery()
     return { ok: true, data: data.videos, home: data.home }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+
+ipcMain.handle(IPC_CHANNELS.GET_HOME_TOPIC, async (_event, request: { sessionId: string; topic: string }): Promise<SearchResponse> => {
+  try {
+    const result = await getHomeTopic(request.sessionId, request.topic)
+    return { ok: true, data: result.videos, home: {
+      shorts: [], topics: result.topics, sessionId: result.sessionId, hasMore: result.hasMore
+    } }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+ipcMain.handle(IPC_CHANNELS.GET_HOME_MORE, async (_event, sessionId: string): Promise<SearchResponse> => {
+  try {
+    const result = await getHomeMore(sessionId)
+    return { ok: true, data: result.videos, home: {
+      shorts: [], sessionId: result.sessionId, hasMore: result.hasMore
+    } }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }

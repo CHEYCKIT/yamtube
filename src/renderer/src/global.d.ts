@@ -77,6 +77,8 @@ declare global {
       getChannel: (channelId: string) => Promise<ChannelResponse>
       getChannelPage: (request: ChannelPageRequest) => Promise<ChannelPageResponse>
       getHomeFeed: () => Promise<SearchResponse>
+      getHomeTopic: (sessionId: string, topic: string) => Promise<SearchResponse>
+      getHomeMore: (sessionId: string) => Promise<SearchResponse>
       getSessionState: () => Promise<LocalSessionState>
       createLocalUser: (request: CreateLocalUserRequest) => Promise<LocalSessionState>
       loginLocalUser: (request: LoginLocalUserRequest) => Promise<LocalSessionState>

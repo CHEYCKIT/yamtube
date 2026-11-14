@@ -4,7 +4,7 @@ import { t, useLocale } from '../i18n/LocaleContext'
 import type { UpdateState } from '../../../shared/ipc'
 
 export function ApplicationSettings() {
-  const { language, checkForUpdatesOnStartup, autoplayNext, showVideoComments, savePreferences, error } = useLocale()
+  const { language, checkForUpdatesOnStartup, autoplayNext, showVideoComments, showHomeTopics, savePreferences, error } = useLocale()
   return <section className="grid gap-3">
     <h2 className="border-b border-neutral-800 pb-2 text-base font-semibold">{t('Application')}</h2>
     <label className="flex flex-wrap items-center justify-between gap-3 text-sm">
@@ -20,6 +20,12 @@ export function ApplicationSettings() {
     <label className="flex items-center justify-between gap-3 text-sm">
       <span>{t('Show video comments')}</span>
       <input type="checkbox" checked={showVideoComments} onChange={(event) => void savePreferences({ language, checkForUpdatesOnStartup, autoplayNext, showVideoComments: event.target.checked })} />
+    </label>
+    <label className="flex items-center justify-between gap-3 text-sm">
+      <span>{t('Show Home topic filters')}</span>
+      <input type="checkbox" checked={showHomeTopics}
+        onChange={(event) => void savePreferences({ language, checkForUpdatesOnStartup,
+          autoplayNext, showVideoComments, showHomeTopics: event.target.checked })} />
     </label>
     {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
     <UpdateControls />
