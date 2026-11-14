@@ -31,14 +31,14 @@ export function Liked() {
   }
 
   if (!youtubeAccount.signedIn) return <section>
-    <h1 className="mb-4 text-xl font-semibold">{t('Liked videos')}</h1>
+    <h1 className="mb-4 text-xl font-semibold">{t('Likes')}</h1>
     <p className="text-sm text-neutral-400">{t('Connect your YouTube account to see your liked videos.')}{' '}
       <Link to="/account" className="wt-link underline">{t('Account & privacy')}</Link>
     </p>
   </section>
 
   return <section>
-    <h1 className="mb-4 text-xl font-semibold">{t('Liked videos')}</h1>
+    <h1 className="mb-4 text-xl font-semibold">{t('Likes')}</h1>
     {(error || actionError) && <p role="alert" className="mb-4 text-sm text-red-400">{error || actionError}{' '}
       <button type="button" className="underline" onClick={() => { setActionError(null); reload() }}>{t('Retry')}</button>
     </p>}

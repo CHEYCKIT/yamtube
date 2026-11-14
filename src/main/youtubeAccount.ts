@@ -99,7 +99,7 @@ export async function initializeYoutubeAccount(): Promise<void> {
 
 // Validate against an authenticated endpoint before accepting any cookie jar.
 // Never expose cookies to the preload or renderer, data export, or logs.
-export async function connectYoutubeAccount(cookie: string): Promise<YoutubeAccountState> {
+export async function connectYoutubeAccount(cookie: string, canCommit: () => boolean = () => true): Promise<YoutubeAccountState> {
   const candidate = await createClient(cookie)
   let selected: YoutubeIdentity | null = null
   const probes = [
@@ -128,6 +128,7 @@ export async function connectYoutubeAccount(cookie: string): Promise<YoutubeAcco
     cookie, libraryKey: `youtube:${createHash('sha256').update(identity).digest('hex')}`,
     name: selected.name, avatarUrl: selected.avatarUrl
   }
+  if (!canCommit()) throw new Error('YouTube sign-in cancelled.')
   const persistent = canPersist()
   if (persistent) {
     await mkdir(app.getPath('userData'), { recursive: true })

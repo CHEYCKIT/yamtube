@@ -43,6 +43,9 @@ linux:
     - deb
 win:
   icon: resources/icon.ico
+  extraResources:
+    - from: build/webview2-signin
+      to: webview2-signin
   target:
     - nsis
 nsis:

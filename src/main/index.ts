@@ -33,6 +33,7 @@ import { initializeProtection, protectionState, updateProtection } from './adBlo
 import { initializeYoutubeAccount, youtubeAccountState, connectYoutubeAccount, disconnectYoutubeAccount, hasYoutubeAccount, activateCurrentLibrary } from './youtubeAccount'
 import { signInWithBrowser, cancelBrowserLogin, removeAbandonedLoginProfiles, getSignInBrowsers, selectSignInBrowser, addSignInBrowser } from './browserLogin'
 import { parseYoutubeCookies } from './youtubeCookies'
+import { signInYoutubeInApp, cancelInAppYoutubeSignIn } from './inAppYoutubeLogin'
 import { getChannelPage } from './channelBrowse'
 import type { ChannelPageRequest, ChannelPageResponse } from '../shared/ipc'
 import { clearHistory, getHistory } from './historyStore'
@@ -109,9 +110,10 @@ ipcMain.handle(IPC_CHANNELS.WINDOW_MAXIMIZE, (event) => {
   else window.maximize()
 })
 ipcMain.handle(IPC_CHANNELS.WINDOW_CLOSE, (event) => senderWindow(event).close())
-ipcMain.handle(IPC_CHANNELS.YOUTUBE_SIGN_IN, (_event, browserId?: string) => changeAccount(async () => {
-  return connectYoutubeAccount(await signInWithBrowser(browserId))
-}))
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_SIGN_IN, () => changeAccount(signInYoutubeInApp))
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_SIGN_IN_BROWSER, (_event, browserId?: string) => changeAccount(async () =>
+  connectYoutubeAccount(await signInWithBrowser(browserId))
+))
 ipcMain.handle(IPC_CHANNELS.YOUTUBE_BROWSERS_GET, (_event, refresh?: boolean) => getSignInBrowsers(refresh === true))
 ipcMain.handle(IPC_CHANNELS.YOUTUBE_BROWSER_SELECT, (_event, id: string) => selectSignInBrowser(id))
 ipcMain.handle(IPC_CHANNELS.YOUTUBE_BROWSER_ADD, async (event) => {
@@ -119,7 +121,7 @@ ipcMain.handle(IPC_CHANNELS.YOUTUBE_BROWSER_ADD, async (event) => {
   if (!owner) throw new Error('No app window')
   return addSignInBrowser(owner)
 })
-ipcMain.handle(IPC_CHANNELS.YOUTUBE_SIGN_IN_CANCEL, () => cancelBrowserLogin())
+ipcMain.handle(IPC_CHANNELS.YOUTUBE_SIGN_IN_CANCEL, () => { cancelInAppYoutubeSignIn(); cancelBrowserLogin() })
 ipcMain.handle(IPC_CHANNELS.YOUTUBE_SIGN_OUT, () => changeAccount(disconnectYoutubeAccount))
 ipcMain.handle(IPC_CHANNELS.YOUTUBE_IMPORT_COOKIES, (event) => changeAccount(async () => {
   const owner = BrowserWindow.fromWebContents(event.sender)
@@ -440,7 +442,7 @@ app.whenReady().then(async () => {
   }
 })
 
-app.on('before-quit', cancelBrowserLogin)
+app.on('before-quit', () => { cancelInAppYoutubeSignIn(); cancelBrowserLogin() })
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

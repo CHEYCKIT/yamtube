@@ -17,9 +17,9 @@ concurrency:
 
 jobs:
   prepare:
-    # A deliberately marked merge commit can publish 1.2.2 without manually
-    # creating a tag. Other main pushes never start a release.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.ref_type == 'tag' || (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release v1.2.2]')) }}
+    # Explicit release-marked main commits publish the version in package.json.
+    # Other main pushes do not trigger a release.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref_type == 'tag' || (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release v')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -81,6 +81,10 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        if: runner.os == 'Windows'
+        with:
+          dotnet-version: '8.0.x'
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -112,6 +116,10 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        if: runner.os == 'Windows'
+        with:
+          dotnet-version: '8.0.x'
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
