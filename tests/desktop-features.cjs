@@ -46,6 +46,21 @@ module.exports=async({app,page,profile})=>{
   assert.equal(await page.getByRole('menu',{name:'Video options'}).count(),0)
   console.log('PASS: video context menu opens a background tab and dismisses with Escape')
 
+  // Emulate a link delivered by Zen via Windows' loktube:// protocol. The
+  // app must acknowledge it only after React can add an internal watch tab.
+  const protocolLink='loktube://open?url='+encodeURIComponent('https://www.youtube.com/watch?v=jNQXAC9IVRw')
+  await app.evaluate(({app}, link) => {
+    app.emit('second-instance', {}, ['LokTube.exe', link], '')
+  },protocolLink)
+  await page.waitForFunction(n => document.querySelectorAll('[role="tab"]').length === n+2, count, {timeout:12_000})
+  await page.waitForFunction(() => location.hash === '#/watch/jNQXAC9IVRw', null, {timeout:12_000})
+  assert.equal(await page.getByRole('tab').count(), count+2)
+  await page.getByRole('button',{name:'Close Video',exact:true}).last().click()
+  await page.getByRole('tab',{name:'Home',exact:true}).click()
+  await page.getByRole('heading',{name:'Home',exact:true}).waitFor()
+  assert.equal(await page.getByRole('tab').count(),count+1)
+  console.log('PASS: browser protocol opens the requested video in a new tab and leaves existing tabs intact')
+
 
   // Send the actual Windows BrowserWindow event through main/preload IPC.
   await page.locator('a[href="#/music"]:visible').first().click()
