@@ -118,7 +118,8 @@ function helperExecutable(): string {
     'webview2-signin', 'LokTubeSignIn.exe')
 }
 
-async function openWebView2Login(changed: () => void, closed: () => void): Promise<LoginWindow> {
+async function openWebView2Login(changed: () => void, closed: () => void, signal: AbortSignal): Promise<LoginWindow> {
+  if (signal.aborted) throw new Error('YouTube sign-in cancelled.')
   const root = join(app.getPath('userData'), 'youtube-signin-profiles')
   await mkdir(root, { recursive: true, mode: 0o700 })
   const profile = await mkdtemp(join(root, 'signin-'))
@@ -135,6 +136,9 @@ async function openWebView2Login(changed: () => void, closed: () => void): Promi
   let rejectReady: ((error: Error) => void) | null = null
   const ready = new Promise<void>((resolve, reject) => { acceptReady = resolve; rejectReady = reject })
   const startupTimeout = setTimeout(() => rejectReady?.(new Error('The WebView2 sign-in window did not start.')), 30000)
+  const abort = () => { rejectReady?.(new Error('YouTube sign-in cancelled.')); child.kill() }
+  signal.addEventListener('abort', abort, { once: true })
+  if (signal.aborted) abort()
   const send = (message: object) => {
     if (!exited && child.stdin.writable) child.stdin.write(JSON.stringify(message) + '\n')
   }
@@ -181,6 +185,7 @@ async function openWebView2Login(changed: () => void, closed: () => void): Promi
     else closed()
   })
   child.on('exit', () => {
+    signal.removeEventListener('abort', abort)
     exited = true
     clearTimeout(startupTimeout)
     stopPending('The sign-in window was closed.')
@@ -188,6 +193,7 @@ async function openWebView2Login(changed: () => void, closed: () => void): Promi
     else closed()
   })
   try { await ready } catch (error) {
+    signal.removeEventListener('abort', abort)
     clearTimeout(startupTimeout)
     child.kill()
     await rm(profile, { recursive: true, force: true, maxRetries: 6, retryDelay: 400 }).catch(() => undefined)
@@ -221,6 +227,7 @@ async function openWebView2Login(changed: () => void, closed: () => void): Promi
 export async function signInYoutubeInApp(): Promise<YoutubeAccountState> {
   if (cancelActive) throw new Error('Another YouTube sign-in is already running.')
   let active = true
+  const controller = new AbortController()
   let window: LoginWindow | null = null
   let lastError = ''
   let checking = false
@@ -235,7 +242,7 @@ export async function signInYoutubeInApp(): Promise<YoutubeAccountState> {
   const finish = (state: YoutubeAccountState) => { if (active) { active = false; resolveResult(state) } }
   const closed = () => fail(new Error(lastError ||
     'YouTube sign-in was not completed. Use the external browser option if Google blocks this window.'))
-  cancelActive = () => fail(new Error('YouTube sign-in cancelled.'))
+  cancelActive = () => { controller.abort(); fail(new Error('YouTube sign-in cancelled.')) }
 
   const verify = async () => {
     if (!active || !window || checking) return
@@ -264,7 +271,7 @@ export async function signInYoutubeInApp(): Promise<YoutubeAccountState> {
   try {
     const changed = () => { void verify() }
     window = process.platform === 'win32' && existsSync(helperExecutable())
-      ? await openWebView2Login(changed, closed)
+      ? await openWebView2Login(changed, closed, controller.signal)
       : openElectronLogin(changed, closed)
     const polling = setInterval(() => { void verify() }, 2000)
     try {
