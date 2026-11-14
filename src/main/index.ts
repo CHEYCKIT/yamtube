@@ -92,7 +92,9 @@ function focusMainWindow(): void {
   window.focus()
 }
 function deliverExternalRoutes(): void {
-  if (!externalRouteReceiver || externalRouteReceiver.isDestroyed() || externalRouteReceiver.isLoading()) return
+  // Do not suppress notification during subframe loads; a ready renderer can
+  // receive it, and an actual navigation will collect the queue after mount.
+  if (!externalRouteReceiver || externalRouteReceiver.isDestroyed()) return
   if (pendingExternalRoutes.length) {
     // A notification is only a wake-up signal: routes stay in the main-process
     // queue until the renderer explicitly collects them after its tab UI mounts.
@@ -228,9 +230,9 @@ function createWindow(): void {
   // Capture webContents before close. Accessing mainWindow.webContents inside
   // BrowserWindow's 'closed' event throws "Object has been destroyed" on Windows.
   const mainContents = mainWindow.webContents
-  mainContents.on('did-start-loading', () => {
-    if (externalRouteReceiver === mainContents) externalRouteReceiver = null
-  })
+  // did-start-loading can also run for frames without unmounting the app's tab
+  // manager. Clearing the receiver there loses all later deep-link signals.
+  // Only forget the receiver when the entire BrowserWindow closes.
   mainWindow.on('closed', () => {
     if (externalRouteReceiver === mainContents) externalRouteReceiver = null
   })
