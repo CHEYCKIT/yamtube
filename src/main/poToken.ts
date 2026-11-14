@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session } from 'electron'
+import { app, WebContentsView, session } from 'electron'
 import { build } from 'esbuild'
 import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
@@ -73,7 +73,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 }
 
 interface BotGuardWindow {
-  win: BrowserWindow
+  view: WebContentsView
   visitorData: string
   createdAt: number
 }
@@ -85,20 +85,21 @@ interface BotGuardWindow {
 // the integrity token exists (see script.ts's initBotGuard/mintPoToken split).
 // So instead of redoing the whole challenge per video (the original
 // implementation — see git history — which made every single video load pay
-// for a fresh home-page fetch + BotGuard VM run), one hidden window is kept
+// for a fresh home-page fetch + BotGuard VM run), one detached renderer is kept
 // alive and reused across videos, refreshed only periodically.
 const BOTGUARD_WINDOW_TTL_MS = 30 * 60 * 1000
 
 async function createBotGuardWindow(): Promise<BotGuardWindow> {
   console.log('[poToken] bundling botguard script...')
   const script = await getBundledScript()
-  console.log(`[poToken] bundled (${script.length} chars), opening hidden window...`)
+  console.log(`[poToken] bundled (${script.length} chars), opening detached renderer...`)
 
-  const win = new BrowserWindow({
-    show: false,
+  // Never create a second native BrowserWindow. A detached WebContentsView
+  // provides a sandboxed DOM for BotGuard without an HWND, taskbar thumbnail,
+  // Alt-Tab entry, or user-visible popup.
+  const view = new WebContentsView({
     webPreferences: {
       session: getPoTokenSession(),
-      offscreen: true,
       backgroundThrottling: false,
       contextIsolation: true,
       nodeIntegration: false,
@@ -106,16 +107,17 @@ async function createBotGuardWindow(): Promise<BotGuardWindow> {
       preload: join(app.isPackaged ? process.resourcesPath : join(app.getAppPath(), 'resources'), 'botguard-preload.cjs')
     }
   })
-  win.webContents.setAudioMuted(true)
-  registerBotGuardNetwork(win)
-  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-  win.webContents.on('will-navigate', (event) => event.preventDefault())
+  const contents = view.webContents
+  contents.setAudioMuted(true)
+  registerBotGuardNetwork(contents)
+  contents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  contents.on('will-navigate', (event) => event.preventDefault())
 
   try {
     // This local blank document only runs the attestation interpreter. Network
     // requests use the narrowly scoped native bridge, not renderer fetch/CORS.
     await withTimeout(
-      win.webContents.loadURL(
+      contents.loadURL(
         'data:text/html,<!DOCTYPE html><html><head><title></title></head><body></body></html>',
         { baseURLForDataURL: 'https://www.youtube.com/' }
       ),
@@ -128,7 +130,7 @@ async function createBotGuardWindow(): Promise<BotGuardWindow> {
     // doesn't call them — the trailing statement here is what makes the
     // awaited promise's resolved value what executeJavaScript returns.
     const initResult = (await withTimeout(
-      win.webContents.executeJavaScript(`${script}\nglobalThis.__botguardInit__()`),
+      contents.executeJavaScript(`${script}\nglobalThis.__botguardInit__()`),
       30_000,
       'executeJavaScript(botguard init)'
     )) as { visitorData?: string } | undefined
@@ -138,10 +140,10 @@ async function createBotGuardWindow(): Promise<BotGuardWindow> {
     }
 
     console.log('[poToken] BotGuard challenge solved, window ready for cheap per-video minting')
-    return { win, visitorData: initResult.visitorData, createdAt: Date.now() }
+    return { view, visitorData: initResult.visitorData, createdAt: Date.now() }
   } catch (error) {
     console.error('[poToken] initialization failed:', error instanceof Error ? error.message : String(error))
-    win.destroy()
+    contents.close()
     throw error
   }
 }
@@ -159,13 +161,13 @@ function getBotGuardWindow(): Promise<BotGuardWindow> {
 }
 
 function resetBotGuardWindow(botguard: BotGuardWindow): void {
-  botguard.win.destroy()
+  if (!botguard.view.webContents.isDestroyed()) botguard.view.webContents.close()
   botguardWindowPromise = null
 }
 
 async function mintFromWindow(botguard: BotGuardWindow, videoId: string): Promise<string> {
   const poToken = (await withTimeout(
-    botguard.win.webContents.executeJavaScript(`globalThis.__botguardMint__(${JSON.stringify(videoId)})`),
+    botguard.view.webContents.executeJavaScript(`globalThis.__botguardMint__(${JSON.stringify(videoId)})`),
     10_000,
     'executeJavaScript(botguard mint)'
   )) as string | undefined

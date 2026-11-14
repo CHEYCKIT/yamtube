@@ -73,9 +73,10 @@ for (const stream of [process.stdout, process.stderr]) {
 }
 
 // Keep the data directory identical in development and packaged installations.
-// Keep the encryption/keyring identity and storage location compatible with beta 1.
-// The window, installer, executable and desktop entry use the LokTube product name.
-app.setName('worldtube')
+// Preserve the original userData path, Windows AppUserModelID, and installer
+// appId for account and upgrade compatibility; only the human-facing name
+// should be LokTube. Never migrate or reset existing Google cookies here.
+app.setName('LokTube')
 // Use the installer app ID for Windows media controls and shell integration.
 if (process.platform === 'win32') app.setAppUserModelId('com.riberojuanca.worldtube')
 app.setPath('userData', join(app.getPath('appData'), 'worldtube'))

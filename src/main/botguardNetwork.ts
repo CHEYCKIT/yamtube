@@ -1,4 +1,4 @@
-import { ipcMain, type BrowserWindow } from 'electron'
+import { ipcMain, type WebContents } from 'electron'
 
 export interface BotGuardRequest {
   url: string
@@ -14,7 +14,7 @@ export interface BotGuardResponse {
   body: string
 }
 
-const windows = new Map<number, { win: BrowserWindow; pending: Set<AbortController> }>()
+const renderers = new Map<number, { contents: WebContents; pending: Set<AbortController> }>()
 let registered = false
 const allowedHeaders = new Set(['accept', 'accept-language', 'content-type', 'x-goog-visitor-id',
   'x-youtube-client-version', 'x-youtube-client-name', 'x-goog-api-key', 'x-user-agent'])
@@ -29,20 +29,20 @@ function permittedTarget(target: URL, method: string): boolean {
   return target.hostname === 'www.google.com' && target.pathname.startsWith('/js/')
 }
 
-export function registerBotGuardNetwork(win: BrowserWindow): void {
-  const owner = { win, pending: new Set<AbortController>() }
-  windows.set(win.webContents.id, owner)
-  const id = win.webContents.id
-  win.webContents.once('destroyed', () => {
+export function registerBotGuardNetwork(contents: WebContents): void {
+  const owner = { contents, pending: new Set<AbortController>() }
+  renderers.set(contents.id, owner)
+  const id = contents.id
+  contents.once('destroyed', () => {
     for (const controller of owner.pending) controller.abort()
-    windows.delete(id)
+    renderers.delete(id)
   })
   if (registered) return
   registered = true
 
   ipcMain.handle('worldtube:botguard:request', async (event, request: BotGuardRequest): Promise<BotGuardResponse> => {
-    const caller = windows.get(event.sender.id)
-    if (!caller || event.senderFrame !== caller.win.webContents.mainFrame) throw new Error('Unauthorized BotGuard network caller')
+    const caller = renderers.get(event.sender.id)
+    if (!caller || event.senderFrame !== caller.contents.mainFrame) throw new Error('Unauthorized BotGuard network caller')
     if (!request || typeof request.url !== 'string' || !['GET', 'POST'].includes(request.method)) {
       throw new Error('Invalid BotGuard request')
     }
@@ -67,7 +67,7 @@ export function registerBotGuardNetwork(win: BrowserWindow): void {
     try {
       // Native session.fetch has no opaque data-page CORS origin to work around.
       // Reject redirects rather than forwarding credentials to an unchecked URL.
-      const response = await caller.win.webContents.session.fetch(target.href, {
+      const response = await caller.contents.session.fetch(target.href, {
         method: request.method, headers, body: request.method === 'POST' ? request.body : undefined,
         credentials: 'omit', redirect: 'error', signal: controller.signal
       })
