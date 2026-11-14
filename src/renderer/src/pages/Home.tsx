@@ -1,5 +1,5 @@
 import { t, useLocale } from '../i18n/LocaleContext'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { VideoCard } from '../components/VideoCard'
 import { PageLoader } from '../components/PageLoader'
@@ -29,6 +29,28 @@ export function Home() {
   const rootSessionRef = useRef<string | null>(null)
   // Prevent stale topic/continuation replies from overwriting a newer choice.
   const generationRef = useRef(0)
+
+  // Keep the user's three-card opening row on ordinary desktops. On very
+  // wide windows, the first row uses the same tile size as the rest of Home.
+  const recommendationsRef = useRef<HTMLElement>(null)
+  const [openingRowCount, setOpeningRowCount] = useState(3)
+  useLayoutEffect(() => {
+    const container = recommendationsRef.current
+    if (!container) return
+    const measure = () => {
+      const viewportWidth = window.innerWidth
+      const minimumCardWidth = Math.max(255, Math.min(340, viewportWidth * 0.15))
+      const columns = viewportWidth >= 1600
+        ? Math.max(1, Math.floor((container.clientWidth + 16) / (minimumCardWidth + 16)))
+        : 3
+      setOpeningRowCount(current => current === columns ? current : columns)
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(container)
+    window.addEventListener('resize', measure)
+    measure()
+    return () => { observer.disconnect(); window.removeEventListener('resize', measure) }
+  }, [feedStatus])
 
   useEffect(() => {
     let cancelled = false
@@ -161,18 +183,18 @@ export function Home() {
           className="wt-action cursor-pointer rounded px-4 py-2 text-sm font-medium">{t('Retry')}</button>
       </div>}
       {feedStatus === 'ready' && <div className="space-y-8">
-        <section aria-label={t('For you')}>
+        <section ref={recommendationsRef} aria-label={t('For you')}>
           <h2 className="mb-3 text-lg font-semibold">{t('For you')}</h2>
           {topicError && <p role="alert" className="mb-3 text-sm text-red-400">{topicError}</p>}
           {topicLoading && <p role="status" className="mb-3 text-sm text-neutral-400">{t('Loading recommendations...')}</p>}
           {feed.length === 0 && !topicLoading &&
             <p className="py-6 text-sm text-neutral-400">{t('No videos available')}</p>}
-          <div data-home-first-row className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {feed.slice(0, 3).map(videoTile)}
+          <div data-home-first-row className="wt-fluid-video-grid grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {feed.slice(0, openingRowCount).map(videoTile)}
           </div>
-          {feed.length > 3 && <div data-home-video-grid
-            className="mt-4 grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {feed.slice(3).map(videoTile)}
+          {feed.length > openingRowCount && <div data-home-video-grid
+            className="wt-fluid-video-grid mt-4 grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {feed.slice(openingRowCount).map(videoTile)}
           </div>}
           {hasMore && <div className="mt-6 flex justify-center">
             <button type="button" disabled={loadingMore || topicLoading}
