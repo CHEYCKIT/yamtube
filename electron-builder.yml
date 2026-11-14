@@ -27,6 +27,8 @@ extraResources:
     to: botguard-preload.cjs
   - from: resources/icon.png
     to: icon.png
+  - from: browser-extension
+    to: browser-extension
   - from: build/botguard.js
     to: botguard.js
   - from: resources/filters
