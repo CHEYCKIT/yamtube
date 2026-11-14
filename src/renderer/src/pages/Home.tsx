@@ -68,7 +68,7 @@ export function Home() {
   }, [attempt, activeProfileId, youtubeAccount.signedIn, youtubeAccount.name])
 
   async function chooseTopic(topic: string) {
-    if (topic === selectedTopic || topicLoading && !rootSessionRef.current) return
+    if (topic === selectedTopic || !rootSessionRef.current) return
     const root = rootSessionRef.current
     if (!root) return
     const generation = ++generationRef.current
@@ -164,7 +164,7 @@ export function Home() {
           {topicLoading && <p role="status" className="mb-3 text-sm text-neutral-400">{t('Loading recommendations...')}</p>}
           {feed.length === 0 && !topicLoading &&
             <p className="py-6 text-sm text-neutral-400">{t('No videos available')}</p>}
-          <div data-home-first-row className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div data-home-first-row className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {feed.slice(0, 3).map(videoTile)}
           </div>
           {feed.length > 3 && <div data-home-video-grid
