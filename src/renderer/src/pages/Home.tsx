@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { VideoCard } from '../components/VideoCard'
 import { PageLoader } from '../components/PageLoader'
 import { ShortsScroller } from '../components/ShortsScroller'
+import { TopicScroller } from '../components/TopicScroller'
 import { useProfiles } from '../profiles/ProfileContext'
 import type { HomeDiscovery, SearchResultItem } from '../../../shared/ipc'
 
@@ -135,8 +136,7 @@ export function Home() {
       <div className="mb-4 flex min-w-0 items-center gap-4">
         <h1 className="shrink-0 text-xl font-semibold">{t('Home')}</h1>
         {showHomeTopics && youtubeAccount.signedIn && topicItems.length > 0 && (
-          <div data-home-topics aria-label={t('Home topics')}
-            className="wt-home-topics flex min-w-0 flex-1 items-center gap-2 overflow-x-auto overscroll-x-contain whitespace-nowrap">
+          <TopicScroller>
             {[{ value: '', label: t('All') }, ...topicItems.map(topic => ({ value: topic, label: topic }))].map(item =>
               <button key={item.value} type="button" aria-pressed={selectedTopic === item.value}
                 disabled={!rootSessionRef.current}
@@ -146,7 +146,7 @@ export function Home() {
                     'bg-neutral-800 text-neutral-100 hover:bg-neutral-700'}`}>
                 {item.label}
               </button>)}
-          </div>
+          </TopicScroller>
         )}
       </div>
       {!youtubeAccount.signedIn && <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded border border-neutral-800 bg-neutral-900/50 p-4">
@@ -171,7 +171,7 @@ export function Home() {
             {feed.slice(0, 3).map(videoTile)}
           </div>
           {feed.length > 3 && <div data-home-video-grid
-            className="mt-4 grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            className="mt-4 grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {feed.slice(3).map(videoTile)}
           </div>}
           {hasMore && <div className="mt-6 flex justify-center">

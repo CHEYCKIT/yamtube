@@ -12,9 +12,11 @@ module.exports = async ({app,page}) => {
       'eeeeeeeeeee','fffffffffff','ggggggggggg'].map((id,i)=>video(id,`Video ${i+1}`))
     const shorts = 'hijklmnopqrs'.split('').map((letter,index) =>
       ({ ...video(letter.repeat(11), 'Recommended Short '+(index+1)), durationText:null }))
+    const homeTopics=['All','Science','Music','Technology','Documentaries','Comedy',
+      'Podcasts','Cooking','Travel','Arts','Photography','Nature','Sports','Live streams']
     ipcMain.removeHandler('youtube:get-home-feed')
     ipcMain.handle('youtube:get-home-feed', () => ({ok:true,data:feed,home:{
-      shorts, topics:['All','Science','Music'], sessionId:'fixture-home', hasMore:true
+      shorts, topics:homeTopics, sessionId:'fixture-home', hasMore:true
     }}))
     const more = [video('bbbbbbbbbbb','Already loaded'),
       ...['kkkkkkkkkkk','lllllllllll','mmmmmmmmmmm','nnnnnnnnnnn'].map((id,i)=>video(id,'More video '+(i+1)))]
@@ -26,7 +28,7 @@ module.exports = async ({app,page}) => {
     ipcMain.handle('youtube:get-home-topic', (_event,{sessionId,topic}) => sessionId !== 'fixture-home'
       ? {ok:false,error:'Bad topic session'}
       : {ok:true,data:topic ? [video('ooooooooooo','Science video')] : feed,
-        home:{shorts:[],topics:['All','Science','Music'],sessionId:'fixture-topic',hasMore:false}})
+        home:{shorts:[],topics:homeTopics,sessionId:'fixture-topic',hasMore:false}})
   })
   // TabRoutePages keeps previously visited Home pages mounted. A reload
   // discards the old feed and ensures Home picks up this deterministic fixture.
@@ -45,6 +47,17 @@ module.exports = async ({app,page}) => {
   assert.equal(await regularGrid.count(),4,'the rest of For you continues in the normal grid')
   const firstSizes=await firstRow.evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().width))
   assert.ok(firstSizes.every(width=>Math.abs(width-firstSizes[0])<2),JSON.stringify(firstSizes))
+  // At a common desktop width the opening row must stay at 3, while all
+  // following rows use 4 columns (not the old 3-until-xl breakpoint).
+  const originalViewport=await page.evaluate(()=>({width:innerWidth,height:innerHeight}))
+  await page.setViewportSize({width:1180,height:Math.max(720,originalViewport.height)})
+  const columnCount=async (selector)=>page.locator(selector).evaluate(element=>
+    getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length)
+  assert.equal(await columnCount('section[aria-label="Home"]:visible [data-home-first-row]'),3,
+    'the first desktop row must have three columns')
+  assert.equal(await columnCount('section[aria-label="Home"]:visible [data-home-video-grid]'),4,
+    'following desktop rows must use four columns below xl width')
+  await page.setViewportSize(originalViewport)
   const showMore=page.getByRole('button',{name:'Show more',exact:true})
   await showMore.click()
   await page.waitForFunction(()=>[...document.querySelectorAll('section[aria-label="Home"]')]
@@ -104,6 +117,29 @@ module.exports = async ({app,page}) => {
   })
   const chips=page.locator('section[aria-label="Home"]:visible [data-home-topics]')
   await chips.getByRole('button',{name:'Science'}).waitFor()
+  // Navigational arrows belong on the strip edges and only appear when chips overflow.
+  await page.setViewportSize({width:960,height:Math.max(720,originalViewport.height)})
+  const topicCarousel=page.locator('section[aria-label="Home"]:visible [data-home-topic-carousel]')
+  const nextTopic=topicCarousel.getByRole('button',{name:'Next topics',exact:true})
+  await nextTopic.waitFor()
+  assert.equal(await topicCarousel.getByRole('button',{name:'Previous topics',exact:true}).count(),0)
+  const [topicCarouselBox,nextTopicBox]=await Promise.all([topicCarousel.boundingBox(),nextTopic.boundingBox()])
+  assert.ok(Math.abs(topicCarouselBox.x+topicCarouselBox.width-nextTopicBox.x-nextTopicBox.width)<3,
+    'next topic arrow must overlay the right edge of the topic strip')
+  await nextTopic.click()
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-home-topics]')]
+    .some(element => element.getClientRects().length && element.scrollLeft>20))
+  const previousTopic=topicCarousel.getByRole('button',{name:'Previous topics',exact:true})
+  await previousTopic.waitFor()
+  const [topicLeft,previousTopicBox]=await Promise.all([topicCarousel.boundingBox(),previousTopic.boundingBox()])
+  assert.ok(Math.abs(topicLeft.x-previousTopicBox.x)<3,
+    'previous topic arrow must overlay the left edge of the topic strip')
+  await previousTopic.click()
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-home-topics]')]
+    .some(element => element.getClientRects().length && element.scrollLeft<2))
+  assert.equal(await previousTopic.count(),0)
+  await page.setViewportSize(originalViewport)
+  console.log('PASS: Home topic arrows navigate and hide when the scroll edge is reached')
   assert.equal(await chips.getByRole('button',{name:'Gaming'}).count(),0,
     'topic filter should not invent categories not supplied by the signed-in account')
   await chips.getByRole('button',{name:'Science'}).click()
