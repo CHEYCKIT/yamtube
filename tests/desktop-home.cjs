@@ -109,7 +109,7 @@ module.exports = async ({app,page}) => {
   assert.equal(await firstRow.count(),1)
   assert.equal(await chips.getByRole('button',{name:'Science'}).getAttribute('aria-pressed'),'true')
   await chips.getByRole('button',{name:'All'}).click()
-  await page.getByText('Video 1',{exact:true}).waitFor()
+  await page.locator('section[aria-label="Home"]:visible').getByText('Video 1',{exact:true}).first().waitFor()
   assert.equal(await firstRow.count(),3)
   await page.evaluate(async prefs => {
     await window.api.setAppPreferences(prefs)
