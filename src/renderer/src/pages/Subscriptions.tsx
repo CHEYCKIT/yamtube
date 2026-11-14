@@ -92,7 +92,7 @@ export function Subscriptions() {
         <p className="text-sm text-neutral-400">{t("No videos are available from your subscribed channels.")}</p>
       )}
       {feedStatus === 'ready' && feed.length > 0 && (
-        <div className="wt-fluid-video-grid grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div data-subscriptions-video-grid className="wt-fluid-video-grid grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {feed.map((video) => (
             <VideoCard
               key={video.videoId}
