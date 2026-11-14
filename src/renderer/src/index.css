@@ -721,3 +721,12 @@ input[type='checkbox'] {
 /* Home account-topic chips share the header row; keep horizontal scrolling clean. */
 .wt-home-topics { scrollbar-width: none; }
 .wt-home-topics::-webkit-scrollbar { display: none; }
+
+/* Keep existing 1/2/3/4-column layouts on ordinary windows, but use the
+ * actual page width for additional, reasonably sized tiles on ultrawide
+ * monitors. auto-fill prevents a short result set from growing huge cards. */
+@media (min-width: 1600px) {
+  .wt-fluid-video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, clamp(255px, 15vw, 340px)), minmax(0, 1fr)));
+  }
+}
