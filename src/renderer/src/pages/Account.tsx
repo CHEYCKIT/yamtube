@@ -51,6 +51,8 @@ export function Account() {
           className="wt-action-important rounded px-4 py-2 text-sm font-medium disabled:opacity-50">
           {busy === 'signin' ? 'Waiting for Google sign-in…' : account.signedIn ? 'Reconnect with Google' : 'Sign in with Google'}
         </button>
+        <button disabled={!!busy} onClick={() => void run('cookies', window.api.importYoutubeCookies, true)}
+          className={button}>Import YouTube cookies</button>
         {account.signedIn && <button disabled={!!busy} onClick={() => void run('signout', window.api.signOutYoutube, true)}
           className={button}>Sign out</button>}
         {(busy === 'signin' || busy === 'browserSignin') &&
@@ -84,8 +86,6 @@ export function Account() {
             <button disabled={!!busy || !browsers?.selectedId} onClick={() =>
               void run('browserSignin', () => window.api.signInYoutubeWithBrowser(browsers?.selectedId ?? undefined), true)}
               className={button}>{busy === 'browserSignin' ? 'Waiting for browser…' : 'Sign in with external browser'}</button>
-            <button disabled={!!busy} onClick={() => void run('cookies', window.api.importYoutubeCookies, true)}
-              className={button}>Import YouTube cookies</button>
           </div>
           <p>External browser sign-in uses a fresh temporary profile, not your existing browser's stored credentials. Cookie files contain session credentials and should be deleted after importing.</p>
         </div>
