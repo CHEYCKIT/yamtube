@@ -11,6 +11,7 @@ import { ratingFromInfo } from './videoRatingState'
 import { getPlayableResponse, playbackStatus } from './playbackAvailability'
 import { protectedFetch } from './adBlock'
 import { isGuestYoutubeHome } from './youtubeSessionContext'
+import { excludeHomeNewsBroadcasters, removeHomeNewsShelves } from './homeNewsFilter'
 import { PlaybackHistory } from './playbackHistory'
 import { translateFor } from '../shared/locale'
 import type { CaptionTrack, ChannelInfoResult, HomeDiscovery, HomeSection, RecommendedChannel, SearchCollectionItem, SearchFilters, SearchResultItem, VideoCommentsPage, VideoInfoResult, VideoPreview } from '../shared/ipc'
@@ -489,7 +490,9 @@ export async function getHomeFeed(sections: HomeSection[] = []): Promise<SearchR
       if (hasYoutubeAccount() && isGuestYoutubeHome(response.data)) {
         throw new Error('YouTube returned a signed-out home feed. Reconnect your YouTube account to restore personalized recommendations.')
       }
-      return new YT.HomeFeed(yt.actions, response)
+      const sanitized = removeHomeNewsShelves(response.data)
+      if (sanitized.removed) console.info('[youtube] home: excluded', sanitized.removed, 'editorial news shelves')
+      return new YT.HomeFeed(yt.actions, { ...response, data: sanitized.value })
     } catch (error) {
       if (hasYoutubeAccount()) {
         console.warn('[youtube] home request failed:', error instanceof Error ? error.message : 'Unknown request error')
@@ -500,8 +503,9 @@ export async function getHomeFeed(sections: HomeSection[] = []): Promise<SearchR
       return null
     }
   })()
-  const videos = feed ? mapSearchResultNodes(feed.videos) : []
-  console.log(`[youtube] home: ${feed?.videos.length ?? 0} video nodes, ${videos.length} mapped videos`)
+  const allVideos = feed ? mapSearchResultNodes(feed.videos) : []
+  const videos = excludeHomeNewsBroadcasters(allVideos)
+  console.log(`[youtube] home: ${feed?.videos.length ?? 0} video nodes, ${videos.length} recommendations after excluding ${allVideos.length - videos.length} standalone news broadcaster videos`)
   if (videos.length || hasYoutubeAccount()) return videos
 
   // Anonymous home responses can have no recommendations. Use this profile's

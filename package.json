@@ -2,7 +2,7 @@
   "name": "worldtube",
   "private": true,
   "license": "AGPL-3.0-only",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "A YouTube desktop client with browser sign-in, account history and app-wide ad protection.",
   "author": "riberojuanca",
   "homepage": "https://github.com/lokal-music/loktube",

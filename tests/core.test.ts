@@ -10,6 +10,7 @@ import { PlaybackHistory } from '../src/main/playbackHistory'
 import { mapRecommendedShorts, interleaveShorts, selectDiverseShorts, shortsTopicQuery } from '../src/main/shortsRecommendations'
 import { mapMusicPlaylistTracks } from '../src/main/musicPlaylistItems'
 import { ratingFromInfo } from '../src/main/videoRatingState'
+import { removeHomeNewsShelves, isNewsShelfHeading, isNewsBroadcaster, excludeHomeNewsBroadcasters } from '../src/main/homeNewsFilter'
 import { assertPlayableVideo, getPlayableResponse } from '../src/main/playbackAvailability'
 
 const policy = new RequestPolicy(['easylist', 'easyprivacy'].map((name) => readFileSync(`resources/filters/${name}.txt`, 'utf8')).join('\n'))
@@ -558,4 +559,70 @@ test('signed-out YouTube home responses are rejected instead of posing as For yo
   const malicious = parseYoutubeWebContext({ loggedIn: true, 'x-goog-pageid': 'a\r\ncookie: secret', gl: 'US\n' })
   assert.equal(malicious?.pageId, undefined)
   assert.equal(malicious?.region, undefined)
+})
+
+
+test('YouTube editorial news shelves are removed before the HomeFeed videos memo is flattened', () => {
+  const video = (id: string) => ({ richItemRenderer: { content: { videoRenderer: { videoId: id } } } })
+  const shelf = (title: string, id: string) => ({
+    richSectionRenderer: { content: {
+      richShelfRenderer: { title: { runs: [{ text: title }] }, contents: [video(id)] }
+    } }
+  })
+  const home = { contents: { twoColumnBrowseResultsRenderer: { tabs: [
+    { tabRenderer: { content: { richGridRenderer: { contents: [
+      video('organic-one'), shelf('Breaking news', 'fox-news'),
+      shelf('Latest news', 'abc-news'), shelf('Top news', 'eight-news'),
+      shelf('Live music', 'music-rec'), video('organic-two'),
+      shelf('News from around the world', 'global-news'),
+      shelf('Recommended live music', 'other-recommendation')
+    ] } } } }
+  ] } } }
+  const original = JSON.stringify(home)
+  const { value: filtered, removed } = removeHomeNewsShelves(home)
+  const items = filtered.contents.twoColumnBrowseResultsRenderer.tabs[0]
+    .tabRenderer.content.richGridRenderer.contents
+  assert.equal(removed, 4)
+  assert.deepEqual(items.map((item) => JSON.stringify(item).match(/(?:organic-one|music-rec|organic-two|other-recommendation)/)?.[0]),
+    ['organic-one', 'music-rec', 'organic-two', 'other-recommendation'])
+  assert.equal(JSON.stringify(home), original, 'filtering a Home response must not modify the original payload')
+})
+
+test('YouTube news shelves are removed from continuation and localized home sections only', () => {
+  const news = (title: string) => ({ itemSectionRenderer: { contents: [
+    { shelfRenderer: { title: { simpleText: title }, content: { horizontalListRenderer: { items: [
+      { videoRenderer: { videoId: 'fox-abc' } }
+    ] } } } }
+  ] } })
+  const original = { onResponseReceivedActions: [
+    { appendContinuationItemsAction: { continuationItems: [
+      news('Actualités'), news('Últimas noticias'), news('Nachrichten'), news('Ultime notizie'),
+      { richItemRenderer: { content: { videoRenderer: { videoId: 'wanted-video' } } } }
+    ] } }
+  ] }
+  const { value, removed } = removeHomeNewsShelves(original)
+  const remaining = value.onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems
+  assert.equal(removed, 4)
+  assert.equal(remaining.length, 1)
+  assert.equal(isNewsShelfHeading('Breaking News'), true)
+  assert.equal(isNewsShelfHeading('Top Stories'), true)
+  assert.equal(isNewsShelfHeading('Tech news analysis'), false)
+  assert.equal(isNewsShelfHeading('News from around the world'), true)
+  assert.equal(isNewsShelfHeading('Live music'), false)
+})
+
+test('Home hides explicitly identified news broadcasters but keeps unrelated FOX/ABC recommendations', () => {
+  for (const name of ['FOX News', 'FOX 5 New York', 'ABC News', 'ABC7', '8 News Now', 'CNN',
+    'NBC News', 'Reuters', 'CBS News', 'Sky News', 'News 8 WTNH']) {
+    assert.equal(isNewsBroadcaster(name), true, name)
+  }
+  for (const name of ['FOX Sports', 'Fox Racing', 'ABC Kids', 'ABC Music', 'Newschool', 'BBC Earth',
+    'Science Channel', '8-bit Music', 'The Daily Show', '']) {
+    assert.equal(isNewsBroadcaster(name), false, name)
+  }
+  const items = [{ channelName: 'Fox Racing', videoId: 'A' },
+    { channelName: 'FOX 5 New York', videoId: 'B' },
+    { channelName: '8 News Now', videoId: 'C' },
+    { channelName: 'ABC Music', videoId: 'D' }]
+  assert.deepEqual(excludeHomeNewsBroadcasters(items).map((item) => item.videoId), ['A', 'D'])
 })
