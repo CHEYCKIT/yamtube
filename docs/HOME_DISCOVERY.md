@@ -1,5 +1,10 @@
 # Home Discovery and Search
 
+## Ultrawide layouts (LokTube 1.6.0)
+
+Ordinary desktop windows retain the three-card **For you** opening row and four-column continuation grid. At 1600px and wider, video grids across Home, Subscriptions, Search, History, Likes, saved videos, channels and playlist browsing derive additional columns from available content width instead of stretching a fixed set of thumbnails. The opening Home row also uses that density to prevent oversized featured cards; video order and pagination are unchanged.
+
+
 ## Home (LokTube 1.5.6)
 
 - Render one **For you** recommendation feed. The first row has three equally
